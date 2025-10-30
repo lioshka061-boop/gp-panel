@@ -8,43 +8,37 @@
     :root {
       color-scheme: light;
       font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-      --bg: radial-gradient(circle at top, rgba(70, 100, 255, 0.1), transparent 55%), #f5f7fb;
+      --bg: #f7f9fc;
       --surface: #ffffff;
-      --text: #101828;
+      --text: #0f172a;
       --muted: #667085;
-      --line: #dfe4ef;
+      --line: #d8dee9;
       --blue: #4664ff;
-      --cursor: #55a0ff;
-      --green: #1aa251;
+      --green: #2ecc71;
       --danger: #ef4444;
-      --shadow: 0 28px 80px -40px rgba(15, 23, 42, 0.55);
-    }
-
-    *, *::before, *::after {
-      box-sizing: border-box;
+      --shadow: 0 20px 45px -24px rgba(15, 23, 42, 0.4);
     }
 
     body {
       margin: 0;
-      min-height: 100vh;
       background: var(--bg);
       color: var(--text);
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 32px 16px 48px;
     }
+
+    * { box-sizing: border-box; }
 
     .page {
       width: min(1100px, 100%);
+      margin: 24px auto;
       background: var(--surface);
-      border-radius: 22px;
+      border-radius: 18px;
       box-shadow: var(--shadow);
       display: flex;
       flex-direction: column;
-      min-height: 92vh;
-      overflow: hidden;
-      border: 1px solid rgba(70, 100, 255, 0.06);
+      min-height: 85vh;
     }
 
     header {
@@ -134,8 +128,6 @@
 
     .progress {
       margin-top: 16px;
-      display: grid;
-      gap: 8px;
     }
 
     .progress-bar {
@@ -156,34 +148,22 @@
 
     main {
       flex: 1;
-      padding: 36px 36px 44px;
-      display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 16px;
-      background: linear-gradient(180deg, rgba(70, 100, 255, 0.04), transparent 120px);
+      padding: 32px 28px 40px;
     }
 
     main h2 {
-      margin: 0;
-      font-size: 30px;
-      letter-spacing: -0.01em;
+      margin: 0 0 12px;
+      font-size: 28px;
     }
 
     main p.lead {
-      margin: 0;
+      margin: 0 0 24px;
       color: var(--muted);
-      font-size: 16px;
-      max-width: 720px;
-      line-height: 1.6;
-    }
-
-    .content-area {
-      min-height: 0;
     }
 
     .grid {
       display: grid;
-      gap: 18px;
+      gap: 16px;
     }
 
     .grid.two {
@@ -196,38 +176,26 @@
 
     .card {
       border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 22px;
+      border-radius: 14px;
+      padding: 18px;
       display: grid;
-      gap: 14px;
+      gap: 12px;
       background: #fff;
-      position: relative;
     }
 
-    .card::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      border: 2px solid transparent;
-      pointer-events: none;
-      transition: border-color 0.2s ease;
-    }
-
-    .card.selected::after {
-      border-color: rgba(70, 100, 255, 0.65);
+    .card.selected {
+      border-color: var(--blue);
+      box-shadow: 0 12px 32px -22px rgba(70, 100, 255, 0.6);
     }
 
     .card h3 {
       margin: 0;
-      font-size: 19px;
+      font-size: 18px;
     }
 
     .card p {
       margin: 0;
       color: var(--muted);
-      font-size: 15px;
-      line-height: 1.5;
     }
 
     .chips {
@@ -237,17 +205,11 @@
     }
 
     .chip {
-      padding: 8px 16px;
+      padding: 8px 14px;
       border-radius: 999px;
       border: 1px solid var(--line);
       cursor: pointer;
       font-size: 14px;
-      background: rgba(15, 23, 42, 0.02);
-      transition: all 0.2s ease;
-    }
-
-    .chip:hover {
-      border-color: rgba(70, 100, 255, 0.5);
     }
 
     .chip.active {
@@ -284,11 +246,10 @@
     }
 
     textarea.prompt {
-      min-height: 190px;
+      min-height: 180px;
       font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
       background: rgba(70, 100, 255, 0.08);
-      border: 1px dashed rgba(70, 100, 255, 0.35);
-      line-height: 1.6;
+      border: 1px dashed rgba(70, 100, 255, 0.45);
     }
 
     .actions {
@@ -300,7 +261,7 @@
 
     footer {
       border-top: 1px solid var(--line);
-      padding: 18px 28px;
+      padding: 16px 28px;
       display: flex;
       justify-content: space-between;
       flex-wrap: wrap;
@@ -322,12 +283,12 @@
 
     .modal {
       background: #fff;
-      border-radius: 18px;
-      max-width: 640px;
-      width: min(640px, 100%);
-      padding: 28px;
+      border-radius: 16px;
+      max-width: 600px;
+      width: min(600px, 100%);
+      padding: 24px;
       display: grid;
-      gap: 18px;
+      gap: 16px;
       position: relative;
       box-shadow: var(--shadow);
     }
@@ -353,14 +314,14 @@
       bottom: 24px;
       right: 24px;
       background: #fff;
-      padding: 16px 20px;
-      border-radius: 16px;
+      padding: 14px 18px;
+      border-radius: 14px;
       border: 1px solid var(--line);
       box-shadow: var(--shadow);
       font-size: 14px;
       z-index: 50;
       opacity: 0;
-      transform: translateY(12px);
+      transform: translateY(10px);
       transition: opacity 0.3s ease, transform 0.3s ease;
     }
 
@@ -372,22 +333,21 @@
     .hint {
       font-size: 13px;
       color: var(--muted);
-      line-height: 1.55;
+      line-height: 1.5;
     }
 
     .checklist {
       display: grid;
-      gap: 12px;
+      gap: 10px;
     }
 
     .check-item {
       display: flex;
       gap: 12px;
       align-items: flex-start;
-      padding: 14px 16px;
-      border-radius: 14px;
+      padding: 12px 14px;
+      border-radius: 12px;
       border: 1px solid var(--line);
-      background: rgba(15, 23, 42, 0.02);
     }
 
     .check-item strong { font-size: 15px; }
@@ -395,12 +355,11 @@
     .badge {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
+      gap: 6px;
+      padding: 6px 10px;
       border-radius: 999px;
-      background: rgba(46, 204, 113, 0.16);
-      color: #15803d;
+      background: rgba(46, 204, 113, 0.12);
+      color: #16a34a;
       font-size: 13px;
       font-weight: 600;
     }
@@ -423,8 +382,6 @@
 
     .chat-labels span.cursor {
       background: rgba(85, 160, 255, 0.16);
-      color: var(--cursor);
-      border: 1px solid rgba(85, 160, 255, 0.32);
     }
 
     .subtle {
@@ -433,23 +390,8 @@
     }
 
     @media (max-width: 720px) {
-      body {
-        padding: 0;
-      }
-
-      .page {
-        border-radius: 0;
-        min-height: 100vh;
-      }
-
-      header, main, footer {
-        padding-left: 18px;
-        padding-right: 18px;
-      }
-
-      main {
-        padding-top: 28px;
-      }
+      header, main, footer { padding-left: 18px; padding-right: 18px; }
+      .page { margin: 0; border-radius: 0; min-height: 100vh; }
     }
   </style>
 </head>
@@ -484,7 +426,7 @@
     <main>
       <h2 id="main-title">Старт</h2>
       <p class="lead" id="main-lead">Зроби свого Telegram-бота без коду. Просто копіюй і вставляй готові підказки.</p>
-      <div id="main-content" class="content-area"></div>
+      <div id="main-content"></div>
     </main>
     <footer>
       <div>🧭 Chat 1: Навігатор · 💻 Chat 2: Cursor</div>
@@ -806,20 +748,12 @@
       });
       container.querySelector('#start-how').addEventListener('click', () => {
         openModal('Як це працює', `
-          <div class="grid">
-            <div class="card">
-              <h3>1. Заповни коротку анкету</h3>
-              <p>Ми перетворимо відповіді на технічне завдання без складних термінів.</p>
-            </div>
-            <div class="card">
-              <h3>2. Скопіюй промпти в чати</h3>
-              <p>Навігатор допомагає з DEV BRIEF, Cursor пише код за англомовними інструкціями.</p>
-            </div>
-            <div class="card">
-              <h3>3. Запусти та протестуй</h3>
-              <p>Виконуй чекліст, налаштуй BotFather і перевір команди прямо в Telegram.</p>
-            </div>
-          </div>
+          <ol>
+            <li>Заповнюєш коротку анкету.</li>
+            <li>Панель генерує промпти українською та англійською.</li>
+            <li>Копіюєш підказки в ChatGPT та Cursor.</li>
+            <li>Отримуєш готового Telegram-бота без написання коду.</li>
+          </ol>
         `);
       });
     }
@@ -862,7 +796,6 @@
             </div>
             <div class="actions">
               <button type="submit" class="primary">Підтвердити анкету</button>
-              ${state.mode === 'assisted' ? '<button type="button" class="btn" id="survey-copy">Скопіювати для Chat 1</button>' : ''}
               <button type="button" class="ghost" id="survey-clear">Очистити поля</button>
               <button type="button" id="survey-back">Назад</button>
             </div>
@@ -885,13 +818,6 @@
         showToast('Анкета збережена. Рухаємось далі!');
         nextStep();
       });
-      const copyBtn = container.querySelector('#survey-copy');
-      if (copyBtn) {
-        copyBtn.addEventListener('click', () => {
-          const prompt = ensureNavigatorPrompt();
-          copyToClipboard(prompt, 'Промпт для Навігатора');
-        });
-      }
       container.querySelector('#survey-clear').addEventListener('click', () => {
         state.form = clone(defaultState.form);
         saveState();
@@ -1227,14 +1153,12 @@
               <div class="check-item"><span class="badge">1</span><div><strong>Python ${isCodespaces ? 'вже встановлено' : '3.10+'}</strong><div class="hint">${isCodespaces ? 'Codespaces містить Python за замовчуванням.' : 'Завантаж з python.org та встанови перед стартом.'}</div></div></div>
               <div class="check-item"><span class="badge">2</span><div><strong>Cursor IDE</strong><div class="hint">Відкрий Cursor, авторизуйся через GitHub і створи новий проєкт.</div></div></div>
               ${isCodespaces ? '' : '<div class="check-item"><span class="badge">3</span><div><strong>Git встановлено</strong><div class="hint">Перевір командою <code>git --version</code>. Це допоможе клонувати репозиторій.</div></div></div>'}
-              <div class="check-item"><span class="badge">${isCodespaces ? '3' : '4'}</span><div><strong>VS Code (опційно)</strong><div class="hint">Можеш використовувати VS Code для редагування файлів поруч із Cursor.</div></div></div>
             </div>
             <div class="actions">
               ${isCodespaces ? '<button class="primary" id="open-codespaces">Відкрити Codespaces</button>' : '<button class="primary" id="download-python">Завантажити Python</button>'}
               <button class="ghost" id="open-cursor">Відкрити Cursor</button>
-              <button class="ghost" id="open-vscode">Відкрити VS Code</button>
               <button id="tools-back">Назад</button>
-              <button class="primary" id="tools-next">Перевірив, усе встановлено ✅</button>
+              <button class="primary" id="tools-next">Перевірив — далі</button>
             </div>
           </div>
         </div>
@@ -1246,8 +1170,6 @@
       });
       const openCursor = container.querySelector('#open-cursor');
       if (openCursor) openCursor.addEventListener('click', () => window.open('https://cursor.sh/', '_blank'));
-      const openVSCode = container.querySelector('#open-vscode');
-      if (openVSCode) openVSCode.addEventListener('click', () => window.open('https://code.visualstudio.com/', '_blank'));
       const downloadPython = container.querySelector('#download-python');
       if (downloadPython) downloadPython.addEventListener('click', () => window.open('https://www.python.org/downloads/', '_blank'));
       const openCodespaces = container.querySelector('#open-codespaces');
@@ -1258,7 +1180,6 @@
       const prompt = ensureCursorPrompt();
       container.innerHTML = `
         <div class="card">
-          <div class="chat-labels"><span class="cursor">💻 Chat 2 — Cursor</span></div>
           <h3>Скопіюй цей промпт у Cursor (Chat 2)</h3>
           <textarea class="prompt" readonly id="cursor-copy-text">${prompt}</textarea>
           <div class="hint">Відкрий Cursor, створи чат у відповідному репозиторії та встав цей текст.</div>
