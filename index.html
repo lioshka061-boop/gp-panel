@@ -6,18 +6,7 @@
   <title>Zero-to-Bot Panel</title>
   <style>
     :root {
-      color-scheme: light;
       font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-      --bg: radial-gradient(circle at top, rgba(70, 100, 255, 0.1), transparent 55%), #f5f7fb;
-      --surface: #ffffff;
-      --text: #101828;
-      --muted: #667085;
-      --line: #dfe4ef;
-      --blue: #4664ff;
-      --cursor: #55a0ff;
-      --green: #1aa251;
-      --danger: #ef4444;
-      --shadow: 0 28px 80px -40px rgba(15, 23, 42, 0.55);
     }
 
     *, *::before, *::after {
@@ -27,29 +16,48 @@
     body {
       margin: 0;
       min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
+      background: radial-gradient(circle at top, rgba(70, 100, 255, 0.12), transparent 55%), #f4f6fb;
+      color: #101828;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      justify-content: center;
       padding: 32px 16px 48px;
+      transition: background 0.3s ease, color 0.3s ease;
     }
 
-    .page {
-      width: min(1100px, 100%);
-      background: var(--surface);
-      border-radius: 22px;
-      box-shadow: var(--shadow);
+    body[data-theme="dark"] {
+      background: radial-gradient(circle at top, rgba(70, 100, 255, 0.16), transparent 60%), #060c18;
+      color: #e5edff;
+      color-scheme: dark;
+    }
+
+    #ztb-app {
+      width: min(1120px, 100%);
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 24px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 28px 80px -40px rgba(15, 23, 42, 0.55);
       display: flex;
       flex-direction: column;
       min-height: 92vh;
+      border: 1px solid rgba(70, 100, 255, 0.12);
       overflow: hidden;
-      border: 1px solid rgba(70, 100, 255, 0.06);
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+
+    body[data-theme="dark"] #ztb-app {
+      background: rgba(11, 18, 32, 0.88);
+      border-color: rgba(70, 100, 255, 0.2);
+      box-shadow: 0 32px 90px -46px rgba(4, 12, 28, 0.95);
     }
 
     header {
-      padding: 20px 28px 12px;
-      border-bottom: 1px solid var(--line);
+      padding: 22px 28px 12px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      transition: border-color 0.3s ease;
+    }
+
+    body[data-theme="dark"] header {
+      border-color: rgba(148, 163, 184, 0.16);
     }
 
     header .top-line {
@@ -67,20 +75,21 @@
     }
 
     .brand .logo {
-      width: 48px;
-      height: 48px;
-      border-radius: 14px;
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
       display: grid;
       place-items: center;
       color: #fff;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 600;
-      background: linear-gradient(120deg, var(--blue), #55a0ff);
+      background: linear-gradient(120deg, #4664ff, #55a0ff);
     }
 
     .brand h1 {
       margin: 0;
       font-size: 20px;
+      font-weight: 600;
     }
 
     .status-line {
@@ -90,12 +99,17 @@
       flex-wrap: wrap;
     }
 
-    .tag {
+    .status-line .tag {
       padding: 6px 12px;
       border-radius: 999px;
       font-size: 13px;
-      background: rgba(70, 100, 255, 0.1);
-      color: var(--blue);
+      background: rgba(70, 100, 255, 0.12);
+      color: #1e3aff;
+    }
+
+    body[data-theme="dark"] .status-line .tag {
+      background: rgba(70, 100, 255, 0.22);
+      color: #9db4ff;
     }
 
     .controls {
@@ -104,33 +118,64 @@
       flex-wrap: wrap;
     }
 
-    button, .btn {
-      border: 1px solid var(--line);
+    button,
+    .btn {
+      border: 1px solid rgba(15, 23, 42, 0.08);
       background: #fff;
       color: inherit;
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 10px 16px;
       font-size: 14px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      font-weight: 500;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     }
 
-    button.primary, .btn.primary {
+    body[data-theme="dark"] button,
+    body[data-theme="dark"] .btn {
+      background: rgba(13, 24, 45, 0.9);
+      border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    button.primary,
+    .btn.primary {
       border: none;
       color: #fff;
-      background: linear-gradient(120deg, var(--blue), #55a0ff);
+      background: linear-gradient(120deg, #4664ff, #55a0ff);
       font-weight: 600;
+      box-shadow: 0 12px 28px -18px rgba(70, 100, 255, 0.75);
     }
 
-    button.ghost, .btn.ghost {
+    button.chat2 {
+      background: rgba(85, 160, 255, 0.16);
+      border-color: rgba(85, 160, 255, 0.32);
+      color: #0f1f52;
+    }
+
+    body[data-theme="dark"] button.chat2 {
+      background: rgba(85, 160, 255, 0.25);
+      color: #eaf1ff;
+    }
+
+    button.ghost,
+    .btn.ghost {
       background: transparent;
     }
 
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-    button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 24px -18px rgba(15,23,42,0.45); }
+    button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 34px -24px rgba(15, 23, 42, 0.5);
+    }
 
     .progress {
       margin-top: 16px;
@@ -138,9 +183,18 @@
       gap: 8px;
     }
 
+    .progress-label {
+      font-size: 13px;
+      color: rgba(15, 23, 42, 0.65);
+    }
+
+    body[data-theme="dark"] .progress-label {
+      color: rgba(226, 232, 240, 0.7);
+    }
+
     .progress-bar {
       height: 8px;
-      background: rgba(70, 100, 255, 0.12);
+      background: rgba(70, 100, 255, 0.18);
       border-radius: 999px;
       overflow: hidden;
     }
@@ -150,1299 +204,1887 @@
       height: 100%;
       width: 0;
       border-radius: inherit;
-      background: linear-gradient(120deg, var(--blue), #55a0ff);
-      transition: width 0.4s ease;
+      background: linear-gradient(120deg, #4664ff, #55a0ff);
+      transition: width 0.35s ease;
     }
 
     main {
       flex: 1;
-      padding: 36px 36px 44px;
+      padding: 38px 36px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .step-headline {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .step-headline h2 {
+      margin: 0;
+      font-size: 26px;
+    }
+
+    .step-headline p {
+      margin: 0;
+      color: rgba(15, 23, 42, 0.7);
+      font-size: 15px;
+      max-width: 640px;
+    }
+
+    body[data-theme="dark"] .step-headline p {
+      color: rgba(226, 232, 240, 0.75);
+    }
+
+    .step-body {
       display: grid;
-      grid-template-rows: auto auto 1fr;
+      gap: 20px;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 16px;
-      background: linear-gradient(180deg, rgba(70, 100, 255, 0.04), transparent 120px);
-    }
-
-    main h2 {
-      margin: 0;
-      font-size: 30px;
-      letter-spacing: -0.01em;
-    }
-
-    main p.lead {
-      margin: 0;
-      color: var(--muted);
-      font-size: 16px;
-      max-width: 720px;
-      line-height: 1.6;
-    }
-
-    .content-area {
-      min-height: 0;
-    }
-
-    .grid {
-      display: grid;
-      gap: 18px;
-    }
-
-    .grid.two {
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    }
-
-    .grid.three {
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
     .card {
-      border: 1px solid var(--line);
+      border: 1px solid rgba(15, 23, 42, 0.08);
       border-radius: 18px;
-      padding: 22px;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.8);
       display: grid;
-      gap: 14px;
-      background: #fff;
-      position: relative;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .card::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      border: 2px solid transparent;
-      pointer-events: none;
-      transition: border-color 0.2s ease;
+    body[data-theme="dark"] .card {
+      background: rgba(13, 24, 45, 0.8);
+      border-color: rgba(148, 163, 184, 0.18);
     }
 
-    .card.selected::after {
-      border-color: rgba(70, 100, 255, 0.65);
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(70, 100, 255, 0.6);
+      box-shadow: 0 18px 38px -28px rgba(70, 100, 255, 0.4);
+    }
+
+    .card.active {
+      border: 2px solid rgba(70, 100, 255, 0.8);
+      box-shadow: 0 18px 42px -30px rgba(70, 100, 255, 0.5);
     }
 
     .card h3 {
       margin: 0;
-      font-size: 19px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .card p {
       margin: 0;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.5;
-    }
-
-    .chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .chip {
-      padding: 8px 16px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      cursor: pointer;
+      color: rgba(15, 23, 42, 0.68);
       font-size: 14px;
-      background: rgba(15, 23, 42, 0.02);
-      transition: all 0.2s ease;
     }
 
-    .chip:hover {
-      border-color: rgba(70, 100, 255, 0.5);
+    body[data-theme="dark"] .card p {
+      color: rgba(226, 232, 240, 0.75);
     }
 
-    .chip.active {
-      background: rgba(70, 100, 255, 0.12);
-      border-color: var(--blue);
-      color: var(--blue);
-      font-weight: 600;
-    }
-
-    .list {
+    .form-grid {
       display: grid;
-      gap: 10px;
+      gap: 16px;
     }
 
-    .list .item {
-      display: grid;
-      gap: 6px;
+    .form-grid.two {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
     label {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      color: rgba(15, 23, 42, 0.72);
       font-weight: 600;
     }
 
-    input[type="text"], textarea, select {
+    body[data-theme="dark"] label {
+      color: rgba(226, 232, 240, 0.8);
+    }
+
+    input,
+    textarea,
+    select {
       width: 100%;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid var(--line);
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      padding: 12px;
       font-size: 14px;
-      font-family: inherit;
-      resize: vertical;
-      min-height: 44px;
-      background: rgba(15, 23, 42, 0.02);
+      background: rgba(255, 255, 255, 0.92);
+      color: inherit;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
-    textarea.prompt {
-      min-height: 190px;
-      font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
-      background: rgba(70, 100, 255, 0.08);
-      border: 1px dashed rgba(70, 100, 255, 0.35);
-      line-height: 1.6;
+    body[data-theme="dark"] input,
+    body[data-theme="dark"] textarea,
+    body[data-theme="dark"] select {
+      background: rgba(9, 16, 28, 0.92);
+      border-color: rgba(148, 163, 184, 0.2);
     }
 
-    .actions {
-      margin-top: 28px;
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: rgba(70, 100, 255, 0.7);
+      box-shadow: 0 0 0 3px rgba(70, 100, 255, 0.18);
+    }
+
+    .chip-group {
       display: flex;
-      gap: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: rgba(70, 100, 255, 0.08);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chip.active {
+      background: linear-gradient(120deg, #4664ff, #55a0ff);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    body[data-theme="dark"] .chip {
+      border-color: rgba(148, 163, 184, 0.18);
+      background: rgba(70, 100, 255, 0.12);
+      color: #dbe7ff;
+    }
+    .info-block {
+      border: 1px dashed rgba(70, 100, 255, 0.4);
+      border-radius: 14px;
+      padding: 16px;
+      display: grid;
+      gap: 10px;
+      background: rgba(70, 100, 255, 0.07);
+      font-size: 14px;
+    }
+
+    body[data-theme="dark"] .info-block {
+      background: rgba(70, 100, 255, 0.16);
+      border-color: rgba(70, 100, 255, 0.6);
+      color: #e8eeff;
+    }
+
+    .prompt-area {
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 16px;
+      padding: 16px;
+      background: rgba(247, 249, 255, 0.7);
+      font-family: "IBM Plex Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      color: #0b1a46;
+      position: relative;
+    }
+
+    body[data-theme="dark"] .prompt-area {
+      background: rgba(9, 16, 28, 0.88);
+      border-color: rgba(148, 163, 184, 0.22);
+      color: #dbe7ff;
+    }
+
+    .prompt-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #4664ff;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .prompt-label.chat1 { color: #4664ff; }
+    .prompt-label.chat2 { color: #1aa251; }
+    .prompt-label.cursor { color: #0b6bff; }
+
+    .prompt-actions {
+      display: flex;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
-    footer {
-      border-top: 1px solid var(--line);
-      padding: 18px 28px;
+    .checklist {
+      display: grid;
+      gap: 10px;
+    }
+
+    .check-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.78);
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    body[data-theme="dark"] .check-item {
+      background: rgba(13, 24, 45, 0.8);
+      border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    .check-item input {
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+    }
+
+    .check-item.completed {
+      border-color: rgba(26, 162, 81, 0.6);
+      background: rgba(26, 162, 81, 0.12);
+    }
+
+    .bottom-bar {
+      padding: 20px 28px 28px;
+      border-top: 1px solid rgba(15, 23, 42, 0.08);
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      gap: 16px;
       flex-wrap: wrap;
-      gap: 12px;
-      color: var(--muted);
+      transition: border-color 0.3s ease;
+    }
+
+    body[data-theme="dark"] .bottom-bar {
+      border-color: rgba(148, 163, 184, 0.16);
+    }
+
+    .bottom-bar .note {
       font-size: 13px;
+      color: rgba(15, 23, 42, 0.65);
+    }
+
+    body[data-theme="dark"] .bottom-bar .note {
+      color: rgba(226, 232, 240, 0.7);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 26px;
+      right: 30px;
+      background: linear-gradient(135deg, rgba(70, 100, 255, 0.92), rgba(85, 160, 255, 0.9));
+      color: #fff;
+      padding: 14px 18px;
+      border-radius: 14px;
+      box-shadow: 0 18px 38px -24px rgba(70, 100, 255, 0.6);
+      display: none;
+      gap: 10px;
+      font-size: 14px;
+      align-items: center;
+      z-index: 20;
     }
 
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.45);
+      background: rgba(6, 12, 24, 0.55);
       display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 40;
-      padding: 20px;
+      z-index: 25;
     }
 
     .modal {
-      background: #fff;
-      border-radius: 18px;
-      max-width: 640px;
-      width: min(640px, 100%);
-      padding: 28px;
-      display: grid;
-      gap: 18px;
-      position: relative;
-      box-shadow: var(--shadow);
-    }
-
-    .modal h3 { margin: 0; }
-
-    .modal .close {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      border-radius: 999px;
-      width: 36px;
-      height: 36px;
-      display: grid;
-      place-items: center;
-      font-size: 18px;
-      background: rgba(15, 23, 42, 0.08);
-      cursor: pointer;
-    }
-
-    .toast {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: #fff;
-      padding: 16px 20px;
-      border-radius: 16px;
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-      font-size: 14px;
-      z-index: 50;
-      opacity: 0;
-      transform: translateY(12px);
-      transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .hint {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.55;
-    }
-
-    .checklist {
-      display: grid;
-      gap: 12px;
-    }
-
-    .check-item {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      padding: 14px 16px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: rgba(15, 23, 42, 0.02);
-    }
-
-    .check-item strong { font-size: 15px; }
-
-    .badge {
-      display: inline-flex;
+      inset: 0;
+      display: none;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
-      border-radius: 999px;
-      background: rgba(46, 204, 113, 0.16);
-      color: #15803d;
-      font-size: 13px;
-      font-weight: 600;
+      z-index: 30;
     }
 
-    .chat-labels {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      font-size: 13px;
+    .modal .box {
+      width: min(760px, 92vw);
+      max-height: 84vh;
+      overflow: auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 26px;
+      display: grid;
+      gap: 16px;
+      border: 1px solid rgba(70, 100, 255, 0.14);
+      box-shadow: 0 32px 88px -46px rgba(6, 12, 24, 0.65);
     }
 
-    .chat-labels span {
-      display: inline-flex;
-      gap: 6px;
-      align-items: center;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(70, 100, 255, 0.12);
+    body[data-theme="dark"] .modal .box {
+      background: rgba(9, 14, 26, 0.95);
+      border-color: rgba(70, 100, 255, 0.35);
+      color: #f1f5ff;
     }
 
-    .chat-labels span.cursor {
-      background: rgba(85, 160, 255, 0.16);
-      color: var(--cursor);
-      border: 1px solid rgba(85, 160, 255, 0.32);
+    .modal .box h3 {
+      margin: 0;
     }
 
-    .subtle {
-      font-size: 14px;
-      color: var(--muted);
+    .modal .box p {
+      margin: 0;
+      color: inherit;
+      opacity: 0.85;
     }
 
-    @media (max-width: 720px) {
-      body {
-        padding: 0;
-      }
+    .modal .list {
+      display: grid;
+      gap: 12px;
+    }
 
-      .page {
-        border-radius: 0;
-        min-height: 100vh;
-      }
+    .note-area {
+      display: grid;
+      gap: 8px;
+    }
 
-      header, main, footer {
-        padding-left: 18px;
-        padding-right: 18px;
+    .note-area textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    @media (max-width: 860px) {
+      header,
+      .bottom-bar {
+        padding-inline: 20px;
       }
 
       main {
-        padding-top: 28px;
+        padding-inline: 22px;
       }
     }
   </style>
 </head>
-<body>
-  <div class="page" id="app">
+<body data-theme="light">
+  <div id="ztb-app">
     <header>
       <div class="top-line">
         <div class="brand">
-          <div class="logo">ZB</div>
+          <div class="logo">🤖</div>
           <div>
             <h1>Zero-to-Bot Panel</h1>
-            <div class="subtle" id="header-step">Старт</div>
+            <div class="status-line">
+              <span class="tag" id="mode-badge">Режим не обрано</span>
+              <span class="tag" id="env-badge">Середовище не вибране</span>
+            </div>
           </div>
         </div>
-        <div class="status-line">
-          <div class="tag" id="mode-tag">Режим не обрано</div>
-          <div class="tag" id="env-tag">Середовище: —</div>
-        </div>
         <div class="controls">
-          <button id="guide-btn">📘 Навігатор</button>
-          <button id="help-btn">❓ Допомога</button>
-          <button id="trouble-btn">🛠️ Траблшутінг</button>
-          <button id="settings-btn">⚙️ Налаштування</button>
-          <button id="reset-btn">♻️ Скинути</button>
+          <button class="ghost" id="open-help">❓ Допомога</button>
+          <button class="ghost" id="open-trouble">🪛 Траблшутінг</button>
+          <button class="ghost" id="open-how">ℹ️ Як це працює</button>
+          <button id="toggle-theme">🌙 Темна тема</button>
+          <button id="reset-flow">🔄 Почати спочатку</button>
         </div>
       </div>
       <div class="progress">
-        <div class="subtle" id="progress-text">Крок 1 із 12</div>
+        <span class="progress-label" id="progress-label">Прогрес: 0% · Крок 0 / 11</span>
         <div class="progress-bar"><span id="progress-bar"></span></div>
       </div>
     </header>
     <main>
-      <h2 id="main-title">Старт</h2>
-      <p class="lead" id="main-lead">Зроби свого Telegram-бота без коду. Просто копіюй і вставляй готові підказки.</p>
-      <div id="main-content" class="content-area"></div>
+      <div class="step-headline">
+        <h2 id="step-title">Ласкаво просимо!</h2>
+        <p id="step-desc">Оберіть «Почати», щоб запустити майстер. Ми підкажемо кожен крок.</p>
+      </div>
+      <div class="step-body" id="step-body"></div>
+      <div class="note-area" id="note-wrapper" hidden>
+        <label for="step-note">Нотатки для цього кроку (зберігається локально)</label>
+        <textarea id="step-note" placeholder="Записуй відповіді ChatGPT, токени або власні думки"></textarea>
+      </div>
     </main>
-    <footer>
-      <div>🧭 Chat 1: Навігатор · 💻 Chat 2: Cursor</div>
-      <div>Прогрес збережено локально · Версія панелі 0.1</div>
-    </footer>
-  </div>
-
-  <div class="modal-backdrop" id="modal-backdrop" role="presentation">
-    <div class="modal" id="generic-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <button class="close" id="modal-close" aria-label="Закрити">×</button>
-      <div id="modal-body"></div>
+    <div class="bottom-bar">
+      <div class="note" id="action-hint">Почніть із натискання «Почати».</div>
+      <div class="controls">
+        <button id="prev-step">⬅️ Назад</button>
+        <button class="primary" id="next-step">Далі ➡️</button>
+      </div>
     </div>
   </div>
 
-  <div class="toast" id="toast" role="status"></div>
+  <div class="toast" id="toast"></div>
+  <div class="modal-backdrop" id="modal-backdrop"></div>
+  <div class="modal" id="modal"></div>
 
   <script>
-    const STORAGE_KEY = 'zeroToBotPanelState_v1';
+    if (typeof structuredClone !== 'function') {
+      window.structuredClone = (value) => JSON.parse(JSON.stringify(value));
+    }
 
-    const clone = (value) => {
-      if (typeof structuredClone === 'function') {
-        return structuredClone(value);
-      }
-      return JSON.parse(JSON.stringify(value));
-    };
+    const STORAGE_KEY = 'ztb_panel_state_v2';
 
     const defaultState = {
-      version: 1,
-      stepId: 'start',
+      currentStep: 0,
+      started: false,
+      theme: 'light',
       mode: null,
       environment: null,
-      form: {
-        role: 'Бот-асистент',
+      survey: {
+        role: '',
         goal: '',
-        commands: '/start, /help, /add, /list, /done',
+        audience: '',
+        tone: 'friendly',
+        commands: ['/start', '/help'],
         language: 'uk',
         channel: 'dm'
       },
-      config: {
-        type: 'CRM',
-        modules: ['/start', '/help'],
-        storage: 'none',
+      autoProfile: {
+        type: '',
+        modules: [],
+        storage: '',
         integrations: [],
-        backend: 'none',
-        complexity: 'L1'
+        backend: '',
+        uiLanguage: 'uk',
+        difficulty: 'L0'
       },
-      prompts: {
-        navigator: '',
-        devBrief: '',
-        cursor: '',
-        checklist: ''
+      assistedBrief: '',
+      generatedBrief: '',
+      generatedCursorPrompt: '',
+      generatedChecklist: [],
+      notes: {},
+      tools: {
+        python: false,
+        cursor: false,
+        editor: false,
+        codespaces: false
       },
-      confirmed: false,
-      checkpoints: {}
+      testChecklist: {
+        start: false,
+        help: false,
+        custom: false
+      }
     };
-
-    let state = loadState();
-
-    const steps = [
-      { id: 'start', title: 'Старт', lead: 'Пояснення, як усе працює, та старт процесу.', render: renderStart },
-      { id: 'survey', title: 'Анкета', lead: 'Опиши, що має робити твій бот. Не хвилюйся — ми перетворимо це на технічне завдання.', render: renderSurvey },
-      { id: 'mode', title: 'Вибір режиму', lead: 'Визнач, як хочеш генерувати промпти: автоматично або через Навігатора.', render: renderMode },
-      { id: 'builder', title: 'Конструктор бота', lead: 'Збери технічну конфігурацію. Ми використаємо її для промптів.', render: renderBuilder, guard: (s) => s.mode === 'auto' || !s.mode },
-      { id: 'assisted-bridge', title: 'Підказка для Навігатора', lead: 'Скопіюй промпт у ChatGPT, щоб отримати англійський DEV BRIEF, а потім встав його сюди.', render: renderAssistedBridge, guard: (s) => s.mode === 'assisted' },
-      { id: 'overview', title: 'Огляд і підтвердження', lead: 'Перевір DEV BRIEF та фінальний Cursor prompt. Після підтвердження перейдемо до середовища.', render: renderOverview },
-      { id: 'environment', title: 'Вибір середовища', lead: 'Працюй локально або в Codespaces. Обери, що підходить більше.', render: renderEnvironment },
-      { id: 'tools', title: 'Підготовка інструментів', lead: 'Переконайся, що всі інструменти встановлено. Якщо чогось бракує — ми підкажемо.', render: renderTools },
-      { id: 'cursor', title: 'Вставити у Cursor', lead: 'Скопіюй технічний промпт та встав у Chat 2 (Cursor).', render: renderCursor },
-      { id: 'launch', title: 'Запуск', lead: 'Запусти бота: встанови залежності й перевір роботу в терміналі.', render: renderLaunch },
-      { id: 'botfather', title: 'BotFather', lead: 'Додай команди до свого бота через BotFather.', render: renderBotFather },
-      { id: 'test', title: 'Перевірка', lead: 'Переконайся, що все працює. Якщо є проблема — виклич допомогу.', render: renderTest },
-      { id: 'upgrade', title: 'Готово й апґрейди', lead: 'Бот працює! Обери, чи хочеш додати кнопки, статистику або оплату.', render: renderUpgrade }
-    ];
 
     function loadState() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return clone(defaultState);
+        if (!raw) return structuredClone(defaultState);
         const parsed = JSON.parse(raw);
-        return { ...clone(defaultState), ...parsed, form: { ...clone(defaultState.form), ...(parsed.form || {}) }, config: { ...clone(defaultState.config), ...(parsed.config || {}) }, prompts: { ...clone(defaultState.prompts), ...(parsed.prompts || {}) }, checkpoints: { ...(parsed.checkpoints || {}) } };
+        return Object.assign(structuredClone(defaultState), parsed);
       } catch (err) {
-        console.warn('Cannot load state', err);
-        return clone(defaultState);
+        console.error('Failed to load state', err);
+        return structuredClone(defaultState);
       }
     }
 
     function saveState() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch (err) {
-        console.warn('Cannot save state', err);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    let state = loadState();
+
+    const steps = [
+      {
+        id: 'start',
+        title: 'Старт',
+        desc: 'Пояснюємо, як працює панель. 1 дія — 1 екран.',
+        render: renderStartStep,
+        showNotes: false
+      },
+      {
+        id: 'survey',
+        title: 'Анкета',
+        desc: 'Опиши, який бот потрібен. Ми підкажемо навіть якщо немає ідей.',
+        render: renderSurveyStep,
+        showNotes: true
+      },
+      {
+        id: 'mode',
+        title: 'Вибір режиму',
+        desc: 'AUTO — панель сама генерує промпти. ASSISTED — працюємо через ChatGPT Навігатора.',
+        render: renderModeStep,
+        showNotes: false
+      },
+      {
+        id: 'builder',
+        title: 'Конструктор бота',
+        desc: 'Склади конфігурацію з плиток. Якщо режим ASSISTED — цей крок можна пропустити.',
+        render: renderBuilderStep,
+        showNotes: true
+      },
+      {
+        id: 'overview',
+        title: 'DEV BRIEF та промпти',
+        desc: 'Ось короткий DEV BRIEF і готові промпти для ChatGPT та Cursor.',
+        render: renderOverviewStep,
+        showNotes: true
+      },
+      {
+        id: 'environment',
+        title: 'Вибір середовища',
+        desc: 'Пояснюємо різницю між Local та Codespaces. Обери, що зручно.',
+        render: renderEnvironmentStep,
+        showNotes: false
+      },
+      {
+        id: 'tools',
+        title: 'Підготовка інструментів',
+        desc: 'Переконайся, що всі програми встановлені та відкриті.',
+        render: renderToolsStep,
+        showNotes: false
+      },
+      {
+        id: 'cursor',
+        title: 'Вставити у Cursor',
+        desc: 'Скопіюй промпт і встав у Cursor (Chat 2).',
+        render: renderCursorStep,
+        showNotes: true
+      },
+      {
+        id: 'launch',
+        title: 'Запуск',
+        desc: 'Скопіюй команди у термінал та перевір, що бот працює.',
+        render: renderLaunchStep,
+        showNotes: false
+      },
+      {
+        id: 'botfather',
+        title: 'BotFather',
+        desc: 'Додай команди та налаштуй бота.',
+        render: renderBotFatherStep,
+        showNotes: false
+      },
+      {
+        id: 'test',
+        title: 'Перевірка',
+        desc: 'Пройди чек-лист і переконайся, що все працює.',
+        render: renderTestStep,
+        showNotes: true
+      },
+      {
+        id: 'finish',
+        title: 'Готово та апґрейди',
+        desc: 'Обери наступні кроки: кнопки, статистика, оплати.',
+        render: renderFinishStep,
+        showNotes: false
+      }
+    ];
+
+    const elements = {
+      title: document.getElementById('step-title'),
+      desc: document.getElementById('step-desc'),
+      body: document.getElementById('step-body'),
+      noteWrap: document.getElementById('note-wrapper'),
+      note: document.getElementById('step-note'),
+      progressLabel: document.getElementById('progress-label'),
+      progressBar: document.getElementById('progress-bar'),
+      actionHint: document.getElementById('action-hint'),
+      prev: document.getElementById('prev-step'),
+      next: document.getElementById('next-step'),
+      toast: document.getElementById('toast'),
+      modeBadge: document.getElementById('mode-badge'),
+      envBadge: document.getElementById('env-badge'),
+      modal: document.getElementById('modal'),
+      backdrop: document.getElementById('modal-backdrop')
+    };
+    function setTheme(theme) {
+      document.body.setAttribute('data-theme', theme);
+      const toggle = document.getElementById('toggle-theme');
+      if (theme === 'dark') {
+        toggle.textContent = '☀️ Світла тема';
+      } else {
+        toggle.textContent = '🌙 Темна тема';
       }
     }
 
-    function resetState() {
-      state = clone(defaultState);
+    function toggleTheme() {
+      const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      setTheme(next);
+      state.theme = next;
       saveState();
-      showToast('Прогрес скинуто. Починаємо спочатку.');
-      render();
-    }
-
-    function getVisibleSteps() {
-      return steps.filter(step => !step.guard || step.guard(state));
-    }
-
-    function currentIndex() {
-      const visible = getVisibleSteps();
-      const idx = visible.findIndex(step => step.id === state.stepId);
-      return idx === -1 ? 0 : idx;
-    }
-
-    function goToStep(stepId) {
-      state.stepId = stepId;
-      saveState();
-      render();
-    }
-
-    function nextStep() {
-      const visible = getVisibleSteps();
-      const idx = currentIndex();
-      const next = visible[idx + 1];
-      if (next) {
-        state.stepId = next.id;
-        saveState();
-        render();
-      }
-    }
-
-    function prevStep() {
-      const visible = getVisibleSteps();
-      const idx = currentIndex();
-      const prev = visible[idx - 1];
-      if (prev) {
-        state.stepId = prev.id;
-        saveState();
-        render();
-      }
     }
 
     function showToast(message) {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2600);
+      elements.toast.textContent = message;
+      elements.toast.style.display = 'inline-flex';
+      setTimeout(() => {
+        elements.toast.style.display = 'none';
+      }, 2200);
     }
 
-    function openModal(title, content) {
-      document.getElementById('modal-body').innerHTML = `<h3 id="modal-title">${title}</h3>${content}`;
-      const backdrop = document.getElementById('modal-backdrop');
-      backdrop.style.display = 'flex';
+    function openModal(content) {
+      elements.modal.innerHTML = '';
+      elements.modal.appendChild(content);
+      elements.modal.style.display = 'flex';
+      elements.backdrop.style.display = 'block';
     }
 
     function closeModal() {
-      const backdrop = document.getElementById('modal-backdrop');
-      backdrop.style.display = 'none';
+      elements.modal.style.display = 'none';
+      elements.backdrop.style.display = 'none';
+      elements.modal.innerHTML = '';
     }
 
-    document.getElementById('modal-close').addEventListener('click', closeModal);
-    document.getElementById('modal-backdrop').addEventListener('click', (event) => {
-      if (event.target.id === 'modal-backdrop') closeModal();
-    });
+    elements.backdrop.addEventListener('click', closeModal);
 
-    document.getElementById('reset-btn').addEventListener('click', () => {
-      if (confirm('Скинути прогрес і почати спочатку?')) resetState();
-    });
+    function createModal({ title, body, list, actions }) {
+      const box = document.createElement('div');
+      box.className = 'box';
+      const head = document.createElement('div');
+      head.style.display = 'flex';
+      head.style.justifyContent = 'space-between';
+      head.style.alignItems = 'center';
+      head.style.gap = '12px';
 
-    document.getElementById('help-btn').addEventListener('click', () => {
-      openModal('Допомога', `
-        <p>Часті питання:</p>
-        <ul>
-          <li><b>Як вставити промпт?</b> Відкрий Cursor, створюй новий Chat 2, встав текст і натисни Run.</li>
-          <li><b>Бот мовчить?</b> Перевір термінал. Якщо є помилка — натисни «Проблема?» на етапі запуску.</li>
-          <li><b>Втрачено прогрес?</b> Панель автоматично зберігає кроки в браузері кожні кілька секунд.</li>
-        </ul>
-      `);
-    });
+      const titleEl = document.createElement('h3');
+      titleEl.textContent = title;
+      head.appendChild(titleEl);
 
-    document.getElementById('trouble-btn').addEventListener('click', () => {
-      openModal('Траблшутінг', `
-        <div class="list">
-          <div class="item">
-            <strong>ModuleNotFoundError</strong>
-            <span class="hint">Установи браковану бібліотеку: <code>pip install ...</code></span>
-          </div>
-          <div class="item">
-            <strong>InvalidToken</strong>
-            <span class="hint">Перевір файл <code>.env</code> і онови токен від BotFather.</span>
-          </div>
-          <div class="item">
-            <strong>Бот не відповідає</strong>
-            <span class="hint">Переконайся, що скрипт запущено, а в терміналі немає Traceback.</span>
-          </div>
-        </div>
-      `);
-    });
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '✕';
+      closeBtn.className = 'ghost';
+      closeBtn.style.justifySelf = 'flex-end';
+      closeBtn.addEventListener('click', closeModal);
+      head.appendChild(closeBtn);
 
-    document.getElementById('settings-btn').addEventListener('click', () => {
-      openModal('Налаштування', `
-        <div class="list">
-          <label>Мова інтерфейсу</label>
-          <select id="settings-lang">
-            <option value="uk" ${state.form.language === 'uk' ? 'selected' : ''}>Українська</option>
-            <option value="en" ${state.form.language === 'en' ? 'selected' : ''}>English (beta)</option>
-          </select>
-          <label>Середовище за замовчуванням</label>
-          <select id="settings-env">
-            <option value="local" ${state.environment === 'local' ? 'selected' : ''}>Local</option>
-            <option value="codespaces" ${state.environment === 'codespaces' ? 'selected' : ''}>Codespaces</option>
-            <option value="" ${!state.environment ? 'selected' : ''}>Не вибрано</option>
-          </select>
-          <div class="hint">Ці налаштування збережуться й будуть використані на відповідних кроках.</div>
-          <div class="actions">
-            <button class="primary" id="settings-save">Зберегти</button>
-          </div>
-        </div>
-      `);
-      document.getElementById('settings-save').addEventListener('click', () => {
-        const lang = document.getElementById('settings-lang').value;
-        const env = document.getElementById('settings-env').value || null;
-        state.form.language = lang;
-        state.environment = env;
-        saveState();
-        closeModal();
-        render();
-        showToast('Налаштування збережено.');
-      });
-    });
+      box.appendChild(head);
 
-    document.getElementById('guide-btn').addEventListener('click', () => {
-      openModal('Навігатор', `
-        <p>Це короткий гайд, як рухатися вперед:</p>
-        <ol>
-          <li>Виконуй кроки послідовно. Один екран = одна дія.</li>
-          <li>Скопійований текст вставляй у відповідний чат (🧭 або 💻).</li>
-          <li>Якщо щось не працює — тисни «Проблема?» і надсилай лог у Навігатор.</li>
-        </ol>
-        <p class="hint">Цей модуль можна залишити відкритим у сусідній вкладці з ChatGPT.</p>
-      `);
-    });
-
-    function ensureNavigatorPrompt() {
-      const { role, goal, commands, language, channel } = state.form;
-      const configText = state.config.modules.length ? `Команди: ${state.config.modules.join(', ')}` : `Команди: ${commands}`;
-      const channelText = channel === 'group' ? 'The bot will work inside Telegram groups.' : 'The bot will work in private chats.';
-      const prompt = `You are an expert product owner. Help me craft a DEV BRIEF for a Telegram bot.\n` +
-        `Role of the bot: ${role}.\n` +
-        `Goal: ${goal || 'assist users with daily tasks'}.\n` +
-        `${configText}.\n` +
-        `${channelText}\n` +
-        `Language of the interface: ${language.toUpperCase()}.\n` +
-        `Return the brief in English with sections: Goal, Core commands, Data, Integrations, Success criteria.`;
-      state.prompts.navigator = prompt;
-      return prompt;
-    }
-
-    function ensureDevBrief() {
-      if (state.mode === 'assisted') {
-        return state.prompts.devBrief;
+      if (body) {
+        const p = document.createElement('p');
+        p.innerHTML = body;
+        box.appendChild(p);
       }
-      const { role, goal, commands, language, channel } = state.form;
-      const { type, modules, storage, integrations, backend } = state.config;
-      const mods = modules.length ? modules.join(', ') : commands;
-      const integrationsText = integrations.length ? integrations.join(', ') : 'none';
-      const storageText = storage === 'none' ? 'No persistent storage required.' : `Store data in ${storage}.`;
-      const channelText = channel === 'group' ? 'The bot operates inside group chats.' : 'The bot operates in private chats (DM).';
-      const brief = `Goal: Build a ${type.toLowerCase()} Telegram bot called "${role}" that ${goal || 'helps users manage their tasks'}.\n` +
-        `Core commands: ${mods}.\n` +
-        `User interface language: ${language.toUpperCase()}. ${channelText}\n` +
-        `${storageText}\n` +
-        `Integrations: ${integrationsText}. Backend module: ${backend === 'none' ? 'handled inside the bot without external service.' : backend}.\n` +
-        `Success criteria: smooth onboarding via /start, help via /help, stable command handling without errors.`;
-      state.prompts.devBrief = brief;
-      return brief;
+
+      if (Array.isArray(list)) {
+        const ul = document.createElement('div');
+        ul.className = 'list';
+        list.forEach((item) => {
+          const li = document.createElement('div');
+          li.innerHTML = item;
+          ul.appendChild(li);
+        });
+        box.appendChild(ul);
+      }
+
+      if (Array.isArray(actions) && actions.length) {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.flexWrap = 'wrap';
+        row.style.gap = '10px';
+        actions.forEach((action) => {
+          const btn = document.createElement('button');
+          btn.textContent = action.label;
+          if (action.variant === 'primary') btn.classList.add('primary');
+          btn.addEventListener('click', () => {
+            if (action.onClick) action.onClick();
+          });
+          row.appendChild(btn);
+        });
+        box.appendChild(row);
+      }
+
+      return box;
     }
 
-    function ensureCursorPrompt() {
-      const brief = ensureDevBrief();
-      if (!brief) return '';
-      const env = state.environment || 'local';
-      const venv = env === 'codespaces' ? 'python3 -m venv .venv' : 'python -m venv .venv';
-      const activate = env === 'codespaces' ? 'source .venv/bin/activate' : 'source .venv/bin/activate';
-      const prompt = `You are an AI pair programmer inside Cursor. Using aiogram 3, generate a production-ready Telegram bot.\n` +
-        `Project goals and constraints:\n${brief}\n` +
-        `Expectations:\n- Create a structured project with src/ directory, splitting handlers, keyboards, and services.\n- Provide a README with launch instructions.\n- Use environment variables (.env) for BOT_TOKEN.\n- Include requirements.txt.\n- After generating code, remind me to run:${'\n  ' + venv}\n  ${activate}\n  pip install -r requirements.txt\n  python main.py.\n` +
-        `Return the full code diff and any new files.`;
-      state.prompts.cursor = prompt;
-      return prompt;
+    document.getElementById('open-how').addEventListener('click', () => {
+      openModal(
+        createModal({
+          title: 'Як працює панель',
+          body: 'Все дуже просто: копіюєш наші промпти → вставляєш у потрібний чат → виконуєш крок → натискаєш «Далі».',
+          list: [
+            '1. Заповнюєш коротку анкету про майбутнього бота.',
+            '2. Обираєш режим: AUTO або ASSISTED. У будь-якому випадку ми підготуємо англомовні промпти.',
+            '3. Якщо AUTO — ти лише натискаєш «Скопіювати» і вставляєш у Cursor. Якщо ASSISTED — ChatGPT допомагає сформувати DEV BRIEF.',
+            '4. Далі ми ведемо тебе через підготовку середовища, запуск і налаштування BotFather.',
+            '5. У кожному кроці є кнопка «Проблема?» — не соромся натискати.'
+          ]
+        })
+      );
+    });
+
+    document.getElementById('open-help').addEventListener('click', () => {
+      openModal(
+        createModal({
+          title: 'Допомога',
+          body: 'Якщо щось незрозуміло, скористайся цими підказками.',
+          list: [
+            'Працюй послідовно: 1 екран = 1 дія. Не перескакуй.',
+            'Усі поля можна редагувати пізніше. Панель запам’ятовує прогрес.',
+            'Для ChatGPT створюй окремий чат «Навігатор» — він допомагає пояснити помилки простими словами.',
+            'Усі промпти вже містять переклади та нагадування: просто копіюй і вставляй.'
+          ],
+          actions: [
+            {
+              label: 'Перейти до «Проблема?»',
+              onClick: () => {
+                closeModal();
+                renderProblemModal();
+              }
+            }
+          ]
+        })
+      );
+    });
+
+    document.getElementById('open-trouble').addEventListener('click', renderProblemModal);
+    function renderProblemModal() {
+      openModal(
+        createModal({
+          title: 'Траблшутінг',
+          body: 'Оберіть ситуацію — ми сформуємо англомовне питання для ChatGPT Навігатора.',
+          list: [
+            '<strong>Python не знайдено</strong> → перевір встановлення. Запусти <code>python --version</code>.',
+            '<strong>Помилка токена</strong> → переконайся, що у файлі <code>.env</code> є <code>TOKEN=...</code>.',
+            '<strong>Бот мовчить</strong> → дивись термінал. Скопіюй лог та надішли в Навігатор.',
+            '<strong>ModuleNotFoundError</strong> → виконай <code>pip install -r requirements.txt</code>.'
+          ],
+          actions: [
+            {
+              label: 'Згенерувати запит для Навігатора',
+              variant: 'primary',
+              onClick: () => {
+                closeModal();
+                renderNavigatorPromptModal();
+              }
+            }
+          ]
+        })
+      );
     }
 
-    function ensureChecklist() {
-      const list = `1. Create virtual environment.\n2. Install dependencies with pip.\n3. Set BOT_TOKEN in .env.\n4. Run python main.py.\n5. Test /start and /help.\n6. Configure commands in BotFather.`;
-      state.prompts.checklist = list;
-      return list;
+    function renderNavigatorPromptModal() {
+      const prompt = generateNavigatorHelpPrompt();
+      const box = createModal({
+        title: 'Повідомлення для Chat 1 (Навігатор)',
+        body: 'Скопіюй текст нижче та надішли в ChatGPT. Він розпише кроки українською.',
+        actions: [
+          {
+            label: 'Скопіювати',
+            variant: 'primary',
+            onClick: () => {
+              copyText(prompt);
+              showToast('Повідомлення скопійовано. Встав у ChatGPT Навігатор.');
+            }
+          }
+        ]
+      });
+      const area = document.createElement('div');
+      area.className = 'prompt-area';
+      area.textContent = prompt;
+      box.insertBefore(area, box.lastChild);
+      openModal(box);
     }
 
-    function copyToClipboard(text, label = 'Скопійовано') {
-      if (!text) {
-        showToast('Нічого копіювати.');
+    document.getElementById('toggle-theme').addEventListener('click', toggleTheme);
+    document.getElementById('reset-flow').addEventListener('click', () => {
+      if (confirm('Скинути всі дані та почати спочатку?')) {
+        state = structuredClone(defaultState);
+        state.theme = document.body.getAttribute('data-theme');
+        saveState();
+        setStep(0);
+        showToast('Панель оновлено. Почнімо знову!');
+      }
+    });
+
+    elements.prev.addEventListener('click', () => {
+      if (state.currentStep === 0) return;
+      setStep(state.currentStep - 1);
+    });
+
+    elements.next.addEventListener('click', () => {
+      if (state.currentStep === steps.length - 1) return;
+      const { allowAdvance, message } = validateStep();
+      if (!allowAdvance) {
+        showToast(message || 'Заверши дію на поточному екрані.');
         return;
       }
-      navigator.clipboard.writeText(text).then(() => showToast(`${label}!`)).catch(() => showToast('Не вдалося скопіювати.'));
-    }
+      setStep(state.currentStep + 1);
+    });
 
-    function renderStart(container) {
-      container.innerHTML = `
-        <div class="card">
-          <h3>Ласкаво просимо!</h3>
-          <p>Пройди 12 коротких кроків: копіюй підказки, вставляй їх у ChatGPT / Cursor і запускай бота.</p>
-          <div class="actions">
-            <button class="primary" id="start-go">Почати створення</button>
-            <button class="ghost" id="start-how">Як це працює?</button>
-          </div>
-        </div>
-      `;
-      container.querySelector('#start-go').addEventListener('click', () => {
-        state.stepId = 'survey';
-        saveState();
-        render();
-      });
-      container.querySelector('#start-how').addEventListener('click', () => {
-        openModal('Як це працює', `
-          <div class="grid">
-            <div class="card">
-              <h3>1. Заповни коротку анкету</h3>
-              <p>Ми перетворимо відповіді на технічне завдання без складних термінів.</p>
-            </div>
-            <div class="card">
-              <h3>2. Скопіюй промпти в чати</h3>
-              <p>Навігатор допомагає з DEV BRIEF, Cursor пише код за англомовними інструкціями.</p>
-            </div>
-            <div class="card">
-              <h3>3. Запусти та протестуй</h3>
-              <p>Виконуй чекліст, налаштуй BotFather і перевір команди прямо в Telegram.</p>
-            </div>
-          </div>
-        `);
-      });
-    }
+    elements.note.addEventListener('input', (event) => {
+      const key = steps[state.currentStep].id;
+      state.notes[key] = event.target.value;
+      saveState();
+    });
 
-    function renderSurvey(container) {
-      const { role, goal, commands, language, channel } = state.form;
-      container.innerHTML = `
-        <form class="grid" id="survey-form">
-          <div class="card">
-            <div class="list">
-              <div class="item">
-                <label>Роль бота</label>
-                <input type="text" name="role" value="${role || ''}" placeholder="Наприклад: Асистент звичок" required />
-              </div>
-              <div class="item">
-                <label>Що він робить?</label>
-                <textarea name="goal" placeholder="Наприклад: нагадує користувачам про щоденні звички" required>${goal || ''}</textarea>
-              </div>
-              <div class="item">
-                <label>Команди</label>
-                <input type="text" name="commands" value="${commands}" />
-                <div class="hint">Можеш залишити стандартні або додати свої.</div>
-              </div>
-              <div class="grid two">
-                <div class="item">
-                  <label>Мова інтерфейсу</label>
-                  <select name="language">
-                    <option value="uk" ${language === 'uk' ? 'selected' : ''}>Українська</option>
-                    <option value="en" ${language === 'en' ? 'selected' : ''}>English</option>
-                  </select>
-                </div>
-                <div class="item">
-                  <label>Канал</label>
-                  <select name="channel">
-                    <option value="dm" ${channel === 'dm' ? 'selected' : ''}>Особисті чати</option>
-                    <option value="group" ${channel === 'group' ? 'selected' : ''}>Групи</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div class="actions">
-              <button type="submit" class="primary">Підтвердити анкету</button>
-              ${state.mode === 'assisted' ? '<button type="button" class="btn" id="survey-copy">Скопіювати для Chat 1</button>' : ''}
-              <button type="button" class="ghost" id="survey-clear">Очистити поля</button>
-              <button type="button" id="survey-back">Назад</button>
-            </div>
-          </div>
-        </form>
-      `;
-      container.querySelector('#survey-form').addEventListener('submit', (event) => {
-        event.preventDefault();
-        const formData = new FormData(event.target);
-        state.form.role = formData.get('role');
-        state.form.goal = formData.get('goal');
-        state.form.commands = formData.get('commands');
-        state.form.language = formData.get('language');
-        state.form.channel = formData.get('channel');
-        ensureNavigatorPrompt();
-        ensureDevBrief();
-        ensureCursorPrompt();
-        ensureChecklist();
-        saveState();
-        showToast('Анкета збережена. Рухаємось далі!');
-        nextStep();
-      });
-      const copyBtn = container.querySelector('#survey-copy');
-      if (copyBtn) {
-        copyBtn.addEventListener('click', () => {
-          const prompt = ensureNavigatorPrompt();
-          copyToClipboard(prompt, 'Промпт для Навігатора');
-        });
-      }
-      container.querySelector('#survey-clear').addEventListener('click', () => {
-        state.form = clone(defaultState.form);
-        saveState();
-        render();
-      });
-      container.querySelector('#survey-back').addEventListener('click', prevStep);
-    }
-
-    function renderMode(container) {
-      container.innerHTML = `
-        <div class="grid two">
-          <div class="card">
-            <h3>⚡ AUTO — простий режим</h3>
-            <p>Панель сама створить DEV BRIEF і технічний промпт англійською.</p>
-            <div class="actions">
-              <button class="primary" id="mode-auto">Обрати AUTO</button>
-            </div>
-          </div>
-          <div class="card">
-            <h3>💬 ASSISTED — з Навігатором</h3>
-            <p>Отримаєш підказку для ChatGPT, він допоможе оформити DEV BRIEF англійською.</p>
-            <div class="actions">
-              <button class="primary" id="mode-assisted">Обрати ASSISTED</button>
-            </div>
-          </div>
-        </div>
-        <div class="actions">
-          <button id="mode-back">Назад</button>
-        </div>
-      `;
-      container.querySelector('#mode-auto').addEventListener('click', () => {
-        state.mode = 'auto';
-        ensureDevBrief();
-        ensureCursorPrompt();
-        saveState();
-        showToast('AUTO режим активовано.');
-        nextStep();
-      });
-      container.querySelector('#mode-assisted').addEventListener('click', () => {
-        state.mode = 'assisted';
-        ensureNavigatorPrompt();
-        saveState();
-        showToast('ASSISTED режим активовано.');
-        nextStep();
-      });
-      container.querySelector('#mode-back').addEventListener('click', prevStep);
-    }
-
-    function toggleInArray(list, value) {
-      const idx = list.indexOf(value);
-      if (idx >= 0) list.splice(idx, 1); else list.push(value);
-    }
-
-    function renderBuilder(container) {
-      const config = state.config;
-      container.innerHTML = `
-        <div class="card">
-          <h3>Обери тип бота</h3>
-          <div class="chips" id="type-chips"></div>
-        </div>
-        <div class="card">
-          <h3>Модулі та команди</h3>
-          <div class="chips" id="module-chips"></div>
-          <div class="hint">Познач усі команди, які потрібні користувачам.</div>
-        </div>
-        <div class="grid two">
-          <div class="card">
-            <h3>Збереження даних</h3>
-            <div class="list" id="storage-radios"></div>
-          </div>
-          <div class="card">
-            <h3>Інтеграції</h3>
-            <div class="chips" id="integration-toggles"></div>
-          </div>
-        </div>
-        <div class="grid two">
-          <div class="card">
-            <h3>Бекенд</h3>
-            <div class="chips" id="backend-chips"></div>
-          </div>
-          <div class="card">
-            <h3>Рівень складності</h3>
-            <div class="chips" id="level-chips"></div>
-          </div>
-        </div>
-        <div class="actions">
-          <button id="builder-back">Назад</button>
-          <button class="primary" id="builder-next">Продовжити → Огляд</button>
-        </div>
-      `;
-      const typeOptions = ['CRM', 'Task Manager', 'Habit Tracker', 'FAQ', 'Shop', 'Booking', 'Custom'];
-      const moduleOptions = ['/start', '/help', '/add', '/list', '/done', '/stats', '/tips', '/pay', '/admin'];
-      const storageOptions = [
-        { value: 'none', label: 'Без збереження' },
-        { value: 'json', label: 'JSON файл' },
-        { value: 'google sheets', label: 'Google Sheets' },
-        { value: 'sqlite', label: 'SQLite' },
-        { value: 'postgres', label: 'Postgres' }
-      ];
-      const integrationOptions = ['Google Sheets', 'Notion', 'Webhook', 'Stripe', 'OpenAI'];
-      const backendOptions = ['none', 'Parser', 'FastAPI', 'Webhook receiver'];
-      const levels = ['L0', 'L1', 'L2', 'L3'];
-
-      const typeContainer = container.querySelector('#type-chips');
-      typeOptions.forEach(option => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'chip' + (config.type === option ? ' active' : '');
-        btn.textContent = option;
-        btn.addEventListener('click', () => {
-          config.type = option;
-          saveState();
-          render();
-        });
-        typeContainer.appendChild(btn);
-      });
-
-      const moduleContainer = container.querySelector('#module-chips');
-      moduleOptions.forEach(option => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'chip' + (config.modules.includes(option) ? ' active' : '');
-        btn.textContent = option;
-        btn.addEventListener('click', () => {
-          toggleInArray(config.modules, option);
-          saveState();
-          render();
-        });
-        moduleContainer.appendChild(btn);
-      });
-
-      const storageContainer = container.querySelector('#storage-radios');
-      storageOptions.forEach(option => {
-        const label = document.createElement('label');
-        label.className = 'chip' + (config.storage === option.value ? ' active' : '');
-        label.style.cursor = 'pointer';
-        label.textContent = option.label;
-        label.addEventListener('click', () => {
-          config.storage = option.value;
-          saveState();
-          render();
-        });
-        storageContainer.appendChild(label);
-      });
-
-      const integrationContainer = container.querySelector('#integration-toggles');
-      integrationOptions.forEach(option => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'chip' + (config.integrations.includes(option) ? ' active' : '');
-        btn.textContent = option;
-        btn.addEventListener('click', () => {
-          toggleInArray(config.integrations, option);
-          saveState();
-          render();
-        });
-        integrationContainer.appendChild(btn);
-      });
-
-      const backendContainer = container.querySelector('#backend-chips');
-      backendOptions.forEach(option => {
-        const label = option === 'none' ? 'Без бекенду' : option;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'chip' + (config.backend === option ? ' active' : '');
-        btn.textContent = label;
-        btn.addEventListener('click', () => {
-          config.backend = option;
-          saveState();
-          render();
-        });
-        backendContainer.appendChild(btn);
-      });
-
-      const levelContainer = container.querySelector('#level-chips');
-      levels.forEach(option => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'chip' + (config.complexity === option ? ' active' : '');
-        btn.textContent = option;
-        btn.addEventListener('click', () => {
-          config.complexity = option;
-          saveState();
-          render();
-        });
-        levelContainer.appendChild(btn);
-      });
-
-      container.querySelector('#builder-back').addEventListener('click', prevStep);
-      container.querySelector('#builder-next').addEventListener('click', () => {
-        ensureDevBrief();
-        ensureCursorPrompt();
-        ensureChecklist();
-        showToast('Конфігурацію збережено.');
-        nextStep();
-      });
-    }
-
-    function renderAssistedBridge(container) {
-      const prompt = ensureNavigatorPrompt();
-      container.innerHTML = `
-        <div class="card">
-          <h3>1. Скопіюй у ChatGPT (Навігатор)</h3>
-          <p>Встав цей текст у Chat 1, щоб отримати англійський DEV BRIEF.</p>
-          <textarea class="prompt" readonly id="navigator-prompt">${prompt}</textarea>
-          <div class="actions">
-            <button class="primary" id="copy-nav">Скопіювати для Chat 1</button>
-          </div>
-        </div>
-        <div class="card">
-          <h3>2. Встав DEV BRIEF назад у панель</h3>
-          <textarea class="prompt" id="dev-brief-input" placeholder="Встав сюди англомовний DEV BRIEF від ChatGPT">${state.prompts.devBrief || ''}</textarea>
-          <div class="actions">
-            <button id="assisted-back">Назад</button>
-            <button class="primary" id="assisted-save">Зберегти DEV BRIEF</button>
-          </div>
-        </div>
-      `;
-      container.querySelector('#copy-nav').addEventListener('click', () => copyToClipboard(prompt, 'Скопійовано для Chat 1'));
-      container.querySelector('#assisted-back').addEventListener('click', prevStep);
-      container.querySelector('#assisted-save').addEventListener('click', () => {
-        const value = container.querySelector('#dev-brief-input').value.trim();
-        if (!value) {
-          showToast('Будь ласка, встав DEV BRIEF.');
-          return;
-        }
-        state.prompts.devBrief = value;
-        ensureCursorPrompt();
-        ensureChecklist();
-        saveState();
-        showToast('DEV BRIEF збережено.');
-        nextStep();
-      });
-    }
-
-    function renderOverview(container) {
-      const devBrief = ensureDevBrief();
-      const cursorPrompt = ensureCursorPrompt();
-      const checklist = ensureChecklist();
-      container.innerHTML = `
-        <div class="grid">
-          <div class="card">
-            <div class="chat-labels"><span>🧭 Chat 1</span><span class="cursor">💻 Chat 2</span></div>
-            <h3>DEV BRIEF</h3>
-            <textarea class="prompt" readonly id="brief-text">${devBrief || ''}</textarea>
-            <div class="actions">
-              <button class="ghost" id="copy-brief">Скопіювати DEV BRIEF</button>
-            </div>
-          </div>
-          <div class="card">
-            <h3>Cursor Prompt</h3>
-            <textarea class="prompt" readonly id="cursor-text">${cursorPrompt}</textarea>
-            <div class="actions">
-              <button class="primary" id="copy-cursor">Скопіювати для Cursor</button>
-            </div>
-          </div>
-          <div class="card">
-            <h3>Checklist після вставки</h3>
-            <textarea class="prompt" readonly id="checklist-text">${checklist}</textarea>
-            <div class="actions">
-              <button class="ghost" id="copy-checklist">Скопіювати чекліст</button>
-              <button class="primary" id="overview-confirm">Підтвердити план</button>
-              <button id="overview-back">Редагувати попередній крок</button>
-            </div>
-          </div>
-        </div>
-      `;
-      container.querySelector('#copy-brief').addEventListener('click', () => copyToClipboard(devBrief, 'DEV BRIEF скопійовано'));
-      container.querySelector('#copy-cursor').addEventListener('click', () => copyToClipboard(cursorPrompt, 'Cursor prompt скопійовано'));
-      container.querySelector('#copy-checklist').addEventListener('click', () => copyToClipboard(checklist, 'Чекліст скопійовано'));
-      container.querySelector('#overview-confirm').addEventListener('click', () => {
-        state.confirmed = true;
-        saveState();
-        showToast('✅ План підтверджено');
-        nextStep();
-      });
-      container.querySelector('#overview-back').addEventListener('click', prevStep);
-    }
-
-    function renderEnvironment(container) {
-      const env = state.environment;
-      container.innerHTML = `
-        <div class="grid two">
-          <div class="card ${env === 'local' ? 'selected' : ''}">
-            <h3>💻 Local</h3>
-            <p>Працюєш на своєму комп’ютері. Потрібен Python 3.10+ і Cursor.</p>
-            <div class="actions"><button class="primary" id="env-local">Обрати Local</button><button class="ghost" data-info="local">Що це?</button></div>
-          </div>
-          <div class="card ${env === 'codespaces' ? 'selected' : ''}">
-            <h3>☁️ Codespaces</h3>
-            <p>Все працює в браузері. Достатньо GitHub-акаунта.</p>
-            <div class="actions"><button class="primary" id="env-codespaces">Обрати Codespaces</button><button class="ghost" data-info="codespaces">Що це?</button></div>
-          </div>
-        </div>
-        <div class="actions">
-          <button id="env-back">Назад</button>
-        </div>
-      `;
-      container.querySelector('#env-local').addEventListener('click', () => {
-        state.environment = 'local';
-        ensureCursorPrompt();
-        saveState();
-        showToast('Local середовище обрано.');
-        nextStep();
-      });
-      container.querySelector('#env-codespaces').addEventListener('click', () => {
-        state.environment = 'codespaces';
-        ensureCursorPrompt();
-        saveState();
-        showToast('Codespaces середовище обрано.');
-        nextStep();
-      });
-      container.querySelector('#env-back').addEventListener('click', prevStep);
-      container.querySelectorAll('button[data-info]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const mode = btn.dataset.info;
-          if (mode === 'local') {
-            openModal('Local середовище', '<p>Запускаєш бота на своєму комп’ютері. Потрібно встановити Python 3.10+, редактор коду та Cursor.</p>');
-          } else {
-            openModal('Codespaces', '<p>GitHub Codespaces відкриває готове середовище в браузері. Усе налаштовано: достатньо натиснути Run.</p>');
-          }
-        });
-      });
-    }
-
-    function renderTools(container) {
-      const isCodespaces = state.environment === 'codespaces';
-      container.innerHTML = `
-        <div class="grid">
-          <div class="card">
-            <h3>Переконайся, що все готово</h3>
-            <div class="checklist">
-              <div class="check-item"><span class="badge">1</span><div><strong>Python ${isCodespaces ? 'вже встановлено' : '3.10+'}</strong><div class="hint">${isCodespaces ? 'Codespaces містить Python за замовчуванням.' : 'Завантаж з python.org та встанови перед стартом.'}</div></div></div>
-              <div class="check-item"><span class="badge">2</span><div><strong>Cursor IDE</strong><div class="hint">Відкрий Cursor, авторизуйся через GitHub і створи новий проєкт.</div></div></div>
-              ${isCodespaces ? '' : '<div class="check-item"><span class="badge">3</span><div><strong>Git встановлено</strong><div class="hint">Перевір командою <code>git --version</code>. Це допоможе клонувати репозиторій.</div></div></div>'}
-              <div class="check-item"><span class="badge">${isCodespaces ? '3' : '4'}</span><div><strong>VS Code (опційно)</strong><div class="hint">Можеш використовувати VS Code для редагування файлів поруч із Cursor.</div></div></div>
-            </div>
-            <div class="actions">
-              ${isCodespaces ? '<button class="primary" id="open-codespaces">Відкрити Codespaces</button>' : '<button class="primary" id="download-python">Завантажити Python</button>'}
-              <button class="ghost" id="open-cursor">Відкрити Cursor</button>
-              <button class="ghost" id="open-vscode">Відкрити VS Code</button>
-              <button id="tools-back">Назад</button>
-              <button class="primary" id="tools-next">Перевірив, усе встановлено ✅</button>
-            </div>
-          </div>
-        </div>
-      `;
-      container.querySelector('#tools-back').addEventListener('click', prevStep);
-      container.querySelector('#tools-next').addEventListener('click', () => {
-        showToast('Інструменти готові. Наступний крок!');
-        nextStep();
-      });
-      const openCursor = container.querySelector('#open-cursor');
-      if (openCursor) openCursor.addEventListener('click', () => window.open('https://cursor.sh/', '_blank'));
-      const openVSCode = container.querySelector('#open-vscode');
-      if (openVSCode) openVSCode.addEventListener('click', () => window.open('https://code.visualstudio.com/', '_blank'));
-      const downloadPython = container.querySelector('#download-python');
-      if (downloadPython) downloadPython.addEventListener('click', () => window.open('https://www.python.org/downloads/', '_blank'));
-      const openCodespaces = container.querySelector('#open-codespaces');
-      if (openCodespaces) openCodespaces.addEventListener('click', () => window.open('https://github.com/codespaces', '_blank'));
-    }
-
-    function renderCursor(container) {
-      const prompt = ensureCursorPrompt();
-      container.innerHTML = `
-        <div class="card">
-          <div class="chat-labels"><span class="cursor">💻 Chat 2 — Cursor</span></div>
-          <h3>Скопіюй цей промпт у Cursor (Chat 2)</h3>
-          <textarea class="prompt" readonly id="cursor-copy-text">${prompt}</textarea>
-          <div class="hint">Відкрий Cursor, створи чат у відповідному репозиторії та встав цей текст.</div>
-          <div class="actions">
-            <button class="primary" id="cursor-copy">Скопіювати для Cursor</button>
-            <button id="cursor-guide">Де вставити?</button>
-            <button id="cursor-back">Назад</button>
-            <button class="primary" id="cursor-done">Вставив — далі</button>
-          </div>
-        </div>
-      `;
-      container.querySelector('#cursor-copy').addEventListener('click', () => copyToClipboard(prompt, 'Промпт скопійовано'));
-      container.querySelector('#cursor-guide').addEventListener('click', () => {
-        openModal('Де вставити промпт?', '<p>У Cursor відкрий проєкт → Chat → натисни «New chat» → встав промпт → натисни Run.</p>');
-      });
-      container.querySelector('#cursor-back').addEventListener('click', prevStep);
-      container.querySelector('#cursor-done').addEventListener('click', () => {
-        showToast('Чудово! Перейдемо до запуску.');
-        nextStep();
-      });
-    }
-
-    function renderLaunch(container) {
-      const commands = state.environment === 'codespaces'
-        ? `python3 -m venv .venv\nsource .venv/bin/activate\npip install -r requirements.txt\npython main.py`
-        : `python -m venv .venv\nsource .venv/bin/activate\npip install -r requirements.txt\npython main.py`;
-      container.innerHTML = `
-        <div class="card">
-          <h3>Команди для запуску</h3>
-          <textarea class="prompt" readonly id="launch-text">${commands}</textarea>
-          <div class="actions">
-            <button class="primary" id="launch-copy">Скопіювати команди</button>
-            <button class="ghost" id="launch-problem">Є проблема</button>
-            <button id="launch-back">Назад</button>
-            <button class="primary" id="launch-done">Запустив</button>
-          </div>
-        </div>
-      `;
-      container.querySelector('#launch-copy').addEventListener('click', () => copyToClipboard(commands, 'Команди скопійовано'));
-      container.querySelector('#launch-problem').addEventListener('click', () => {
-        openModal('Що саме не працює?', `
-          <div class="list">
-            <button class="btn" data-problem="python">Python не знайдено</button>
-            <button class="btn" data-problem="token">Помилка токена</button>
-            <button class="btn" data-problem="silence">Бот мовчить</button>
-          </div>
-        `);
-        document.querySelectorAll('[data-problem]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const type = btn.dataset.problem;
-            let message = '';
-            if (type === 'python') {
-              message = 'Перевір, чи встановлено Python та додано до PATH. Можеш завантажити останню версію з python.org.';
-            } else if (type === 'token') {
-              message = 'Відкрий .env, переконайся, що BOT_TOKEN=... і токен актуальний. Якщо сумніваєшся — отримай новий у BotFather.';
-            } else {
-              message = 'Переконайся, що скрипт main.py працює без помилок. Якщо бот мовчить, переглянь останні логи та відправ їх у Навігатор.';
-            }
-            copyToClipboard(`Navigator, help me: ${message}`, 'Запит до Навігатора скопійовано');
-            closeModal();
-            showToast('Повідомлення для Навігатора готове.');
-          });
-        });
-      });
-      container.querySelector('#launch-back').addEventListener('click', prevStep);
-      container.querySelector('#launch-done').addEventListener('click', () => {
-        showToast('Запуск виконано.');
-        nextStep();
-      });
-    }
-
-    function renderBotFather(container) {
-      const commands = `/start - Почати роботу\n/help - Допомога\n/add - Додати елемент\n/list - Показати список\n/done - Позначити виконаним`;
-      container.innerHTML = `
-        <div class="card">
-          <h3>Команди для BotFather</h3>
-          <textarea class="prompt" readonly id="botfather-text">${commands}</textarea>
-          <div class="actions">
-            <button class="primary" id="botfather-copy">Скопіювати команди</button>
-            <button id="botfather-open">Відкрити BotFather</button>
-            <button id="botfather-back">Назад</button>
-            <button class="primary" id="botfather-done">Команди додано</button>
-          </div>
-        </div>
-      `;
-      container.querySelector('#botfather-copy').addEventListener('click', () => copyToClipboard(commands, 'Команди скопійовано'));
-      container.querySelector('#botfather-open').addEventListener('click', () => window.open('https://t.me/BotFather', '_blank'));
-      container.querySelector('#botfather-back').addEventListener('click', prevStep);
-      container.querySelector('#botfather-done').addEventListener('click', () => {
-        showToast('Команди додано. Переходимо до перевірки.');
-        nextStep();
-      });
-    }
-
-    function renderTest(container) {
-      container.innerHTML = `
-        <div class="card">
-          <h3>Чекліст перевірки</h3>
-          <div class="checklist">
-            <div class="check-item"><span class="badge">1</span><div><strong>/start відповідає?</strong><div class="hint">Надішли /start та дочекайся привітання без помилок у терміналі.</div></div></div>
-            <div class="check-item"><span class="badge">2</span><div><strong>/help показує команди?</strong><div class="hint">Переконайся, що список команд відповідає плану.</div></div></div>
-            <div class="check-item"><span class="badge">3</span><div><strong>Додаткові команди працюють</strong><div class="hint">Перевір /add, /list та інші модулі, які обрав.</div></div></div>
-          </div>
-          <div class="actions">
-            <button class="ghost" id="test-problem">Є проблема</button>
-            <button id="test-back">Назад</button>
-            <button class="primary" id="test-done">Все працює</button>
-          </div>
-        </div>
-      `;
-      container.querySelector('#test-problem').addEventListener('click', () => {
-        openModal('Що трапилось?', '<p>Збережи останні 50 рядків логів і натисни «Навігатор». Він допоможе знайти помилку.</p>');
-      });
-      container.querySelector('#test-back').addEventListener('click', prevStep);
-      container.querySelector('#test-done').addEventListener('click', () => {
-        showToast('Вітаємо! Бот працює.');
-        nextStep();
-      });
-    }
-
-    function renderUpgrade(container) {
-      container.innerHTML = `
-        <div class="grid three">
-          <div class="card">
-            <h3>💬 Кнопки та меню</h3>
-            <p>Додай Reply / Inline кнопки для швидкого доступу до команд.</p>
-            <div class="actions"><button class="primary" id="upgrade-ui">Хочу додати кнопки</button></div>
-          </div>
-          <div class="card">
-            <h3>📊 Статистика</h3>
-            <p>Показуй прогрес користувачів та надсилай щотижневі дайджести.</p>
-            <div class="actions"><button class="primary" id="upgrade-stats">Хочу статистику</button></div>
-          </div>
-          <div class="card">
-            <h3>💰 Оплати</h3>
-            <p>Приймай Telegram Stars або Stripe для монетизації.</p>
-            <div class="actions"><button class="primary" id="upgrade-payments">Хочу оплату</button></div>
-          </div>
-        </div>
-        <div class="actions">
-          <button class="ghost" id="upgrade-home">Повернутись на головну</button>
-        </div>
-      `;
-      container.querySelector('#upgrade-ui').addEventListener('click', () => showToast('Модуль кнопок у розробці.'));
-      container.querySelector('#upgrade-stats').addEventListener('click', () => showToast('Статистика з’явиться у наступних версіях.'));
-      container.querySelector('#upgrade-payments').addEventListener('click', () => showToast('Підтримка оплат готується.'));
-      container.querySelector('#upgrade-home').addEventListener('click', () => {
-        state.stepId = 'start';
-        saveState();
-        render();
-      });
+    function setStep(index) {
+      state.currentStep = Math.max(0, Math.min(index, steps.length - 1));
+      saveState();
+      render();
     }
 
     function render() {
-      const visible = getVisibleSteps();
-      if (!visible.find(step => step.id === state.stepId)) {
-        state.stepId = visible[0].id;
+      const step = steps[state.currentStep];
+      ensurePrompts();
+      elements.title.textContent = `Крок ${state.currentStep} · ${step.title}`;
+      elements.desc.textContent = step.desc;
+      elements.body.innerHTML = '';
+      step.render(elements.body);
+      const total = steps.length - 1;
+      const progress = Math.round((state.currentStep / total) * 100);
+      elements.progressLabel.textContent = `Прогрес: ${progress}% · Крок ${state.currentStep} / ${total}`;
+      elements.progressBar.style.width = `${progress}%`;
+      elements.prev.disabled = state.currentStep === 0;
+      elements.next.disabled = state.currentStep === steps.length - 1;
+      if (step.showNotes) {
+        elements.noteWrap.hidden = false;
+        const key = step.id;
+        elements.note.value = state.notes[key] || '';
+      } else {
+        elements.noteWrap.hidden = true;
       }
-      const index = currentIndex();
-      const step = visible[index];
-      const mainTitle = document.getElementById('main-title');
-      const mainLead = document.getElementById('main-lead');
-      const headerStep = document.getElementById('header-step');
-      mainTitle.textContent = step.title;
-      mainLead.textContent = step.lead;
-      headerStep.textContent = step.title;
-
-      const progressText = document.getElementById('progress-text');
-      progressText.textContent = `Крок ${index + 1} із ${visible.length}`;
-      const progressBar = document.getElementById('progress-bar');
-      progressBar.style.width = `${((index + 1) / visible.length) * 100}%`;
-
-      const modeTag = document.getElementById('mode-tag');
-      modeTag.textContent = state.mode ? `Режим: ${state.mode === 'auto' ? 'AUTO' : 'ASSISTED'}` : 'Режим не обрано';
-      const envTag = document.getElementById('env-tag');
-      envTag.textContent = `Середовище: ${state.environment ? (state.environment === 'codespaces' ? 'Codespaces' : 'Local') : '—'}`;
-
-      const container = document.getElementById('main-content');
-      container.innerHTML = '';
-      step.render(container);
+      updateBadges();
+      elements.actionHint.textContent = getStepHint(step.id);
+      saveState();
     }
 
+    function updateBadges() {
+      elements.modeBadge.textContent = state.mode ? `Режим: ${state.mode}` : 'Режим не обрано';
+      elements.envBadge.textContent = state.environment ? `Середовище: ${state.environment}` : 'Середовище не вибране';
+    }
+    function getStepHint(stepId) {
+      switch (stepId) {
+        case 'start':
+          return 'Натисни «Почати» і відмічай кожен підкрок.';
+        case 'survey':
+          return 'Не знаєш команди? Використай готові варіанти нижче.';
+        case 'mode':
+          return 'AUTO для швидкого старту. ASSISTED, якщо хочеш спілкуватись з ChatGPT.';
+        case 'builder':
+          return state.mode === 'ASSISTED' ? 'Режим ASSISTED — цей крок лише для натхнення.' : 'Обери хоча б по одному пункту у кожному блоці.';
+        case 'overview':
+          return 'Скопіюй промпти і виконай інструкції залежно від режиму.';
+        case 'environment':
+          return 'Визначся: локально чи в хмарі. Ми підлаштуємо інструкції далі.';
+        case 'tools':
+          return 'Перевір, що Python, Cursor і редактор вже відкриті.';
+        case 'cursor':
+          return 'Скопіюй промпт у Cursor. Якщо завис — натисни «Проблема?». ';
+        case 'launch':
+          return 'Виконай команди по черзі. Якщо є помилка — натисни «Проблема?». ';
+        case 'botfather':
+          return 'Додай команди. Вони вже перекладені.';
+        case 'test':
+          return 'Перевір відповіді бота та позначай галочки.';
+        case 'finish':
+          return 'Обери, що хочеш покращити далі.';
+        default:
+          return '';
+      }
+    }
+
+    function validateStep() {
+      const step = steps[state.currentStep];
+      switch (step.id) {
+        case 'survey': {
+          const { role, goal } = state.survey;
+          if (!role || !goal) {
+            return { allowAdvance: false, message: 'Заповни роль і ціль бота. Це можна зробити своїми словами.' };
+          }
+          return { allowAdvance: true };
+        }
+        case 'mode': {
+          if (!state.mode) return { allowAdvance: false, message: 'Оберіть режим роботи панелі.' };
+          return { allowAdvance: true };
+        }
+        case 'builder': {
+          if (state.mode === 'ASSISTED') return { allowAdvance: true };
+          const { type, modules, storage } = state.autoProfile;
+          if (!type || modules.length === 0 || !storage) {
+            return { allowAdvance: false, message: 'Оберіть тип, хоча б один модуль та спосіб збереження.' };
+          }
+          return { allowAdvance: true };
+        }
+        case 'overview': {
+          if (state.mode === 'ASSISTED' && !state.assistedBrief.trim()) {
+            return { allowAdvance: false, message: 'Встав DEV BRIEF, який ти отримав у ChatGPT.' };
+          }
+          return { allowAdvance: true };
+        }
+        case 'environment': {
+          if (!state.environment) {
+            return { allowAdvance: false, message: 'Оберіть середовище: Local або Codespaces.' };
+          }
+          return { allowAdvance: true };
+        }
+        default:
+          return { allowAdvance: true };
+      }
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Скопійовано у буфер.');
+      });
+    }
+
+    function handleChipToggle(chip, list, value) {
+      const index = list.indexOf(value);
+      if (index >= 0) {
+        list.splice(index, 1);
+        chip.classList.remove('active');
+      } else {
+        list.push(value);
+        chip.classList.add('active');
+      }
+      saveState();
+    }
+
+    const COMMAND_SUGGESTIONS = ['/start', '/help', '/add', '/list', '/done', '/stats', '/tips', '/pay', '/admin', '/panic'];
+    const BOT_TYPES = [
+      { value: 'CRM', label: 'CRM', desc: 'Веде клієнтів і завдання' },
+      { value: 'Task Manager', label: 'Task Manager', desc: 'Список справ для команди' },
+      { value: 'Habit Tracker', label: 'Habit Tracker', desc: 'Щоденні звички й нагадування' },
+      { value: 'FAQ', label: 'FAQ / Support', desc: 'Відповідає на типові питання' },
+      { value: 'Shop', label: 'Shop', desc: 'Міні-магазин у Telegram' },
+      { value: 'Booking', label: 'Booking', desc: 'Запис на послуги' },
+      { value: 'Custom', label: 'Custom', desc: 'Свій сценарій' }
+    ];
+
+    const MODULES = [
+      ['/start', 'Привітання'],
+      ['/help', 'Пояснення'],
+      ['/add', 'Додати'],
+      ['/list', 'Список'],
+      ['/done', 'Позначити виконане'],
+      ['/stats', 'Статистика'],
+      ['/tips', 'Поради'],
+      ['/pay', 'Оплати'],
+      ['/admin', 'Адмін-панель'],
+      ['/panic', 'Швидка підтримка']
+    ];
+
+    const STORAGE_OPTIONS = [
+      ['None', 'Без збереження'],
+      ['JSON', 'JSON файл (простий варіант)'],
+      ['Google Sheets', 'Google Sheets'],
+      ['SQLite', 'SQLite'],
+      ['Postgres', 'Postgres']
+    ];
+
+    const INTEGRATIONS = ['Google Sheets', 'Notion', 'Webhook', 'Stripe', 'OpenAI'];
+
+    const BACKENDS = [
+      ['None', 'Без бекенду'],
+      ['Parser', 'Парсер сторінки'],
+      ['Webhook', 'Webhook прийом'],
+      ['FastAPI', 'FastAPI API']
+    ];
+
+    const DIFFICULTIES = [
+      ['L0', 'L0 — базово'],
+      ['L1', 'L1 — середній'],
+      ['L2', 'L2 — просунутий'],
+      ['L3', 'L3 — складний']
+    ];
+    function renderStartStep(container) {
+      const block = document.createElement('div');
+      block.className = 'step-body';
+
+      const intro = document.createElement('div');
+      intro.className = 'info-block';
+      intro.innerHTML = `
+        <strong>Zero-to-Bot Panel</strong> проведе тебе від ідеї до працюючого Telegram-бота.<br>
+        Все, що потрібно — читати підказки, копіювати промпти і натискати «Далі».
+      `;
+
+      const actions = document.createElement('div');
+      actions.style.display = 'flex';
+      actions.style.gap = '12px';
+      actions.style.flexWrap = 'wrap';
+
+      const startBtn = document.createElement('button');
+      startBtn.className = 'primary';
+      startBtn.textContent = 'Почати створення';
+      startBtn.addEventListener('click', () => {
+        state.started = true;
+        showToast('Поїхали! Крок 1 — Анкета.');
+        setStep(1);
+      });
+
+      const howBtn = document.createElement('button');
+      howBtn.textContent = 'Як це працює?';
+      howBtn.addEventListener('click', () => {
+        document.getElementById('open-how').click();
+      });
+
+      actions.appendChild(startBtn);
+      actions.appendChild(howBtn);
+
+      block.appendChild(intro);
+      block.appendChild(actions);
+
+      container.appendChild(block);
+    }
+
+    function renderSurveyStep(container) {
+      const grid = document.createElement('div');
+      grid.className = 'form-grid';
+
+      const row1 = document.createElement('div');
+      row1.className = 'form-grid two';
+
+      row1.appendChild(createInput('Роль бота', 'Наприклад: Асистент по звичкам', state.survey.role, (value) => {
+        state.survey.role = value;
+        saveState();
+        ensurePrompts();
+      }));
+
+      row1.appendChild(createInput('Головна ціль', 'Що має робити бот?', state.survey.goal, (value) => {
+        state.survey.goal = value;
+        saveState();
+        ensurePrompts();
+      }));
+
+      grid.appendChild(row1);
+
+      grid.appendChild(
+        createInput('Кому допомагає бот?', 'Наприклад: фрілансерам, клієнтам магазину, команді', state.survey.audience, (value) => {
+          state.survey.audience = value;
+          saveState();
+          ensurePrompts();
+        })
+      );
+
+      const commandsBlock = document.createElement('div');
+      commandsBlock.className = 'form-grid';
+
+      const commandLabel = document.createElement('label');
+      commandLabel.textContent = 'Команди (натискай, щоб додати)';
+      commandsBlock.appendChild(commandLabel);
+
+      const chips = document.createElement('div');
+      chips.className = 'chip-group';
+
+      COMMAND_SUGGESTIONS.forEach((command) => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.textContent = command;
+        if (state.survey.commands.includes(command)) chip.classList.add('active');
+        chip.addEventListener('click', () => {
+          handleChipToggle(chip, state.survey.commands, command);
+          commandsTextarea.value = state.survey.commands.join(', ');
+          ensurePrompts();
+        });
+        chips.appendChild(chip);
+      });
+
+      const commandsTextarea = document.createElement('textarea');
+      commandsTextarea.value = state.survey.commands.join(', ');
+      commandsTextarea.placeholder = 'Наприклад: /start, /help, /add';
+      commandsTextarea.addEventListener('input', (event) => {
+        const values = event.target.value
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+        state.survey.commands = [...new Set(values.map((cmd) => (cmd.startsWith('/') ? cmd : `/${cmd}`)))];
+        saveState();
+        ensurePrompts();
+        chips.querySelectorAll('.chip').forEach((chip) => {
+          if (state.survey.commands.includes(chip.textContent)) chip.classList.add('active');
+          else chip.classList.remove('active');
+        });
+      });
+
+      commandsBlock.appendChild(chips);
+      commandsBlock.appendChild(commandsTextarea);
+
+      grid.appendChild(commandsBlock);
+
+      const selectRow = document.createElement('div');
+      selectRow.className = 'form-grid two';
+
+      selectRow.appendChild(
+        createSelect('Мова інтерфейсу', state.survey.language, [
+          ['uk', 'Українська'],
+          ['en', 'English']
+        ], (value) => {
+          state.survey.language = value;
+          state.autoProfile.uiLanguage = value;
+          saveState();
+          ensurePrompts();
+        })
+      );
+
+      selectRow.appendChild(
+        createSelect('Канал', state.survey.channel, [
+          ['dm', 'Особисті чати'],
+          ['group', 'Групи']
+        ], (value) => {
+          state.survey.channel = value;
+          saveState();
+          ensurePrompts();
+        })
+      );
+
+      grid.appendChild(selectRow);
+
+      const helper = document.createElement('div');
+      helper.className = 'info-block';
+      helper.innerHTML = `
+        <strong>Не знаєш, які команди потрібні?</strong><br>
+        Обери готові приклади або залиш наші шаблони. Панель пізніше згенерує блок для BotFather.
+      `;
+
+      container.appendChild(grid);
+      container.appendChild(helper);
+    }
+    function createInput(labelText, placeholder, value, onInput) {
+      const wrapper = document.createElement('label');
+      wrapper.textContent = labelText;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = placeholder;
+      input.value = value;
+      input.addEventListener('input', (event) => onInput(event.target.value));
+      wrapper.appendChild(input);
+      return wrapper;
+    }
+
+    function createSelect(labelText, value, options, onChange) {
+      const wrapper = document.createElement('label');
+      wrapper.textContent = labelText;
+      const select = document.createElement('select');
+      options.forEach(([val, label]) => {
+        const option = document.createElement('option');
+        option.value = val;
+        option.textContent = label;
+        if (value === val) option.selected = true;
+        select.appendChild(option);
+      });
+      select.addEventListener('change', (event) => onChange(event.target.value));
+      wrapper.appendChild(select);
+      return wrapper;
+    }
+
+    function renderModeStep(container) {
+      const grid = document.createElement('div');
+      grid.className = 'card-grid';
+
+      const autoCard = createModeCard('AUTO', '⚡', 'Панель сама створить англомовний DEV BRIEF і промпт для Cursor. Ідеально, якщо хочеш «натиснути й отримати».');
+      const assistedCard = createModeCard('ASSISTED', '💬', 'Отримаєш промпт для ChatGPT Навігатора, який допоможе сформувати DEV BRIEF. Потім вставиш його сюди.');
+
+      if (state.mode === 'AUTO') autoCard.classList.add('active');
+      if (state.mode === 'ASSISTED') assistedCard.classList.add('active');
+
+      autoCard.addEventListener('click', () => {
+        state.mode = 'AUTO';
+        saveState();
+        ensurePrompts();
+        render();
+        showToast('AUTO: промпти генеруються автоматично.');
+      });
+
+      assistedCard.addEventListener('click', () => {
+        state.mode = 'ASSISTED';
+        saveState();
+        ensurePrompts();
+        render();
+        showToast('ASSISTED: працюємо через ChatGPT Навігатора.');
+      });
+
+      grid.appendChild(autoCard);
+      grid.appendChild(assistedCard);
+
+      const reminder = document.createElement('div');
+      reminder.className = 'info-block';
+      reminder.innerHTML = `
+        <strong>Порада.</strong> Можеш змінити режим у будь-який момент. Всі промпти автоматично перерахуються.
+      `;
+
+      container.appendChild(grid);
+      container.appendChild(reminder);
+    }
+
+    function createModeCard(mode, emoji, description) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const title = document.createElement('h3');
+      title.textContent = `${emoji} ${mode}`;
+      const text = document.createElement('p');
+      text.textContent = description;
+      card.appendChild(title);
+      card.appendChild(text);
+      return card;
+    }
+    function renderBuilderStep(container) {
+      if (state.mode === 'ASSISTED') {
+        const block = document.createElement('div');
+        block.className = 'info-block';
+        block.innerHTML = `
+          Ти обрав режим ASSISTED. Цей конструктор можна пропустити — ChatGPT сам допоможе сформувати структуру. Якщо хочеш, можеш все ж обрати варіанти для натхнення.
+        `;
+        container.appendChild(block);
+      }
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'step-body';
+
+      const typeSection = document.createElement('div');
+      typeSection.appendChild(createSectionTitle('Тип бота'));
+      const typeGrid = document.createElement('div');
+      typeGrid.className = 'card-grid';
+      BOT_TYPES.forEach(({ value, label, desc }) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        if (state.autoProfile.type === value) card.classList.add('active');
+        const title = document.createElement('h3');
+        title.textContent = label;
+        const text = document.createElement('p');
+        text.textContent = desc;
+        card.appendChild(title);
+        card.appendChild(text);
+        card.addEventListener('click', () => {
+          state.autoProfile.type = value;
+          saveState();
+          ensurePrompts();
+          render();
+        });
+        typeGrid.appendChild(card);
+      });
+      typeSection.appendChild(typeGrid);
+      wrapper.appendChild(typeSection);
+
+      const modulesSection = document.createElement('div');
+      modulesSection.appendChild(createSectionTitle('Модулі та команди'));
+      const moduleChips = document.createElement('div');
+      moduleChips.className = 'chip-group';
+      MODULES.forEach(([value, label]) => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.textContent = `${value} · ${label}`;
+        if (state.autoProfile.modules.includes(value)) chip.classList.add('active');
+        chip.addEventListener('click', () => {
+          handleChipToggle(chip, state.autoProfile.modules, value);
+          ensurePrompts();
+        });
+        moduleChips.appendChild(chip);
+      });
+      modulesSection.appendChild(moduleChips);
+      wrapper.appendChild(modulesSection);
+
+      const storageSection = document.createElement('div');
+      storageSection.appendChild(createSectionTitle('Збереження даних'));
+      const storageGrid = document.createElement('div');
+      storageGrid.className = 'card-grid';
+      STORAGE_OPTIONS.forEach(([value, label]) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        if (state.autoProfile.storage === value) card.classList.add('active');
+        const title = document.createElement('h3');
+        title.textContent = label;
+        card.appendChild(title);
+        card.addEventListener('click', () => {
+          state.autoProfile.storage = value;
+          saveState();
+          ensurePrompts();
+          render();
+        });
+        storageGrid.appendChild(card);
+      });
+      storageSection.appendChild(storageGrid);
+      wrapper.appendChild(storageSection);
+
+      const integrationsSection = document.createElement('div');
+      integrationsSection.appendChild(createSectionTitle('Інтеграції'));
+      const integrationsChips = document.createElement('div');
+      integrationsChips.className = 'chip-group';
+      INTEGRATIONS.forEach((integration) => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.textContent = integration;
+        if (state.autoProfile.integrations.includes(integration)) chip.classList.add('active');
+        chip.addEventListener('click', () => {
+          handleChipToggle(chip, state.autoProfile.integrations, integration);
+          ensurePrompts();
+        });
+        integrationsChips.appendChild(chip);
+      });
+      integrationsSection.appendChild(integrationsChips);
+      wrapper.appendChild(integrationsSection);
+
+      const backendSection = document.createElement('div');
+      backendSection.appendChild(createSectionTitle('Бекенд'));
+      const backendGrid = document.createElement('div');
+      backendGrid.className = 'card-grid';
+      BACKENDS.forEach(([value, label]) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        if (state.autoProfile.backend === value) card.classList.add('active');
+        const title = document.createElement('h3');
+        title.textContent = label;
+        card.appendChild(title);
+        card.addEventListener('click', () => {
+          state.autoProfile.backend = value;
+          saveState();
+          ensurePrompts();
+          render();
+        });
+        backendGrid.appendChild(card);
+      });
+      backendSection.appendChild(backendGrid);
+      wrapper.appendChild(backendSection);
+
+      const diffSection = document.createElement('div');
+      diffSection.appendChild(createSectionTitle('Рівень складності'));
+      diffSection.appendChild(
+        createSelect('Оберіть рівень', state.autoProfile.difficulty, DIFFICULTIES, (value) => {
+          state.autoProfile.difficulty = value;
+          saveState();
+          ensurePrompts();
+        })
+      );
+      wrapper.appendChild(diffSection);
+
+      container.appendChild(wrapper);
+    }
+
+    function createSectionTitle(text) {
+      const title = document.createElement('h3');
+      title.textContent = text;
+      title.style.margin = '0 0 12px';
+      return title;
+    }
+    function renderOverviewStep(container) {
+      ensurePrompts();
+
+      if (state.mode === 'ASSISTED') {
+        const assistedCard = document.createElement('div');
+        assistedCard.className = 'card';
+        const label = document.createElement('div');
+        label.className = 'prompt-label chat1';
+        label.textContent = 'Chat 1 · Навігатор';
+        assistedCard.appendChild(label);
+        const text = document.createElement('div');
+        text.className = 'prompt-area';
+        text.textContent = generateAssistedPrompt();
+        assistedCard.appendChild(text);
+
+        const actions = document.createElement('div');
+        actions.className = 'prompt-actions';
+        const copy = document.createElement('button');
+        copy.className = 'chat2';
+        copy.textContent = 'Скопіювати для ChatGPT';
+        copy.addEventListener('click', () => copyText(text.textContent));
+        actions.appendChild(copy);
+        assistedCard.appendChild(actions);
+        container.appendChild(assistedCard);
+
+        const textareaLabel = document.createElement('label');
+        textareaLabel.textContent = 'Встав DEV BRIEF, який повернув ChatGPT';
+        const textarea = document.createElement('textarea');
+        textarea.placeholder = 'Встав сюди текст англійською. Ми перетворимо його на промпт для Cursor.';
+        textarea.value = state.assistedBrief;
+        textarea.addEventListener('input', (event) => {
+          state.assistedBrief = event.target.value;
+          saveState();
+          ensurePrompts();
+          render();
+        });
+        textareaLabel.appendChild(textarea);
+        container.appendChild(textareaLabel);
+      }
+
+      const briefCard = document.createElement('div');
+      briefCard.className = 'card';
+      const briefLabel = document.createElement('div');
+      briefLabel.className = 'prompt-label chat1';
+      briefLabel.textContent = 'DEV BRIEF';
+      const briefText = document.createElement('div');
+      briefText.className = 'prompt-area';
+      briefText.textContent = state.generatedBrief;
+      const briefCopy = document.createElement('button');
+      briefCopy.textContent = 'Скопіювати DEV BRIEF';
+      briefCopy.addEventListener('click', () => copyText(state.generatedBrief));
+      briefCard.appendChild(briefLabel);
+      briefCard.appendChild(briefText);
+      briefCard.appendChild(briefCopy);
+      container.appendChild(briefCard);
+
+      const cursorCard = document.createElement('div');
+      cursorCard.className = 'card';
+      const cursorLabel = document.createElement('div');
+      cursorLabel.className = 'prompt-label cursor';
+      cursorLabel.textContent = 'Cursor Prompt';
+      const cursorText = document.createElement('div');
+      cursorText.className = 'prompt-area';
+      cursorText.textContent = state.generatedCursorPrompt;
+      const cursorCopy = document.createElement('button');
+      cursorCopy.className = 'chat2';
+      cursorCopy.textContent = 'Скопіювати для Cursor';
+      cursorCopy.addEventListener('click', () => copyText(state.generatedCursorPrompt));
+      cursorCard.appendChild(cursorLabel);
+      cursorCard.appendChild(cursorText);
+      cursorCard.appendChild(cursorCopy);
+      container.appendChild(cursorCard);
+
+      const checklistCard = document.createElement('div');
+      checklistCard.className = 'card';
+      const checklistLabel = document.createElement('div');
+      checklistLabel.className = 'prompt-label';
+      checklistLabel.textContent = 'CHECKLIST';
+      const list = document.createElement('div');
+      list.className = 'checklist';
+      state.generatedChecklist.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'check-item';
+        row.innerHTML = `<span>•</span><span>${item}</span>`;
+        list.appendChild(row);
+      });
+      checklistCard.appendChild(checklistLabel);
+      checklistCard.appendChild(list);
+      container.appendChild(checklistCard);
+    }
+    function renderEnvironmentStep(container) {
+      const grid = document.createElement('div');
+      grid.className = 'card-grid';
+
+      const localCard = createEnvironmentCard('Local', '💻', 'Працюєш на своєму комп’ютері. Потрібні Python 3.10+ і Cursor.', [
+        'Повний контроль над файлами',
+        'Працює офлайн',
+        'Вимагає встановлення програм'
+      ]);
+
+      const cloudCard = createEnvironmentCard('Codespaces', '☁️', 'Все працює в браузері. Нічого ставити не треба, тільки GitHub-акаунт.', [
+        'Автоматичне середовище з Linux',
+        'Зручний варіант для слабких ПК',
+        'Потрібне підключення до інтернету'
+      ]);
+
+      if (state.environment === 'Local') localCard.classList.add('active');
+      if (state.environment === 'Codespaces') cloudCard.classList.add('active');
+
+      grid.appendChild(localCard);
+      grid.appendChild(cloudCard);
+
+      container.appendChild(grid);
+
+      const tip = document.createElement('div');
+      tip.className = 'info-block';
+      tip.innerHTML = `
+        <strong>Що обрати?</strong><br>
+        Якщо впевнено працюєш із файлами — обирай Local. Якщо хочеш мінімум налаштувань — обирай Codespaces. Ти можеш змінити вибір пізніше.
+      `;
+      container.appendChild(tip);
+    }
+
+    function createEnvironmentCard(name, emoji, text, bullets) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const title = document.createElement('h3');
+      title.textContent = `${emoji} ${name}`;
+      const desc = document.createElement('p');
+      desc.textContent = text;
+      card.appendChild(title);
+      card.appendChild(desc);
+      const list = document.createElement('ul');
+      list.style.margin = '0';
+      list.style.paddingLeft = '18px';
+      bullets.forEach((bullet) => {
+        const li = document.createElement('li');
+        li.textContent = bullet;
+        list.appendChild(li);
+      });
+      card.appendChild(list);
+      card.addEventListener('click', () => {
+        state.environment = name;
+        saveState();
+        ensurePrompts();
+        render();
+        showToast(`Обрано середовище: ${name}`);
+      });
+      return card;
+    }
+
+    function renderToolsStep(container) {
+      const tools = [
+        {
+          key: 'python',
+          label: 'Python 3.10+',
+          description: 'Без Python бот не запуститься. Натисни, щоб перевірити встановлення.',
+          link: 'https://www.python.org/downloads/'
+        },
+        {
+          key: 'cursor',
+          label: 'Cursor IDE',
+          description: 'Редактор з вбудованим Chat 2. Потрібен для вставки фінального промпта.',
+          link: 'https://www.cursor.com/'
+        },
+        {
+          key: 'editor',
+          label: 'VS Code (опційно)',
+          description: 'Зручний редактор для перегляду файлів, якщо працюєш локально.',
+          link: 'https://code.visualstudio.com/'
+        },
+        {
+          key: 'codespaces',
+          label: 'GitHub Codespaces',
+          description: 'Відкрий готове середовище в браузері.',
+          link: 'https://github.com/codespaces'
+        }
+      ];
+
+      const list = document.createElement('div');
+      list.className = 'checklist';
+
+      tools.forEach((tool) => {
+        if (tool.key === 'codespaces' && state.environment !== 'Codespaces') return;
+        if (tool.key !== 'codespaces' && state.environment === 'Codespaces' && tool.key === 'editor') return;
+        const item = document.createElement('label');
+        item.className = 'check-item';
+        if (state.tools[tool.key]) item.classList.add('completed');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = !!state.tools[tool.key];
+        checkbox.addEventListener('change', (event) => {
+          state.tools[tool.key] = event.target.checked;
+          saveState();
+          if (event.target.checked) {
+            item.classList.add('completed');
+            showToast(`${tool.label} готово!`);
+          } else {
+            item.classList.remove('completed');
+          }
+        });
+        const body = document.createElement('div');
+        body.innerHTML = `<strong>${tool.label}</strong><br>${tool.description}`;
+        const button = document.createElement('button');
+        button.textContent = 'Відкрити';
+        button.addEventListener('click', () => window.open(tool.link, '_blank'));
+        item.appendChild(checkbox);
+        item.appendChild(body);
+        item.appendChild(button);
+        list.appendChild(item);
+      });
+
+      container.appendChild(list);
+    }
+    function renderCursorStep(container) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const label = document.createElement('div');
+      label.className = 'prompt-label cursor';
+      label.textContent = 'Cursor Prompt';
+      const promptArea = document.createElement('div');
+      promptArea.className = 'prompt-area';
+      promptArea.textContent = state.generatedCursorPrompt;
+
+      const actions = document.createElement('div');
+      actions.className = 'prompt-actions';
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'chat2';
+      copyBtn.textContent = 'Скопіювати для Cursor';
+      copyBtn.addEventListener('click', () => copyText(state.generatedCursorPrompt));
+      const whereBtn = document.createElement('button');
+      whereBtn.textContent = 'Де вставити?';
+      whereBtn.addEventListener('click', () => {
+        const modal = createModal({
+          title: 'Куди вставляти промпт?',
+          body: 'У Cursor відкрий Chat 2 (зелений). Натисни + → «New Chat». Встав промпт повністю і натисни Enter. Якщо Cursor завис — спробуй вставити ще раз і почекай пару хвилин.'
+        });
+        openModal(modal);
+      });
+      actions.appendChild(copyBtn);
+      actions.appendChild(whereBtn);
+
+      card.appendChild(label);
+      card.appendChild(promptArea);
+      card.appendChild(actions);
+
+      container.appendChild(card);
+    }
+
+    function renderLaunchStep(container) {
+      const commands = state.environment === 'Codespaces'
+        ? ['python --version', 'pip install -r requirements.txt', 'python main.py']
+        : ['python --version', 'python -m venv .venv', 'source .venv/bin/activate  # або .\\.venv\\Scripts\\activate', 'pip install -r requirements.txt', 'python main.py'];
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      const label = document.createElement('div');
+      label.className = 'prompt-label';
+      label.textContent = 'Команди для запуску';
+      const promptArea = document.createElement('div');
+      promptArea.className = 'prompt-area';
+      promptArea.textContent = commands.join('\n');
+
+      const actions = document.createElement('div');
+      actions.className = 'prompt-actions';
+      const copyBtn = document.createElement('button');
+      copyBtn.textContent = 'Скопіювати команди';
+      copyBtn.addEventListener('click', () => copyText(commands.join('\n')));
+      const problemBtn = document.createElement('button');
+      problemBtn.textContent = 'Проблема?';
+      problemBtn.addEventListener('click', renderProblemModal);
+      actions.appendChild(copyBtn);
+      actions.appendChild(problemBtn);
+
+      card.appendChild(label);
+      card.appendChild(promptArea);
+      card.appendChild(actions);
+
+      container.appendChild(card);
+    }
+
+    function renderBotFatherStep(container) {
+      const commands = state.survey.commands.length ? state.survey.commands : ['/start', '/help'];
+      const hints = {
+        '/start': 'Почати роботу',
+        '/help': 'Інструкція',
+        '/add': 'Додати запис',
+        '/list': 'Показати список',
+        '/done': 'Позначити виконане',
+        '/stats': 'Статистика прогресу',
+        '/tips': 'Отримати пораду',
+        '/pay': 'Оплата',
+        '/admin': 'Адмін-меню',
+        '/panic': 'Швидка підтримка'
+      };
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      const label = document.createElement('div');
+      label.className = 'prompt-label chat1';
+      label.textContent = 'Команди для BotFather';
+      const prompt = commands
+        .map((cmd) => `${cmd} - ${hints[cmd] || 'Команда ' + cmd.replace('/', '')}`)
+        .join('\n');
+      const area = document.createElement('div');
+      area.className = 'prompt-area';
+      area.textContent = prompt;
+
+      const actions = document.createElement('div');
+      actions.className = 'prompt-actions';
+      const copy = document.createElement('button');
+      copy.textContent = 'Скопіювати';
+      copy.addEventListener('click', () => copyText(prompt));
+      const open = document.createElement('button');
+      open.textContent = 'Відкрити BotFather';
+      open.addEventListener('click', () => window.open('https://t.me/BotFather', '_blank'));
+      actions.appendChild(copy);
+      actions.appendChild(open);
+
+      card.appendChild(label);
+      card.appendChild(area);
+      card.appendChild(actions);
+      container.appendChild(card);
+    }
+
+    function renderTestStep(container) {
+      const checklist = [
+        { key: 'start', label: 'Написав /start — отримав привітання та інструкцію.' },
+        { key: 'help', label: 'Команда /help пояснює, що робити.' },
+        { key: 'custom', label: 'Перевірив одну кастомну команду (наприклад /add або /stats).' }
+      ];
+
+      const list = document.createElement('div');
+      list.className = 'checklist';
+
+      checklist.forEach((item) => {
+        const row = document.createElement('label');
+        row.className = 'check-item';
+        if (state.testChecklist[item.key]) row.classList.add('completed');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = !!state.testChecklist[item.key];
+        checkbox.addEventListener('change', (event) => {
+          state.testChecklist[item.key] = event.target.checked;
+          saveState();
+          if (event.target.checked) row.classList.add('completed');
+          else row.classList.remove('completed');
+        });
+        const text = document.createElement('div');
+        text.innerHTML = item.label;
+        row.appendChild(checkbox);
+        row.appendChild(text);
+        list.appendChild(row);
+      });
+
+      const problemBtn = document.createElement('button');
+      problemBtn.textContent = 'Є проблема';
+      problemBtn.addEventListener('click', renderProblemModal);
+
+      container.appendChild(list);
+      container.appendChild(problemBtn);
+    }
+
+    function renderFinishStep(container) {
+      const grid = document.createElement('div');
+      grid.className = 'card-grid';
+
+      const upgrades = [
+        {
+          title: '💬 Кнопки та меню',
+          text: 'Додай Reply та Inline кнопки для швидких дій.',
+          action: () => showToast('Відкрий Блок A у сайдбарі та встав промпти для кнопок.')
+        },
+        {
+          title: '📊 Статистика',
+          text: 'Показуй прогрес 7/30 днів, бари та графіки.',
+          action: () => showToast('Використай /stats із Блоку B, щоб додати метрики.')
+        },
+        {
+          title: '💰 Оплати',
+          text: 'Приймай Telegram Stars або Stripe.',
+          action: () => showToast('Блок C підкаже, як додати платежі.')
+        }
+      ];
+
+      upgrades.forEach((item) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const title = document.createElement('h3');
+        title.textContent = item.title;
+        const text = document.createElement('p');
+        text.textContent = item.text;
+        const btn = document.createElement('button');
+        btn.className = 'primary';
+        btn.textContent = 'Хочу це';
+        btn.addEventListener('click', item.action);
+        card.appendChild(title);
+        card.appendChild(text);
+        card.appendChild(btn);
+        grid.appendChild(card);
+      });
+
+      container.appendChild(grid);
+
+      const restart = document.createElement('button');
+      restart.textContent = 'Повернутись на головну';
+      restart.addEventListener('click', () => setStep(0));
+      container.appendChild(restart);
+    }
+    function gatherProfile() {
+      const commands = state.survey.commands.length ? state.survey.commands : ['/start', '/help'];
+      return {
+        role: state.survey.role || 'Telegram assistant',
+        goal: state.survey.goal || 'Help users manage their tasks',
+        audience: state.survey.audience || 'general audience',
+        commands,
+        language: state.survey.language || 'uk',
+        channel: state.survey.channel === 'group' ? 'group' : 'dm',
+        type: state.autoProfile.type || 'Custom',
+        modules: state.autoProfile.modules.length ? state.autoProfile.modules : commands,
+        storage: state.autoProfile.storage || 'JSON',
+        integrations: state.autoProfile.integrations,
+        backend: state.autoProfile.backend || 'None',
+        difficulty: state.autoProfile.difficulty || 'L0',
+        mode: state.mode || 'AUTO'
+      };
+    }
+
+    function ensurePrompts() {
+      const profile = gatherProfile();
+      const autoBrief = generateDevBrief(profile);
+      if (state.mode === 'ASSISTED' && state.assistedBrief.trim()) {
+        state.generatedBrief = state.assistedBrief.trim();
+      } else {
+        state.generatedBrief = autoBrief;
+      }
+      state.generatedCursorPrompt = generateCursorPrompt(profile, state.generatedBrief);
+      state.generatedChecklist = generateChecklist(profile);
+      saveState();
+    }
+
+    function generateDevBrief(profile) {
+      const integrations = profile.integrations.length ? profile.integrations.join(', ') : 'no external integrations yet';
+      const modules = profile.modules.length ? profile.modules.join(', ') : 'basic onboarding and help flow';
+      const channel = profile.channel === 'group' ? 'Telegram group chats' : 'private DM conversations';
+      const languageNote = profile.language === 'uk' ? 'Ukrainian UI copy with warm and supportive tone.' : 'English UI copy with friendly tone.';
+
+      return [
+        `Project role: ${profile.role}.`,
+        `Primary goal: ${profile.goal}. Target audience: ${profile.audience}.`,
+        `Conversation channel: ${channel}.`,
+        `Commands to support: ${profile.commands.join(', ')}.`,
+        `Core modules: ${modules}.`,
+        `Data storage: ${profile.storage}.`,
+        `Integrations to prepare: ${integrations}.`,
+        `Backend expectations: ${profile.backend === 'None' ? 'polling only' : profile.backend}.`,
+        `Tone of voice: ${languageNote}`
+      ].join('\n');
+    }
+
+    function generateCursorPrompt(profile, brief) {
+      const envHint = state.environment === 'Codespaces'
+        ? 'Assume the project runs inside GitHub Codespaces (Linux).'
+        : 'Assume the project runs locally on macOS/Windows with Python 3.11.';
+      const modules = profile.modules.length ? profile.modules.join(', ') : 'basic onboarding';
+      const integrations = profile.integrations.length ? profile.integrations.join(', ') : 'no external integrations yet';
+      const storage = profile.storage === 'None' ? 'in-memory cache only' : profile.storage;
+
+      return [
+        'You are an expert Python developer working inside Cursor IDE. Build a production-ready Telegram bot using aiogram v3.',
+        envHint,
+        '--- Project brief ---',
+        brief,
+        '--- Requirements ---',
+        '1. Use Python 3.11+, aiogram==3.*, python-dotenv and any standard libraries you need.',
+        '2. Structure the project with folders: handlers/, keyboards/, services/, utils/, and keep configuration in config.py.',
+        `3. Implement commands ${profile.commands.join(', ')} with clear docstrings and logging.`,
+        `4. Provide data layer for ${storage}. If storage requires files, include safe load/save helpers.`,
+        `5. Cover modules/features: ${modules}.`,
+        `6. Prepare integration stubs for: ${integrations}.`,
+        '7. Load the bot token from .env, validate it, and handle missing token gracefully.',
+        '8. Include a README.md with setup instructions and commands to run the project.',
+        '9. Return an .env.example with TOKEN= placeholder and other secrets.',
+        '10. After code generation, show a short checklist reminding to run the commands from the brief.'
+      ].join('\n\n');
+    }
+
+    function generateChecklist(profile) {
+      const base = [
+        'Create a virtual environment and install dependencies.',
+        'Copy the generated Cursor code into the project.',
+        'Create .env with TOKEN= from BotFather.',
+        'Run python main.py and confirm the bot replies to /start and /help.',
+        'Send /help to ensure descriptions are understandable.'
+      ];
+      if (profile.integrations.includes('Google Sheets')) {
+        base.push('Share Google Sheet with service account credentials and test read/write operations.');
+      }
+      if (profile.integrations.includes('Webhook')) {
+        base.push('Configure webhook URL and verify HTTPS endpoint responds with 200 OK.');
+      }
+      if (profile.integrations.includes('Stripe') || profile.integrations.includes('OpenAI')) {
+        base.push('Fill payment/API keys in .env and run a test request in safe mode.');
+      }
+      return base;
+    }
+
+    function generateAssistedPrompt() {
+      const profile = gatherProfile();
+      return [
+        'You are a senior product manager helping to craft an English DEV BRIEF for a Telegram bot project.',
+        `Input language: Ukrainian. Current bot idea: ${profile.role}.`,
+        `Goal: ${profile.goal}. Audience: ${profile.audience}.`,
+        `Commands from the user: ${profile.commands.join(', ')}.`,
+        'Please return a concise DEV BRIEF in English that contains: purpose, flows, commands, storage, integrations, and tone of voice.',
+        'Answer only in English. Keep it short (max 12 sentences).' 
+      ].join('\n');
+    }
+
+    function generateNavigatorHelpPrompt() {
+      const step = steps[state.currentStep];
+      return [
+        'Hi Navigator! I am following the Zero-to-Bot panel and need help.',
+        `Current step: ${step.title}.`,
+        'Problem description: [встав сюди коротко, що сталося].',
+        'Terminal log or screenshot: [встав сюди лог, якщо є].',
+        'Please explain what to do next in Ukrainian using прості, короткі речення.'
+      ].join('\n');
+    }
+    const theme = state.theme || 'light';
+    setTheme(theme);
+    ensurePrompts();
     render();
-    setInterval(saveState, 5000);
   </script>
 </body>
 </html>
