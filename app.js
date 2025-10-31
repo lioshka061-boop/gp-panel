@@ -28,6 +28,62 @@ const progress = document.querySelector(".progress");
 const progressBar = document.querySelector(".progress__bar");
 const prevButton = document.querySelector('[data-action="prev"]');
 const nextButton = document.querySelector('[data-action="next"]');
+const toggleThemeButton = document.querySelector("#toggle-theme");
+const bodyElement = document.body;
+
+const THEME_STORAGE_KEY = "ztb_theme_manual";
+const prefersDarkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+let manualTheme = localStorage.getItem(THEME_STORAGE_KEY);
+
+function getInitialTheme() {
+  if (manualTheme === "light" || manualTheme === "dark") {
+    return manualTheme;
+  }
+  return prefersDarkQuery.matches ? "dark" : "light";
+}
+
+let currentTheme = getInitialTheme();
+
+function applyTheme(theme, { persist = false } = {}) {
+  currentTheme = theme;
+  bodyElement.dataset.theme = theme;
+  bodyElement.style.colorScheme = theme;
+  updateThemeToggleLabel();
+  if (persist) {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    manualTheme = theme;
+  }
+}
+
+function updateThemeToggleLabel() {
+  if (!toggleThemeButton) return;
+  const nextTheme = currentTheme === "dark" ? "light" : "dark";
+  const nextThemeLabel = nextTheme === "dark" ? "темну" : "світлу";
+  toggleThemeButton.textContent = `🌗 ${nextTheme === "dark" ? "Темна тема" : "Світла тема"}`;
+  toggleThemeButton.setAttribute("aria-label", `Перемкнути на ${nextThemeLabel} тему`);
+  toggleThemeButton.setAttribute("aria-pressed", String(currentTheme === "dark"));
+}
+
+applyTheme(currentTheme);
+
+const handleSystemThemeChange = (event) => {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === "light" || stored === "dark") {
+    return;
+  }
+  applyTheme(event.matches ? "dark" : "light");
+};
+
+if (typeof prefersDarkQuery.addEventListener === "function") {
+  prefersDarkQuery.addEventListener("change", handleSystemThemeChange);
+} else if (typeof prefersDarkQuery.addListener === "function") {
+  prefersDarkQuery.addListener(handleSystemThemeChange);
+}
+
+toggleThemeButton?.addEventListener("click", () => {
+  const nextTheme = currentTheme === "dark" ? "light" : "dark";
+  applyTheme(nextTheme, { persist: true });
+});
 
 function render() {
   if (!app) return;

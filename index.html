@@ -6,15 +6,27 @@
     <title>Zero-to-Bot Panel</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body data-theme="light">
     <div class="layout">
       <header class="app-header" role="banner">
         <div class="brand">
           <span class="brand__mark" aria-hidden="true">🤖</span>
           <span class="brand__name">Zero-to-Bot Panel</span>
         </div>
-        <div class="progress" aria-label="Прогрес проходження" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <span class="progress__bar" style="width: 0%"></span>
+        <div class="header-actions">
+          <button id="toggle-theme" class="theme-toggle" type="button" aria-pressed="false">
+            🌗 Тема
+          </button>
+          <div
+            class="progress"
+            aria-label="Прогрес проходження"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span class="progress__bar" style="width: 0%"></span>
+          </div>
         </div>
       </header>
 
