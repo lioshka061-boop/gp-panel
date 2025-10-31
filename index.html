@@ -14,6 +14,7 @@
       --muted: #667085;
       --line: #d8dee9;
       --blue: #4664ff;
+      --cursor: #55a0ff;
       --green: #2ecc71;
       --danger: #ef4444;
       --shadow: 0 20px 45px -24px rgba(15, 23, 42, 0.4);
@@ -382,6 +383,8 @@
 
     .chat-labels span.cursor {
       background: rgba(85, 160, 255, 0.16);
+      color: var(--cursor);
+      border: 1px solid rgba(85, 160, 255, 0.32);
     }
 
     .subtle {
@@ -748,12 +751,20 @@
       });
       container.querySelector('#start-how').addEventListener('click', () => {
         openModal('Як це працює', `
-          <ol>
-            <li>Заповнюєш коротку анкету.</li>
-            <li>Панель генерує промпти українською та англійською.</li>
-            <li>Копіюєш підказки в ChatGPT та Cursor.</li>
-            <li>Отримуєш готового Telegram-бота без написання коду.</li>
-          </ol>
+          <div class="grid">
+            <div class="card">
+              <h3>1. Заповни коротку анкету</h3>
+              <p>Ми перетворимо відповіді на технічне завдання без складних термінів.</p>
+            </div>
+            <div class="card">
+              <h3>2. Скопіюй промпти в чати</h3>
+              <p>Навігатор допомагає з DEV BRIEF, Cursor пише код за англомовними інструкціями.</p>
+            </div>
+            <div class="card">
+              <h3>3. Запусти та протестуй</h3>
+              <p>Виконуй чекліст, налаштуй BotFather і перевір команди прямо в Telegram.</p>
+            </div>
+          </div>
         `);
       });
     }
@@ -796,6 +807,7 @@
             </div>
             <div class="actions">
               <button type="submit" class="primary">Підтвердити анкету</button>
+              ${state.mode === 'assisted' ? '<button type="button" class="btn" id="survey-copy">Скопіювати для Chat 1</button>' : ''}
               <button type="button" class="ghost" id="survey-clear">Очистити поля</button>
               <button type="button" id="survey-back">Назад</button>
             </div>
@@ -818,6 +830,13 @@
         showToast('Анкета збережена. Рухаємось далі!');
         nextStep();
       });
+      const copyBtn = container.querySelector('#survey-copy');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          const prompt = ensureNavigatorPrompt();
+          copyToClipboard(prompt, 'Промпт для Навігатора');
+        });
+      }
       container.querySelector('#survey-clear').addEventListener('click', () => {
         state.form = clone(defaultState.form);
         saveState();
@@ -1153,12 +1172,14 @@
               <div class="check-item"><span class="badge">1</span><div><strong>Python ${isCodespaces ? 'вже встановлено' : '3.10+'}</strong><div class="hint">${isCodespaces ? 'Codespaces містить Python за замовчуванням.' : 'Завантаж з python.org та встанови перед стартом.'}</div></div></div>
               <div class="check-item"><span class="badge">2</span><div><strong>Cursor IDE</strong><div class="hint">Відкрий Cursor, авторизуйся через GitHub і створи новий проєкт.</div></div></div>
               ${isCodespaces ? '' : '<div class="check-item"><span class="badge">3</span><div><strong>Git встановлено</strong><div class="hint">Перевір командою <code>git --version</code>. Це допоможе клонувати репозиторій.</div></div></div>'}
+              <div class="check-item"><span class="badge">${isCodespaces ? '3' : '4'}</span><div><strong>VS Code (опційно)</strong><div class="hint">Можеш використовувати VS Code для редагування файлів поруч із Cursor.</div></div></div>
             </div>
             <div class="actions">
               ${isCodespaces ? '<button class="primary" id="open-codespaces">Відкрити Codespaces</button>' : '<button class="primary" id="download-python">Завантажити Python</button>'}
               <button class="ghost" id="open-cursor">Відкрити Cursor</button>
+              <button class="ghost" id="open-vscode">Відкрити VS Code</button>
               <button id="tools-back">Назад</button>
-              <button class="primary" id="tools-next">Перевірив — далі</button>
+              <button class="primary" id="tools-next">Перевірив, усе встановлено ✅</button>
             </div>
           </div>
         </div>
@@ -1170,6 +1191,8 @@
       });
       const openCursor = container.querySelector('#open-cursor');
       if (openCursor) openCursor.addEventListener('click', () => window.open('https://cursor.sh/', '_blank'));
+      const openVSCode = container.querySelector('#open-vscode');
+      if (openVSCode) openVSCode.addEventListener('click', () => window.open('https://code.visualstudio.com/', '_blank'));
       const downloadPython = container.querySelector('#download-python');
       if (downloadPython) downloadPython.addEventListener('click', () => window.open('https://www.python.org/downloads/', '_blank'));
       const openCodespaces = container.querySelector('#open-codespaces');
@@ -1180,6 +1203,7 @@
       const prompt = ensureCursorPrompt();
       container.innerHTML = `
         <div class="card">
+          <div class="chat-labels"><span class="cursor">💻 Chat 2 — Cursor</span></div>
           <h3>Скопіюй цей промпт у Cursor (Chat 2)</h3>
           <textarea class="prompt" readonly id="cursor-copy-text">${prompt}</textarea>
           <div class="hint">Відкрий Cursor, створи чат у відповідному репозиторії та встав цей текст.</div>
