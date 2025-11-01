@@ -1,200 +1,340 @@
+```html
 <!DOCTYPE html>
 <html lang="uk">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Zero-to-Bot Panel</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div id="ztb-panel" data-theme="light">
-      <header class="ztb-header" role="banner">
-        <div class="header-left">
-          <div class="step-heading" id="ztb-step-heading">Крок 0.0 · Завантаження...</div>
-          <p class="step-subhint">Виконай дію та натисни «Виконано».</p>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zero-to-Bot v4 — Майстер створення Telegram-бота</title>
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="color-scheme" content="light dark" />
+</head>
+<body>
+  <!-- ===== Topbar ===== -->
+  <header class="topbar" role="banner">
+    <div class="container row space-between align-center">
+      <div class="row align-center gap-8">
+        <div class="logo" aria-hidden="true">🤖</div>
+        <div>
+          <h1 class="app-title">Zero-to-Bot v4</h1>
+          <p class="app-subtitle">Одна дія = один крок. Дерево виборів: тип → режим → середовище → база → доповнення.</p>
         </div>
-        <div class="header-center">
-          <div class="progress-wrapper">
-            <div class="progress-text" id="ztb-progress-text">0% виконано</div>
-            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-              <div class="progress-bar__fill" id="ztb-progress-fill"></div>
-            </div>
-          </div>
-        </div>
-        <div class="header-right">
-          <button class="btn ghost" id="ztb-guide">Керівництво</button>
-          <button class="btn ghost" id="ztb-help">Інструкція</button>
-          <button class="btn ghost" id="ztb-troubles">Траблшутінг</button>
-          <button class="btn ghost" id="ztb-toggle">Показати весь план</button>
-          <button class="btn ghost" id="toggle-theme">Тема</button>
-          <button class="btn ghost" id="ztb-reset">Скинути</button>
-        </div>
-      </header>
-
-      <div class="ztb-layout">
-        <aside class="ztb-sidebar" id="ztb-sidebar" aria-label="Список кроків">
-          <div class="sidebar-search">
-            <input type="search" id="ztb-search" placeholder="Пошук кроків..." aria-label="Пошук по кроках" />
-          </div>
-          <div id="ztb-sections" class="sidebar-sections"></div>
-        </aside>
-
-        <main class="ztb-main" id="ztb-main" role="main">
-          <section class="step-card" aria-live="polite">
-            <header class="step-card__header">
-              <div>
-                <h1 class="step-card__title" id="ztb-title">Завантаження...</h1>
-                <div class="step-card__tags" id="ztb-tags"></div>
-              </div>
-              <div class="step-card__status" id="ztb-status"></div>
-            </header>
-
-            <div class="quick-actions" id="ztb-quick-actions">
-              <button class="quick-action" data-link="https://chat.openai.com/" data-action="open">Відкрити ChatGPT</button>
-              <button class="quick-action" data-link="https://cursor.sh/" data-action="open">Відкрити Cursor</button>
-              <button class="quick-action" data-link="https://www.python.org/downloads/" data-action="open">Завантажити Python</button>
-              <button class="quick-action" data-link="https://code.visualstudio.com/" data-action="open">Відкрити VS Code</button>
-              <button class="quick-action" data-link="https://github.com/codespaces" data-action="open">Відкрити Codespaces</button>
-              <button class="quick-action" data-link="https://t.me/BotFather" data-action="open">Відкрити BotFather</button>
-            </div>
-
-            <p class="step-card__description" id="ztb-desc"></p>
-
-            <div class="step-content" id="ztb-content"></div>
-
-            <div class="step-actions">
-              <button class="btn" id="ztb-copy">Скопіювати</button>
-              <button class="btn" id="ztb-open">Відкрити</button>
-              <button class="btn primary" id="ztb-done">Виконано</button>
-              <button class="btn ghost" id="ztb-problem">Проблема?</button>
-            </div>
-
-            <section class="step-prompt" id="ztb-prompt" aria-label="Промпт для копіювання"></section>
-
-            <section class="step-notes">
-              <label for="ztb-note" class="notes-label">Нотатки (зберігається локально)</label>
-              <textarea id="ztb-note" rows="6" placeholder="Сюди можеш вставляти відповіді ChatGPT, команди, токени"></textarea>
-            </section>
-          </section>
-        </main>
       </div>
 
-      <div class="toast" id="ztb-toast" role="status" aria-live="polite"></div>
-
-      <div class="modal-backdrop" id="ztb-backdrop"></div>
-
-      <section class="modal" id="ztb-modal-help" role="dialog" aria-hidden="true" aria-labelledby="help-title">
-        <div class="modal__content">
-          <header class="modal__header">
-            <h2 id="help-title">Як користуватись панеллю</h2>
-            <button class="btn ghost modal-close" data-close-modal>✕</button>
-          </header>
-          <div class="modal__body">
-            <ol class="modal-list">
-              <li>Переходь крок за кроком. На екрані завжди одна головна дія.</li>
-              <li>Натисни «Скопіювати», встав у відповідний чат (ChatGPT або Cursor) і дочекайся відповіді.</li>
-              <li>Якщо потрібно щось змінити — повернись у попередній крок через ліву панель.</li>
-              <li>Пиши нотатки внизу кроку, щоб нічого не загубити.</li>
-              <li>Кнопка «Проблема?» відкриє поради та готовий запит до Навігатора.</li>
-            </ol>
-          </div>
-        </div>
-      </section>
-
-      <section class="modal" id="ztb-modal-troubles" role="dialog" aria-hidden="true" aria-labelledby="troubles-title">
-        <div class="modal__content modal__content--wide">
-          <header class="modal__header">
-            <h2 id="troubles-title">Траблшутінг</h2>
-            <button class="btn ghost modal-close" data-close-modal>✕</button>
-          </header>
-          <div class="modal__body">
-            <div class="tabs" role="tablist">
-              <button class="tab active" data-tab="start">Не запускається</button>
-              <button class="tab" data-tab="token">Помилка токена</button>
-              <button class="tab" data-tab="silent">Бот мовчить</button>
-              <button class="tab" data-tab="other">Інше</button>
-            </div>
-            <div class="tab-panels">
-              <div class="tab-panel active" data-panel="start">
-                <ol>
-                  <li>Перевір, що віртуальне середовище активне (рядок має містити <code>(venv)</code>).</li>
-                  <li>Запусти <code>pip install -r requirements.txt</code>, щоб встановити бібліотеки.</li>
-                  <li>Знову виконай <code>python main.py</code> і прочитай повідомлення в терміналі.</li>
-                </ol>
-                <button class="btn" data-log-chat>Відкрити Chat 1 з логами</button>
-              </div>
-              <div class="tab-panel" data-panel="token">
-                <ol>
-                  <li>Відкрий файл <code>.env</code> і переконайся, що рядок <code>TOKEN=...</code> без лапок.</li>
-                  <li>Перезапусти бота після змін (<code>python main.py</code>).</li>
-                  <li>Якщо помилка лишилась — згенеруй новий токен у BotFather і встав заново.</li>
-                </ol>
-                <button class="btn" data-open-token>Як отримати токен</button>
-              </div>
-              <div class="tab-panel" data-panel="silent">
-                <ol>
-                  <li>Перевір термінал — чи надходять повідомлення, коли пишеш у Telegram.</li>
-                  <li>Переконайся, що бот запущений та не показує помилок.</li>
-                  <li>Перевір, чи доданий бот у чат і чи ти використовуєш вірний токен.</li>
-                </ol>
-                <button class="btn" data-log-chat>Відкрити Chat 1 з логами</button>
-              </div>
-              <div class="tab-panel" data-panel="other">
-                <p>Опиши свою проблему. Ми додамо останні нотатки та крок до запиту.</p>
-                <textarea id="ztb-problem-text" rows="4" placeholder="Опиши, що саме відбулося"></textarea>
-                <button class="btn" id="ztb-copy-problem">Скопіювати запит до Навігатора</button>
-              </div>
-            </div>
-            <section class="glossary">
-              <h3>Глосарій помилок</h3>
-              <dl>
-                <div><dt>ModuleNotFoundError</dt><dd>Не встановлена бібліотека. Запусти <code>pip install -r requirements.txt</code>.</dd></div>
-                <div><dt>InvalidToken</dt><dd>Токен з BotFather неправильний або містить зайві символи.</dd></div>
-                <div><dt>Timeout</dt><dd>Немає звʼязку з Telegram. Перевір інтернет та перезапусти бота.</dd></div>
-              </dl>
-            </section>
-          </div>
-        </div>
-      </section>
-
-      <section class="modal" id="ztb-modal-token" role="dialog" aria-hidden="true" aria-labelledby="token-title">
-        <div class="modal__content">
-          <header class="modal__header">
-            <h2 id="token-title">Як отримати токен у BotFather</h2>
-            <button class="btn ghost modal-close" data-close-modal>✕</button>
-          </header>
-          <div class="modal__body">
-            <ol class="modal-list">
-              <li>Відкрий бот <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>.</li>
-              <li>Натисни <code>/newbot</code> та придумай назву.</li>
-              <li>Скопіюй виданий <strong>TOKEN</strong>.</li>
-              <li>Створи файл <code>.env</code> і додай рядок <code>TOKEN=тут_токен</code>.</li>
-              <li>Збережи файл і перезапусти бота.</li>
-            </ol>
-            <div class="modal-actions">
-              <button class="btn" data-link="https://t.me/BotFather" data-action="open">Відкрити BotFather</button>
-              <button class="btn" id="ztb-copy-env">Скопіювати шаблон .env</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="modal" id="ztb-modal-tour" role="dialog" aria-hidden="true" aria-labelledby="tour-title">
-        <div class="tour-overlay" id="ztb-tour-overlay"></div>
-        <div class="tour-tooltip" id="ztb-tour-tooltip">
-          <div class="tour-content">
-            <h2 id="tour-title">Ознайомчий тур</h2>
-            <p id="tour-text"></p>
-          </div>
-          <div class="tour-actions">
-            <button class="btn ghost" id="tour-prev">Назад</button>
-            <button class="btn" id="tour-skip">Пропустити</button>
-            <button class="btn primary" id="tour-next">Далі</button>
-          </div>
-        </div>
-      </section>
+      <nav class="row gap-8">
+        <button class="btn btn-ghost" id="btn-new-bot" data-action="new-bot">🔄 Створити нового</button>
+        <button class="btn btn-primary" id="btn-improve-bot" data-action="improve-bot">🚀 Покращити поточного</button>
+      </nav>
     </div>
+  </header>
 
-    <script src="app.js" defer></script>
-  </body>
+  <!-- ===== Main ===== -->
+  <main class="container layout">
+    <!-- ===== Sidebar: Choices & Checklist ===== -->
+    <aside class="sidebar" aria-label="Налаштування">
+      <section class="card">
+        <h2 class="card-title">1) Тип бота</h2>
+        <div class="choice-list" id="choice-type" role="radiogroup" aria-label="Тип бота">
+          <label class="choice-item">
+            <input type="radio" name="botType" value="crm" /> CRM
+            <span class="note">Клієнти і завдання</span>
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="botType" value="task" /> Task Manager
+            <span class="note">Список справ</span>
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="botType" value="habit" /> Habit Tracker
+            <span class="note">Звички + нагадування</span>
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="botType" value="faq" /> FAQ / Support
+            <span class="note">Типові питання</span>
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="botType" value="shop" /> Shop
+            <span class="note">Міні-магазин</span>
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="botType" value="booking" /> Booking
+            <span class="note">Запис на послуги</span>
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="botType" value="custom" /> Custom
+            <span class="note">Свій сценарій</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">2) Режим ШІ</h2>
+        <div class="choice-list" id="choice-ai" role="radiogroup" aria-label="Режим ШІ">
+          <label class="choice-item">
+            <input type="radio" name="aiMode" value="chatgpt" /> ChatGPT-only
+            <span class="note">Код копіюєш вручну</span>
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="aiMode" value="codex" /> ChatGPT + Codex (Copilot)
+            <span class="note">Потрібна підписка</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">3) Середовище</h2>
+        <div class="choice-list" id="choice-env" role="radiogroup" aria-label="Середовище">
+          <label class="choice-item">
+            <input type="radio" name="env" value="local" /> 💻 Local
+            <span class="note">Потрібен Python</span>
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="env" value="codespaces" /> ☁️ Codespaces
+            <span class="note">У браузері через GitHub</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">4) Бекенд</h2>
+        <div class="choice-list" id="choice-backend" role="radiogroup" aria-label="База даних">
+          <label class="choice-item">
+            <input type="radio" name="backend" value="json" /> JSON файл
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="backend" value="sqlite" /> SQLite
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="backend" value="gsheets" /> Google Sheets
+          </label>
+          <label class="choice-item">
+            <input type="radio" name="backend" value="postgres" /> Postgres (Docker)
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">5) Чек-лист інструментів</h2>
+        <ul class="checklist" id="tools-checklist">
+          <li>
+            <label>
+              <input type="checkbox" data-key="python" />
+              Python 3.10+ встановлено
+            </label>
+          </li>
+          <li>
+            <label>
+              <input type="checkbox" data-key="editor" />
+              Редактор відкривається (VS Code / Cursor)
+            </label>
+          </li>
+          <li>
+            <label>
+              <input type="checkbox" data-key="github" />
+              Є обліковий запис GitHub
+            </label>
+          </li>
+          <li>
+            <label>
+              <input type="checkbox" data-key="copilot" />
+              Якщо Codex — увімкнений Copilot
+            </label>
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">DEV BRIEF</h2>
+        <div class="brief" id="dev-brief">
+          <p class="muted">З’явиться тут після вибору типів. Містить ціль, команди, мову, канал, збереження.</p>
+        </div>
+        <div class="row gap-8">
+          <button class="btn btn-secondary" id="btn-copy-chatgpt" data-action="copy-chatgpt" disabled>Скопіювати для ChatGPT</button>
+          <button class="btn btn-secondary" id="btn-open-codex" data-action="open-codex" disabled>Відкрити в Codex</button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- ===== Content: Steps ===== -->
+    <section class="content" aria-live="polite">
+      <div class="filters row space-between align-center">
+        <div class="row gap-8">
+          <button class="chip is-active" data-filter="all">Всі кроки</button>
+          <button class="chip" data-filter="todo">Невиконані</button>
+          <button class="chip" data-filter="done">Виконані</button>
+        </div>
+        <div class="row gap-8">
+          <span class="muted" id="progress-text">Прогрес: 0/0</span>
+        </div>
+      </div>
+
+      <!-- Sections will be populated by app.js based on selections -->
+      <div id="steps-root" class="steps-root" aria-label="Кроки майстра">
+        <!-- JS вставляє групи I–VIII і кроки 1–35 -->
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Footer ===== -->
+  <footer class="footer">
+    <div class="container row space-between align-center">
+      <small class="muted">© Zero-to-Bot v4. Навчальний майстер для швидкого старту.</small>
+      <div class="row gap-8">
+        <button class="btn btn-ghost" data-action="export-state">⬇️ Експорт стану</button>
+        <button class="btn btn-ghost" data-action="import-state">⬆️ Імпорт стану</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===== Templates ===== -->
+  <template id="tpl-section">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title"></h2>
+        <span class="badge"></span>
+      </div>
+      <ol class="step-list"></ol>
+    </section>
+  </template>
+
+  <template id="tpl-step">
+    <li class="step-item" data-step-id="">
+      <div class="step-head">
+        <div class="row align-center gap-8">
+          <button class="step-check" title="Позначити як виконано" aria-label="Готово">✅</button>
+          <h3 class="step-title"></h3>
+        </div>
+        <div class="row gap-8">
+          <button class="btn btn-small btn-ghost" data-action="details">Детальна інструкція</button>
+          <button class="btn btn-small" data-action="done">✅ зроблено</button>
+        </div>
+      </div>
+      <div class="step-body">
+        <!-- Короткий опис і “Дія” -->
+      </div>
+    </li>
+  </template>
+
+  <!-- ===== Modals ===== -->
+  <dialog id="modal-details" class="modal">
+    <form method="dialog" class="modal-card">
+      <header class="modal-header">
+        <h3 id="modal-title">Деталі кроку</h3>
+        <button class="btn btn-ghost" value="close" aria-label="Закрити">✖</button>
+      </header>
+      <article class="modal-content" id="modal-content">
+        <!-- Markdown/HTML деталі кроку -->
+      </article>
+      <footer class="modal-footer">
+        <button class="btn" value="ok">Зрозуміло</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="modal-import" class="modal">
+    <form method="dialog" class="modal-card">
+      <header class="modal-header">
+        <h3>Імпорт стану</h3>
+        <button class="btn btn-ghost" value="close" aria-label="Закрити">✖</button>
+      </header>
+      <article class="modal-content">
+        <textarea id="import-text" rows="10" class="textarea" placeholder='Встав JSON стану'></textarea>
+      </article>
+      <footer class="modal-footer">
+        <button class="btn btn-secondary" id="btn-apply-import" value="ok">Імпортувати</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="modal-brief" class="modal">
+    <form method="dialog" class="modal-card">
+      <header class="modal-header">
+        <h3>Згенерований промпт</h3>
+        <button class="btn btn-ghost" value="close" aria-label="Закрити">✖</button>
+      </header>
+      <article class="modal-content">
+        <pre id="brief-text" class="codeblock" tabindex="0"></pre>
+      </article>
+      <footer class="modal-footer">
+        <button class="btn" id="btn-copy-brief" value="ok">Копіювати</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- ===== Toasts ===== -->
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ===== Data seed (read by app.js) ===== -->
+  <script id="seed" type="application/json">
+  {
+    "commandsByType": {
+      "crm": ["/start","/help","/add","/clients","/tasks","/done","/stats"],
+      "task": ["/start","/help","/add","/list","/done","/skip","/stats"],
+      "habit": ["/start","/help","/add","/habits","/done","/streak","/plan","/stats"],
+      "faq": ["/start","/help","/faq","/contact","/tips"],
+      "shop": ["/start","/help","/catalog","/buy","/cart","/pay","/support"],
+      "booking": ["/start","/help","/book","/slots","/cancel","/contact"],
+      "custom": ["/start","/help"]
+    },
+    "sections": [
+      {"id":"start","title":"🌱 I. СТАРТ"},
+      {"id":"prep","title":"🧩 II. ПІДГОТОВКА ПРОЄКТУ"},
+      {"id":"db","title":"🗄️ III. БАЗА ДАНИХ (БЕКЕНД)"},
+      {"id":"ui","title":"💬 IV. ДИЗАЙН"},
+      {"id":"stats","title":"📊 V. СТАТИСТИКА"},
+      {"id":"payments","title":"💳 VI. ОПЛАТИ"},
+      {"id":"launch","title":"🚀 VII. ЗАПУСК І ПЕРЕВІРКА"},
+      {"id":"growth","title":"🌈 VIII. РОЗВИТОК"}
+    ],
+    "steps": [
+      {"section":"start","id":1,"title":"Привітання","body":"Запускаємо майстер створення власного Telegram-бота.","action":"Натисни «Почати»."},
+      {"section":"start","id":2,"title":"Вибір типу бота","body":"Оберіть, що саме хочеш зробити. Система підставить команди автоматично.","action":"Обери тип у лівій панелі."},
+      {"section":"start","id":3,"title":"Вибір режиму ШІ","body":"ChatGPT-only або ChatGPT+Codex.","action":"Обери режим у лівій панелі."},
+      {"section":"start","id":4,"title":"Вибір середовища","body":"Local або Codespaces.","action":"Обери середовище у лівій панелі."},
+      {"section":"start","id":5,"title":"Перевірка інструментів","body":"Постав галочку навпроти кожного пункту.","action":"Заповни чек-лист у лівій панелі."},
+
+      {"section":"prep","id":6,"title":"Створення папки","body":"Створи папку `mybot` і відкрий її в редакторі.","action":"Створи папку та відкрий у VS Code / Cursor."},
+      {"section":"prep","id":7,"title":"Файл requirements.txt","body":"Додай залежності aiogram і python-dotenv.","action":"Створи `requirements.txt` із потрібним вмістом."},
+      {"section":"prep","id":8,"title":"Файл main.py","body":"Створи порожній головний файл.","action":"Створи `main.py`."},
+      {"section":"prep","id":9,"title":"Файл .env","body":"Збережи секрети, наприклад TOKEN.","action":"Створи `.env` і додай TOKEN=..."},
+      {"section":"prep","id":10,"title":"DEV BRIEF","body":"Генерується з вибору: ціль, команди, тип, мова, канал, збереження.","action":"Натисни «Скопіювати для ChatGPT» або «Відкрити в Codex»."},
+      {"section":"prep","id":11,"title":"Промпт для коду","body":"Встав отриманий код у main.py.","action":"Скопіюй код у `main.py`."},
+
+      {"section":"db","id":12,"title":"Вибір типу зберігання","body":"JSON, SQLite, Google Sheets або Postgres.","action":"Познач варіант у лівій панелі."},
+      {"section":"db","id":13,"title":"Навіщо бекенд","body":"Без збереження бот забуває все після перезапуску.","action":"Обери варіант і рухайся далі."},
+      {"section":"db","id":14,"title":"Підтвердження вибору","body":"Система покаже кроки під твій варіант.","action":"Далі виконай кроки 15–18/19 згідно гілки."},
+
+      {"section":"ui","id":19,"title":"Що таке дизайн","body":"Зовнішній вигляд: кнопки, меню, тексти.","action":"Перевір приклади нижче."},
+      {"section":"ui","id":20,"title":"Головне меню","body":"Reply-кнопки.","action":"Додай меню: 📋 Завдання, 🧠 Поради, ⚙️ Налаштування."},
+      {"section":"ui","id":21,"title":"Inline-кнопки","body":"Кнопки у повідомленні.","action":"Додай [✅ Готово] [❌ Пропустити] [📊 Статистика]."},
+      {"section":"ui","id":22,"title":"Гарні тексти","body":"Емодзі і короткі фрази.","action":"Оформлення повідомлень."},
+
+      {"section":"stats","id":23,"title":"Команда /stats","body":"Показати зроблене за сьогодні, тиждень, всього.","action":"Додай ендпоінт /stats."},
+      {"section":"stats","id":24,"title":"Звіт із відсотками","body":"З емодзі та відсотками.","action":"Зроби форматований звіт."},
+      {"section":"stats","id":25,"title":"Щоденні нагадування","body":"Надсилай щоденний звіт о 20:00.","action":"Налаштуй планувальник."},
+
+      {"section":"payments","id":26,"title":"Вибір системи оплати","body":"Stripe або WayForPay.","action":"Обери платіжну систему."},
+      {"section":"payments","id":27,"title":"Ключі","body":"Додай STRIPE_KEY або WAYFORPAY_KEY у .env.","action":"Зареєструйся та додай ключі."},
+      {"section":"payments","id":28,"title":"Оплата — крок 1","body":"Підключення платежів і команда покупки.","action":"Додай /buy."},
+      {"section":"payments","id":29,"title":"Оплата — крок 2","body":"Тест платежу і підтвердження.","action":"Перевір «Дякую за оплату!»."},
+
+      {"section":"launch","id":30,"title":"BotFather","body":"Створи бота та отримай токен.","action":"Встав TOKEN у .env."},
+      {"section":"launch","id":31,"title":"Запуск","body":"Запусти `python main.py`.","action":"Побач «Bot started» у терміналі."},
+      {"section":"launch","id":32,"title":"Перевір команди","body":"Переконайся, що /start, /help і кастомні працюють.","action":"Протести у Telegram."},
+      {"section":"launch","id":33,"title":"Резервна копія","body":"Скопіюй у хмару або GitHub.","action":"Перезапусти і перевір."},
+
+      {"section":"growth","id":34,"title":"Додаткові модулі","body":"Автозбереження, багатомовність, адмін-панель.","action":"Додай як окремі кроки."},
+      {"section":"growth","id":35,"title":"Фініш","body":"«Готово! Ти створив свого Telegram-бота.»","action":"Кнопки: Створити нового / Покращити поточного."}
+    ],
+    "backendBranches": {
+      "json": [15,16,17,18],
+      "sqlite": [15,16,17,18],
+      "gsheets": [15,16,17,18],
+      "postgres": [15,16,17,18,19]
+    }
+  }
+  </script>
+
+  <!-- ===== App script ===== -->
+  <script src="app.js" defer></script>
+</body>
 </html>
+```
