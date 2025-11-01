@@ -398,6 +398,9 @@
       title: "Привітання",
       desc: "Запускаємо майстер створення власного Telegram-бота.",
       tags: ["guide"],
+      onComplete(draft) {
+        draft.started = true;
+      },
       render(container, ctx) {
         renderList(container, [
           "Що робимо: запускаємо майстер створення власного Telegram-бота.",
@@ -405,9 +408,6 @@
         ]);
 
         renderPrimary(container, ctx.isComplete() ? "Готово" : "Почати", () => {
-          updateState((draft) => {
-            draft.started = true;
-          });
           ctx.markComplete();
         });
 
@@ -1037,7 +1037,11 @@
   }
 
   function markComplete(stepId) {
+    const targetStep = steps.find((item) => item.id === stepId);
     updateState((draft) => {
+      if (targetStep && typeof targetStep.onComplete === "function") {
+        targetStep.onComplete(draft);
+      }
       draft.ack[stepId] = true;
     });
   }
@@ -1063,10 +1067,6 @@
         showToast("Кроки недоступні. Натисни «Скинути».");
         return;
       }
-      if (step && step.link) {
-        window.open(step.link, "_blank", "noopener");
-      } else {
-        showToast("Немає посилання");
       }
     });
 
