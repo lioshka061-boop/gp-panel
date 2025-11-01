@@ -1,5 +1,5 @@
 (function () {
-  const STORAGE_KEY = "ztb_state_v4";
+  const STORAGE_KEY = "ztb_state_v1";
   const THEME_STORAGE_KEY = "ztb_theme_manual";
   const NOTES_HISTORY_LIMIT = 50;
 
@@ -999,6 +999,9 @@
 
   function getActiveStep() {
     const list = visibleSteps();
+    if (!list.length) {
+      return { step: null, index: 0, list };
+    }
     const index = Math.max(0, Math.min(state.currentStep || 0, list.length - 1));
     return { step: list[index], index, list };
   }
@@ -1012,6 +1015,10 @@
   function attachEventListeners() {
     document.getElementById("ztb-copy").addEventListener("click", () => {
       const { step } = getActiveStep();
+      if (!step) {
+        showToast("Кроки недоступні. Натисни «Скинути».");
+        return;
+      }
       const text = resolvePrompt(step);
       if (!text) {
         showToast("Немає тексту для копіювання");
@@ -1022,6 +1029,10 @@
 
     document.getElementById("ztb-open").addEventListener("click", () => {
       const { step } = getActiveStep();
+      if (!step) {
+        showToast("Кроки недоступні. Натисни «Скинути».");
+        return;
+      }
       if (step && step.link) {
         window.open(step.link, "_blank", "noopener");
       } else {
@@ -1031,6 +1042,10 @@
 
     document.getElementById("ztb-done").addEventListener("click", () => {
       const { step, index, list } = getActiveStep();
+      if (!step) {
+        showToast("Натисни «Скинути», щоб відновити маршрут.");
+        return;
+      }
       markComplete(step.id);
       if (index < list.length - 1) {
         setStep(index + 1);
@@ -1053,11 +1068,12 @@
       }
     });
 
-    document.getElementById("ztb-theme").addEventListener("click", toggleTheme);
+    document.getElementById("toggle-theme").addEventListener("click", toggleTheme);
     document.getElementById("ztb-toggle").addEventListener("click", toggleSections);
 
     noteEl.addEventListener("input", () => {
       const { step } = getActiveStep();
+      if (!step) return;
       updateState((draft) => {
         draft.notes[step.id] = noteEl.value;
       });
@@ -1134,6 +1150,27 @@
 
   function render() {
     const { step, index, list } = getActiveStep();
+
+    if (!step) {
+      stepHeading.textContent = "Крок 0.0 · Онови панель";
+      mainTitle.textContent = "Немає доступних кроків";
+      descEl.textContent = "Скинь прогрес або перезавантаж сторінку.";
+      promptEl.textContent = "";
+      promptEl.classList.add("empty");
+      tagsEl.innerHTML = "";
+      contentEl.innerHTML = "";
+      const message = document.createElement("p");
+      message.className = "hint";
+      message.textContent = "Онови сторінку або скористайся кнопкою «Скинути», щоб відновити маршрут.";
+      contentEl.appendChild(message);
+      noteEl.value = "";
+      noteEl.disabled = true;
+      renderSidebar(list, index);
+      updateProgress(list);
+      statusEl.textContent = "";
+      return;
+    }
+
     const prompt = resolvePrompt(step);
 
     stepHeading.textContent = `Крок ${step.id} · ${step.title}`;
@@ -1143,6 +1180,7 @@
     promptEl.classList.toggle("empty", !prompt);
 
     const note = state.notes?.[step.id] || "";
+    noteEl.disabled = false;
     noteEl.value = note;
 
     renderTags(step);
@@ -1159,6 +1197,10 @@
   }
 
   function renderTags(step) {
+    if (!step) {
+      tagsEl.innerHTML = "";
+      return;
+    }
     tagsEl.innerHTML = "";
     const baseTags = step.tags || [];
     baseTags.forEach((tag) => {
@@ -1181,6 +1223,9 @@
 
   function renderContent(step) {
     contentEl.innerHTML = "";
+    if (!step) {
+      return;
+    }
     if (typeof step.render === "function") {
       step.render(contentEl, {
         markComplete: () => markComplete(step.id),
@@ -1287,6 +1332,13 @@
       }
       sectionsEl.appendChild(section);
     });
+
+    if (!Object.keys(grouped).length) {
+      const empty = document.createElement("p");
+      empty.className = "sidebar-empty";
+      empty.textContent = "Кроки не знайдено. Натисни «Скинути», щоб почати заново.";
+      sectionsEl.appendChild(empty);
+    }
   }
 
   function updateProgress(list) {
@@ -1360,9 +1412,11 @@
       .filter(Boolean)
       .slice(-NOTES_HISTORY_LIMIT)
       .join("\n---\n");
+    const stepLine = step ? `Крок: ${step.id} · ${step.title}` : "Крок: недоступний (скинь прогрес)";
+
     return [
       "Привіт! Працюю через Zero-to-Bot Panel.",
-      `Крок: ${step.id} · ${step.title}`,
+      stepLine,
       extra ? `Опис користувача: ${extra}` : "",
       tail ? `Останні нотатки/логи:\n${tail}` : "",
       "Допоможи коротко: що робити далі крок за кроком?",
