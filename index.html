@@ -6,39 +6,189 @@
     <title>Zero-to-Bot Panel</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body data-theme="light">
-    <div class="layout">
-      <header class="app-header" role="banner">
-        <div class="brand">
-          <span class="brand__mark" aria-hidden="true">🤖</span>
-          <span class="brand__name">Zero-to-Bot Panel</span>
+  <body>
+    <div id="ztb-panel" data-theme="auto">
+      <header class="ztb-header" role="banner">
+        <div class="header-left">
+          <div class="step-heading" id="ztb-step-heading">Крок 0.0 · Завантаження...</div>
+          <p class="step-subhint">Виконай дію та натисни «Виконано».</p>
         </div>
-        <div class="header-actions">
-          <button id="toggle-theme" class="theme-toggle" type="button" aria-pressed="false">
-            🌗 Тема
-          </button>
-          <div
-            class="progress"
-            aria-label="Прогрес проходження"
-            role="progressbar"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow="0"
-          >
-            <span class="progress__bar" style="width: 0%"></span>
-          </div>
+        <div class="header-center">
+          <div class="progress-wrapper">
+            <div class="progress-text" id="ztb-progress-text">0% виконано</div>
+            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="progress-bar__fill" id="ztb-progress-fill"></div>
+              </div>
+              </div>
+               </div>
+                <div class="header-right">
+          <button class="btn ghost" id="ztb-guide">Керівництво</button>
+          <button class="btn ghost" id="ztb-help">Інструкція</button>
+          <button class="btn ghost" id="ztb-troubles">Траблшутінг</button>
+          <button class="btn ghost" id="ztb-toggle">Показати весь план</button>
+          <button class="btn ghost" id="ztb-theme">Тема</button>
+          <button class="btn ghost" id="ztb-reset">Скинути</button>
         </div>
       </header>
 
-      <main id="app" role="main" tabindex="-1">
-        <!-- Контент кроків підставляється через app.js -->
-      </main>
+      <div class="ztb-layout">
+        <aside class="ztb-sidebar" id="ztb-sidebar" aria-label="Список кроків">
+          <div class="sidebar-search">
+            <input type="search" id="ztb-search" placeholder="Пошук кроків..." aria-label="Пошук по кроках" />
+          </div>
+                    <div id="ztb-sections" class="sidebar-sections"></div>
+        </aside>
 
-      <footer class="app-footer" role="contentinfo">
-        <button class="nav-button" type="button" data-action="prev" aria-label="Попередній крок">Попередній</button>
-        <button class="nav-button nav-button--primary" type="button" data-action="next" aria-label="Наступний крок">Далі</button>
-      </footer>
-    </div>
-        <script src="app.js" defer></script>
-  </body>
-</html>
+        <main class="ztb-main" id="ztb-main" role="main">
+          <section class="step-card" aria-live="polite">
+            <header class="step-card__header">
+              <div>
+                <h1 class="step-card__title" id="ztb-title">Завантаження...</h1>
+                <div class="step-card__tags" id="ztb-tags"></div>
+              </div>
+              <div class="step-card__status" id="ztb-status"></div>
+            </header>
+
+            <div class="quick-actions" id="ztb-quick-actions">
+              <button class="quick-action" data-link="https://chat.openai.com/" data-action="open">Відкрити ChatGPT</button>
+              <button class="quick-action" data-link="https://cursor.sh/" data-action="open">Відкрити Cursor</button>
+              <button class="quick-action" data-link="https://www.python.org/downloads/" data-action="open">Завантажити Python</button>
+              <button class="quick-action" data-link="https://code.visualstudio.com/" data-action="open">Відкрити VS Code</button>
+              <button class="quick-action" data-link="https://github.com/codespaces" data-action="open">Відкрити Codespaces</button>
+              <button class="quick-action" data-link="https://t.me/BotFather" data-action="open">Відкрити BotFather</button>
+            </div>
+
+                        <p class="step-card__description" id="ztb-desc"></p>
+
+                        <div class="step-content" id="ztb-content"></div>
+
+             <div class="step-actions">
+              <button class="btn" id="ztb-copy">Скопіювати</button>
+              <button class="btn" id="ztb-open">Відкрити</button>
+              <button class="btn primary" id="ztb-done">Виконано</button>
+              <button class="btn ghost" id="ztb-problem">Проблема?</button>
+            </div>
+
+                        <section class="step-prompt" id="ztb-prompt" aria-label="Промпт для копіювання"></section>
+
+            <section class="step-notes">
+              <label for="ztb-note" class="notes-label">Нотатки (зберігається локально)</label>
+              <textarea id="ztb-note" rows="6" placeholder="Сюди можеш вставляти відповіді ChatGPT, команди, токени"></textarea>
+            </section>
+          </section>
+        </main>
+      </div>
+
+      <div class="toast" id="ztb-toast" role="status" aria-live="polite"></div>
+
+      <div class="modal-backdrop" id="ztb-backdrop"></div>
+
+      <section class="modal" id="ztb-modal-help" role="dialog" aria-hidden="true" aria-labelledby="help-title">
+        <div class="modal__content">
+          <header class="modal__header">
+            <h2 id="help-title">Як користуватись панеллю</h2>
+            <button class="btn ghost modal-close" data-close-modal>✕</button>
+          </header>
+          <div class="modal__body">
+            <ol class="modal-list">
+              <li>Переходь крок за кроком. На екрані завжди одна головна дія.</li>
+              <li>Натисни «Скопіювати», встав у відповідний чат (ChatGPT або Cursor) і дочекайся відповіді.</li>
+              <li>Якщо потрібно щось змінити — повернись у попередній крок через ліву панель.</li>
+              <li>Пиши нотатки внизу кроку, щоб нічого не загубити.</li>
+              <li>Кнопка «Проблема?» відкриє поради та готовий запит до Навігатора.</li>
+            </ol>
+          </div>
+        </div>
+              </section>
+
+      <section class="modal" id="ztb-modal-troubles" role="dialog" aria-hidden="true" aria-labelledby="troubles-title">
+        <div class="modal__content modal__content--wide">
+          <header class="modal__header">
+            <h2 id="troubles-title">Траблшутінг</h2>
+            <button class="btn ghost modal-close" data-close-modal>✕</button>
+          </header>
+          <div class="modal__body">
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-tab="start">Не запускається</button>
+              <button class="tab" data-tab="token">Помилка токена</button>
+              <button class="tab" data-tab="silent">Бот мовчить</button>
+              <button class="tab" data-tab="other">Інше</button>
+            </div>
+            <div class="tab-panels">
+              <div class="tab-panel active" data-panel="start">
+                <ol>
+                  <li>Перевір, що віртуальне середовище активне (рядок має містити <code>(venv)</code>).</li>
+                  <li>Запусти <code>pip install -r requirements.txt</code>, щоб встановити бібліотеки.</li>
+                  <li>Знову виконай <code>python main.py</code> і прочитай повідомлення в терміналі.</li>
+                </ol>
+                <button class="btn" data-log-chat>Відкрити Chat 1 з логами</button>
+              </div>
+              <div class="tab-panel" data-panel="token">
+                <ol>
+                  <li>Відкрий файл <code>.env</code> і переконайся, що рядок <code>TOKEN=...</code> без лапок.</li>
+                  <li>Перезапусти бота після змін (<code>python main.py</code>).</li>
+                  <li>Якщо помилка лишилась — згенеруй новий токен у BotFather і встав заново.</li>
+                </ol>
+                <button class="btn" data-open-token>Як отримати токен</button>
+              </div>
+              <div class="tab-panel" data-panel="silent">
+                <ol>
+                  <li>Перевір термінал — чи надходять повідомлення, коли пишеш у Telegram.</li>
+                  <li>Переконайся, що бот запущений та не показує помилок.</li>
+                  <li>Перевір, чи доданий бот у чат і чи ти використовуєш вірний токен.</li>
+                </ol>
+                <button class="btn" data-log-chat>Відкрити Chat 1 з логами</button>
+              </div>
+              <div class="tab-panel" data-panel="other">
+                <p>Опиши свою проблему. Ми додамо останні нотатки та крок до запиту.</p>
+                <textarea id="ztb-problem-text" rows="4" placeholder="Опиши, що саме відбулося"></textarea>
+                <button class="btn" id="ztb-copy-problem">Скопіювати запит до Навігатора</button>
+              </div>
+            </div>
+            <section class="glossary">
+              <h3>Глосарій помилок</h3>
+              <dl>
+                <div><dt>ModuleNotFoundError</dt><dd>Не встановлена бібліотека. Запусти <code>pip install -r requirements.txt</code>.</dd></div>
+                <div><dt>InvalidToken</dt><dd>Токен з BotFather неправильний або містить зайві символи.</dd></div>
+                <div><dt>Timeout</dt><dd>Немає звʼязку з Telegram. Перевір інтернет та перезапусти бота.</dd></div>
+              </dl>
+            </section>
+          </div>
+        </div>
+              </section>
+
+      <section class="modal" id="ztb-modal-token" role="dialog" aria-hidden="true" aria-labelledby="token-title">
+        <div class="modal__content">
+          <header class="modal__header">
+            <h2 id="token-title">Як отримати токен у BotFather</h2>
+            <button class="btn ghost modal-close" data-close-modal>✕</button>
+          </header>
+          <div class="modal__body">
+            <ol class="modal-list">
+              <li>Відкрий бот <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>.</li>
+              <li>Натисни <code>/newbot</code> та придумай назву.</li>
+              <li>Скопіюй виданий <strong>TOKEN</strong>.</li>
+              <li>Створи файл <code>.env</code> і додай рядок <code>TOKEN=тут_токен</code>.</li>
+              <li>Збережи файл і перезапусти бота.</li>
+            </ol>
+            <div class="modal-actions">
+              <button class="btn" data-link="https://t.me/BotFather" data-action="open">Відкрити BotFather</button>
+              <button class="btn" id="ztb-copy-env">Скопіювати шаблон .env</button>
+            </div>
+          </div>
+        </div>
+             </section>
+
+            <section class="modal" id="ztb-modal-tour" role="dialog" aria-hidden="true" aria-labelledby="tour-title">
+        <div class="tour-overlay" id="ztb-tour-overlay"></div>
+        <div class="tour-tooltip" id="ztb-tour-tooltip">
+          <div class="tour-content">
+            <h2 id="tour-title">Ознайомчий тур</h2>
+            <p id="tour-text"></p>
+          </div>
+                   <div class="tour-actions">
+            <button class="btn ghost" id="tour-prev">Назад</button>
+            <button class="btn" id="tour-skip">Пропустити</button>
+            <button class="btn primary" id="tour-next">Далі</button>
+          </div>
+        </div>
