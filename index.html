@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div id="ztb-panel" data-theme="auto">
+    <div id="ztb-panel" data-theme="light">
       <header class="ztb-header" role="banner">
         <div class="header-left">
           <div class="step-heading" id="ztb-step-heading">Крок 0.0 · Завантаження...</div>
@@ -18,18 +18,18 @@
             <div class="progress-text" id="ztb-progress-text">0% виконано</div>
             <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
               <div class="progress-bar__fill" id="ztb-progress-fill"></div>
-              </div>
-              </div>
-               </div>
-                <div class="header-right">
+            </div>
+          </div>
+                 </div>
+                         <div class="header-right">
           <button class="btn ghost" id="ztb-guide">Керівництво</button>
           <button class="btn ghost" id="ztb-help">Інструкція</button>
           <button class="btn ghost" id="ztb-troubles">Траблшутінг</button>
           <button class="btn ghost" id="ztb-toggle">Показати весь план</button>
-          <button class="btn ghost" id="ztb-theme">Тема</button>
+          <button class="btn ghost" id="toggle-theme">Тема</button>
           <button class="btn ghost" id="ztb-reset">Скинути</button>
         </div>
-      </header>
+              </header>
 
       <div class="ztb-layout">
         <aside class="ztb-sidebar" id="ztb-sidebar" aria-label="Список кроків">
@@ -60,9 +60,9 @@
 
                         <p class="step-card__description" id="ztb-desc"></p>
 
-                        <div class="step-content" id="ztb-content"></div>
+                        <p class="step-card__description" id="ztb-desc"></p>
 
-             <div class="step-actions">
+                        <div class="step-actions">
               <button class="btn" id="ztb-copy">Скопіювати</button>
               <button class="btn" id="ztb-open">Відкрити</button>
               <button class="btn primary" id="ztb-done">Виконано</button>
@@ -177,7 +177,7 @@
             </div>
           </div>
         </div>
-             </section>
+              </section>
 
             <section class="modal" id="ztb-modal-tour" role="dialog" aria-hidden="true" aria-labelledby="tour-title">
         <div class="tour-overlay" id="ztb-tour-overlay"></div>
@@ -186,9 +186,15 @@
             <h2 id="tour-title">Ознайомчий тур</h2>
             <p id="tour-text"></p>
           </div>
-                   <div class="tour-actions">
+                    <div class="tour-actions">
             <button class="btn ghost" id="tour-prev">Назад</button>
             <button class="btn" id="tour-skip">Пропустити</button>
             <button class="btn primary" id="tour-next">Далі</button>
           </div>
         </div>
+              </section>
+    </div>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
