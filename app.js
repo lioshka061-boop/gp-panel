@@ -712,12 +712,32 @@
           title: subStep.title,
           desc: subStep.desc || "",
           tags: subStep.chat ? [subStep.chat] : undefined,
+          list.appendChild(li);
+        });
+        container.appendChild(list);
+
+        const hint = document.createElement("p");
+        hint.className = "hint";
+        hint.textContent = "Натисни на будь-який крок ліворуч, щоб отримати детальні інструкції.";
+        container.appendChild(hint);
+      },
+    });
+
+    Object.entries(backendOptions).forEach(([key, option]) => {
+      option.steps.forEach((subStep, index) => {
+        addStep({
+          id: `2.${index + 3}.${key}`,
+          section: backendSection,
+          icon: "file",
+          title: subStep.title,
+          desc: subStep.desc || "",
+          tags: subStep.chat ? [subStep.chat] : undefined,
           when(state) {
             return state.backend === key;
           },
           prompt: subStep.prompt,
           link: subStep.link,
-          onComplete(subStep.onComplete),
+          onComplete: subStep.onComplete,
           render(container) {
             if (subStep.render) {
               subStep.render(container);
