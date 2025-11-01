@@ -60,12 +60,12 @@
   const botTypes = {
     crm: {
       title: "CRM",
-      desc: "Веде клієнтів і задачі",
+      desc: "Веде клієнтів і завдання",
       commands: "/start,/help,/add,/clients,/tasks,/done,/stats",
     },
     task: {
       title: "Task Manager",
-      desc: "Організація списку справ",
+      desc: "Список справ для команди",
       commands: "/start,/help,/add,/list,/done,/skip,/stats",
     },
     habit: {
@@ -75,7 +75,7 @@
     },
     faq: {
       title: "FAQ / Support",
-      desc: "Автовідповіді на типові питання",
+      desc: "Відповідає на типові питання",
       commands: "/start,/help,/faq,/contact,/tips",
     },
     shop: {
@@ -418,19 +418,29 @@
       section: startSection,
       icon: "guide",
       title: "Привітання",
-      desc: "Що робимо: запускаємо майстер створення власного Telegram-бота.",
+      desc: "Запускаємо майстер створення власного Telegram-бота.",
       tags: ["guide"],
       onComplete(draft) {
         draft.started = true;
       },
-      render(container) {
+      render(container, ctx) {
         renderList(container, [
-          "Натисни «Виконано», коли готовий стартувати.",
-          "Сміливо: помилки — це нормально. Ми разом усе виправимо.",
+          "Що робимо: запускаємо майстер створення власного Telegram-бота.",
+          "Дія: натисни «Почати».",
         ]);
+
+        const action = document.createElement("button");
+        action.type = "button";
+        action.className = "btn primary";
+        action.textContent = "Почати";
+        action.addEventListener("click", () => {
+          ctx.markComplete();
+        });
+        container.appendChild(action);
+
         const hint = document.createElement("p");
         hint.className = "hint";
-        hint.textContent = "Після натискання одразу перейдеш до наступного кроку.";
+        hint.textContent = "Якщо передумаєш — завжди можна повернутися до цього кроку.";
         container.appendChild(hint);
       },
     });
@@ -440,12 +450,17 @@
       section: startSection,
       icon: "guide",
       title: "Вибір типу бота",
-      desc: "Оберіть сценарій — ми підставимо команди та приклади.",
+      desc: "Оберіть, що саме хочеш зробити. Система підставить команди автоматично.",
       tags: ["guide"],
       when(state) {
         return state.started;
       },
       render(container, ctx) {
+        const intro = document.createElement("p");
+        intro.className = "step-note";
+        intro.textContent = "Вибери сценарій нижче — команди підтягнуться в подальших промптах.";
+        container.appendChild(intro);
+
         const grid = document.createElement("div");
         grid.className = "card-grid";
         Object.entries(botTypes).forEach(([key, info]) => {
@@ -453,7 +468,12 @@
           card.type = "button";
           card.className = "select-card";
           card.dataset.value = key;
-          card.innerHTML = `<strong>${info.title}</strong><span>${info.desc}</span><span class="card-commands">${info.commands}</span>`;
+          const commands = info.commands
+            .split(",")
+            .map((cmd) => cmd.trim())
+            .filter(Boolean)
+            .join(", ");
+          card.innerHTML = `<strong>${info.title}</strong><span>${info.desc}</span><span class="card-commands">${commands}</span>`;
           if (state.botType === key) card.classList.add("active");
           card.addEventListener("click", () => {
             updateState((draft) => {
@@ -467,7 +487,7 @@
         container.appendChild(grid);
         const hint = document.createElement("p");
         hint.className = "hint";
-        hint.textContent = "Команди автоматично з’являться далі. Можна змінити пізніше.";
+        hint.innerHTML = "<strong>Пояснення:</strong> Команда — це слово з косою рискою, яке ти пишеш боту, наприклад <code>/start</code>.";
         container.appendChild(hint);
       },
     });
@@ -493,26 +513,6 @@
 
         const note = document.createElement("p");
         note.className = "step-note";
-        note.innerHTML =
-          'Система підлаштує інструкції: “Скопіювати для ChatGPT” <strong>або</strong> “Відкрити в Codex”.';
-        container.appendChild(note);
-
-        const options = [
-          { key: "chatgpt", title: "ChatGPT", desc: "Безкоштовно. Код копіюєш вручну." },
-          { key: "codex", title: "ChatGPT + Codex", desc: "Потрібен Copilot, зате швидше." },
-        ];
-        renderSelectionCards(container, options, state.mode, (value) => {
-          updateState((draft) => {
-            draft.mode = value;
-          });
-          ctx.markComplete();
-        });
-      },
-    });
-
-    addStep({
-      id: "1.4",
-      section: startSection,
       icon: "guide",
       title: "Вибір середовища",
       desc: "Працюємо локально або в браузері через Codespaces.",
