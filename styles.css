@@ -316,8 +316,8 @@ main {
 
 .option-card--active {
   border-color: #4664ff;
-  box-shadow: 0 0 0 2px rgba(70, 100, 255, 0.25);
-  background: rgba(70, 100, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(70, 100, 255, 0.28);
+  background: rgba(70, 100, 255, 0.18);
 }
 
 .option-card__title {
@@ -380,6 +380,48 @@ main {
   color: var(--color-text);
   font: 0.95rem/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   resize: vertical;
+}
+
+.prompt-wrapper {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.prompt-preview {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-strong);
+  padding: 1rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: 0.95rem/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  resize: vertical;
+  min-height: 220px;
+}
+
+.prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.prompt-status {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.option-card__meta {
+  font-size: 0.85rem;
+  color: #4664ff;
+  text-decoration: underline;
+  justify-self: start;
+  cursor: pointer;
+}
+
+.option-card__meta:hover,
+.option-card__meta:focus-visible {
+  text-decoration: none;
 }
 
 .step__copy {
@@ -488,6 +530,70 @@ main {
   color: var(--color-muted);
 }
 
+.backend-substeps {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.backend-substep {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.1rem;
+  border-radius: 14px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.backend-substep:hover,
+.backend-substep:focus-within {
+  border-color: #4664ff;
+  box-shadow: 0 0 0 2px rgba(70, 100, 255, 0.16);
+}
+
+.backend-substep__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.backend-substep__body {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.backend-substep__prompt {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-strong);
+  padding: 0.9rem;
+  background: var(--color-card);
+  color: var(--color-text);
+  font: 0.95rem/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  resize: vertical;
+  min-height: 200px;
+}
+
+.backend-substep__prompt:focus-visible {
+  outline: none;
+  border-color: #4664ff;
+  box-shadow: 0 0 0 3px rgba(70, 100, 255, 0.18);
+}
+
+.backend-substep__actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.backend-substep__status {
+  font-size: 0.9rem;
+  color: var(--color-muted);
+}
+
 .app-footer {
   position: sticky;
   bottom: 0;
@@ -535,6 +641,47 @@ main {
 .nav-button--primary:focus-visible {
   background: linear-gradient(90deg, #3552f0, #4b90ff);
   box-shadow: 0 12px 24px rgba(70, 100, 255, 0.35);
+}
+
+.finish-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.finish-button {
+  cursor: pointer;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-strong);
+  padding: 0.85rem 1.5rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.finish-button:hover,
+.finish-button:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(70, 100, 255, 0.18);
+}
+
+.finish-button:active {
+  transform: scale(0.97);
+}
+
+.finish-button--primary {
+  border: none;
+  background: linear-gradient(90deg, #4664ff, #55a0ff);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(70, 100, 255, 0.32);
+}
+
+.finish-button--primary:hover,
+.finish-button--primary:focus-visible {
+  box-shadow: 0 14px 28px rgba(70, 100, 255, 0.4);
 }
 
 .nav-button:disabled {
