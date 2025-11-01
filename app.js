@@ -28,6 +28,8 @@
   const tourText = document.getElementById("tour-text");
 
   const quickActions = document.getElementById("ztb-quick-actions");
+  const copyButton = document.getElementById("ztb-copy");
+  const openButton = document.getElementById("ztb-open");
 
   const defaultState = {
     started: false,
@@ -1013,7 +1015,7 @@
   }
 
   function attachEventListeners() {
-    document.getElementById("ztb-copy").addEventListener("click", () => {
+    copyButton.addEventListener("click", () => {
       const { step } = getActiveStep();
       if (!step) {
         showToast("Кроки недоступні. Натисни «Скинути».");
@@ -1027,7 +1029,7 @@
       navigator.clipboard.writeText(text).then(() => showToast("Скопійовано"));
     });
 
-    document.getElementById("ztb-open").addEventListener("click", () => {
+    openButton.addEventListener("click", () => {
       const { step } = getActiveStep();
       if (!step) {
         showToast("Кроки недоступні. Натисни «Скинути».");
@@ -1157,6 +1159,12 @@
       descEl.textContent = "Скинь прогрес або перезавантаж сторінку.";
       promptEl.textContent = "";
       promptEl.classList.add("empty");
+      promptEl.setAttribute("hidden", "");
+      promptEl.setAttribute("aria-hidden", "true");
+      copyButton.disabled = true;
+      copyButton.setAttribute("aria-disabled", "true");
+      openButton.disabled = true;
+      openButton.setAttribute("aria-disabled", "true");
       tagsEl.innerHTML = "";
       contentEl.innerHTML = "";
       const message = document.createElement("p");
@@ -1172,16 +1180,25 @@
     }
 
     const prompt = resolvePrompt(step);
+    const hasPrompt = Boolean(prompt);
 
     stepHeading.textContent = `Крок ${step.id} · ${step.title}`;
     mainTitle.textContent = step.title;
     descEl.textContent = step.desc || "";
     promptEl.textContent = prompt || "";
-    promptEl.classList.toggle("empty", !prompt);
+    promptEl.classList.toggle("empty", !hasPrompt);
+    promptEl.toggleAttribute("hidden", !hasPrompt);
+    promptEl.setAttribute("aria-hidden", hasPrompt ? "false" : "true");
+    copyButton.disabled = !hasPrompt;
+    copyButton.setAttribute("aria-disabled", String(!hasPrompt));
 
     const note = state.notes?.[step.id] || "";
     noteEl.disabled = false;
     noteEl.value = note;
+
+    const hasLink = Boolean(step.link);
+    openButton.disabled = !hasLink;
+    openButton.setAttribute("aria-disabled", String(!hasLink));
 
     renderTags(step);
     renderContent(step);
