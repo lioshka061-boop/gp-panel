@@ -1,234 +1,89 @@
-```html
 <!DOCTYPE html>
 <html lang="uk">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Zero-to-Bot v4 — Майстер створення Telegram-бота</title>
+  <title>Zero-to-Bot v4 — Майстер</title>
   <link rel="stylesheet" href="styles.css" />
   <meta name="color-scheme" content="light dark" />
 </head>
 <body>
-  <!-- ===== Topbar ===== -->
-  <header class="topbar" role="banner">
+  <!-- Topbar -->
+  <header class="topbar">
     <div class="container row space-between align-center">
       <div class="row align-center gap-8">
         <div class="logo" aria-hidden="true">🤖</div>
         <div>
           <h1 class="app-title">Zero-to-Bot v4</h1>
-          <p class="app-subtitle">Одна дія = один крок. Дерево виборів: тип → режим → середовище → база → доповнення.</p>
+          <p class="app-subtitle">Одна дія = один крок. Дерево: тип → режим → середовище → база → доповнення.</p>
         </div>
       </div>
-
       <nav class="row gap-8">
-        <button class="btn btn-ghost" id="btn-new-bot" data-action="new-bot">🔄 Створити нового</button>
-        <button class="btn btn-primary" id="btn-improve-bot" data-action="improve-bot">🚀 Покращити поточного</button>
+        <button class="btn btn-ghost" id="btn-theme">🌓 Тема</button>
+        <button class="btn btn-ghost" data-action="export-state">⬇️ Експорт</button>
+        <button class="btn btn-ghost" data-action="import-state">⬆️ Імпорт</button>
+        <button class="btn" id="btn-new">🔄 Новий</button>
       </nav>
     </div>
   </header>
 
-  <!-- ===== Main ===== -->
-  <main class="container layout">
-    <!-- ===== Sidebar: Choices & Checklist ===== -->
-    <aside class="sidebar" aria-label="Налаштування">
-      <section class="card">
-        <h2 class="card-title">1) Тип бота</h2>
-        <div class="choice-list" id="choice-type" role="radiogroup" aria-label="Тип бота">
-          <label class="choice-item">
-            <input type="radio" name="botType" value="crm" /> CRM
-            <span class="note">Клієнти і завдання</span>
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="botType" value="task" /> Task Manager
-            <span class="note">Список справ</span>
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="botType" value="habit" /> Habit Tracker
-            <span class="note">Звички + нагадування</span>
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="botType" value="faq" /> FAQ / Support
-            <span class="note">Типові питання</span>
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="botType" value="shop" /> Shop
-            <span class="note">Міні-магазин</span>
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="botType" value="booking" /> Booking
-            <span class="note">Запис на послуги</span>
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="botType" value="custom" /> Custom
-            <span class="note">Свій сценарій</span>
-          </label>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">2) Режим ШІ</h2>
-        <div class="choice-list" id="choice-ai" role="radiogroup" aria-label="Режим ШІ">
-          <label class="choice-item">
-            <input type="radio" name="aiMode" value="chatgpt" /> ChatGPT-only
-            <span class="note">Код копіюєш вручну</span>
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="aiMode" value="codex" /> ChatGPT + Codex (Copilot)
-            <span class="note">Потрібна підписка</span>
-          </label>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">3) Середовище</h2>
-        <div class="choice-list" id="choice-env" role="radiogroup" aria-label="Середовище">
-          <label class="choice-item">
-            <input type="radio" name="env" value="local" /> 💻 Local
-            <span class="note">Потрібен Python</span>
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="env" value="codespaces" /> ☁️ Codespaces
-            <span class="note">У браузері через GitHub</span>
-          </label>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">4) Бекенд</h2>
-        <div class="choice-list" id="choice-backend" role="radiogroup" aria-label="База даних">
-          <label class="choice-item">
-            <input type="radio" name="backend" value="json" /> JSON файл
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="backend" value="sqlite" /> SQLite
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="backend" value="gsheets" /> Google Sheets
-          </label>
-          <label class="choice-item">
-            <input type="radio" name="backend" value="postgres" /> Postgres (Docker)
-          </label>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">5) Чек-лист інструментів</h2>
-        <ul class="checklist" id="tools-checklist">
-          <li>
-            <label>
-              <input type="checkbox" data-key="python" />
-              Python 3.10+ встановлено
-            </label>
-          </li>
-          <li>
-            <label>
-              <input type="checkbox" data-key="editor" />
-              Редактор відкривається (VS Code / Cursor)
-            </label>
-          </li>
-          <li>
-            <label>
-              <input type="checkbox" data-key="github" />
-              Є обліковий запис GitHub
-            </label>
-          </li>
-          <li>
-            <label>
-              <input type="checkbox" data-key="copilot" />
-              Якщо Codex — увімкнений Copilot
-            </label>
-          </li>
-        </ul>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">DEV BRIEF</h2>
-        <div class="brief" id="dev-brief">
-          <p class="muted">З’явиться тут після вибору типів. Містить ціль, команди, мову, канал, збереження.</p>
-        </div>
+  <!-- Two-pane workspace -->
+  <main class="workspace">
+    <!-- LEFT: steps -->
+    <aside class="pane pane-left">
+      <div class="left-toolbar">
+        <input id="search" class="input" type="search" placeholder="Пошук кроків…" />
         <div class="row gap-8">
-          <button class="btn btn-secondary" id="btn-copy-chatgpt" data-action="copy-chatgpt" disabled>Скопіювати для ChatGPT</button>
-          <button class="btn btn-secondary" id="btn-open-codex" data-action="open-codex" disabled>Відкрити в Codex</button>
-        </div>
-      </section>
-    </aside>
-
-    <!-- ===== Content: Steps ===== -->
-    <section class="content" aria-live="polite">
-      <div class="filters row space-between align-center">
-        <div class="row gap-8">
-          <button class="chip is-active" data-filter="all">Всі кроки</button>
+          <button class="chip is-active" data-filter="all">Всі</button>
           <button class="chip" data-filter="todo">Невиконані</button>
           <button class="chip" data-filter="done">Виконані</button>
         </div>
-        <div class="row gap-8">
-          <span class="muted" id="progress-text">Прогрес: 0/0</span>
-        </div>
+        <div class="muted small" id="progress">Прогрес: 0/0</div>
       </div>
 
-      <!-- Sections will be populated by app.js based on selections -->
-      <div id="steps-root" class="steps-root" aria-label="Кроки майстра">
-        <!-- JS вставляє групи I–VIII і кроки 1–35 -->
-      </div>
+      <nav id="sections" class="sections" aria-label="Перелік кроків">
+        <!-- JS малює секції та кроки -->
+      </nav>
+    </aside>
+
+    <!-- RIGHT: detail panel -->
+    <section class="pane pane-right" id="detail">
+      <header class="detail-header">
+        <div>
+          <h2 id="detail-title" class="detail-title">Обери крок ліворуч</h2>
+          <div class="muted" id="detail-path"></div>
+        </div>
+        <div class="row gap-8">
+          <button class="btn btn-secondary" id="btn-details">Детальна інструкція</button>
+          <button class="btn btn-primary" id="btn-toggle-done">✅ Зроблено</button>
+        </div>
+      </header>
+
+      <article class="detail-body">
+        <div class="detail-block">
+          <h3>Опис</h3>
+          <p id="detail-desc" class="muted">Тут з’явиться коротке пояснення кроку.</p>
+          <p><strong>Дія:</strong> <span id="detail-action"></span></p>
+        </div>
+
+        <div class="detail-block">
+          <h3>Нотатки / код для цього кроку</h3>
+          <textarea id="notes" class="textarea" rows="10" placeholder="Сюди вставляй токени, відповіді ChatGPT, шматки коду"></textarea>
+          <div class="row gap-8">
+            <button class="btn btn-secondary" id="btn-copy-notes">Копіювати</button>
+            <span class="muted small" id="notes-status">Збережено</span>
+          </div>
+        </div>
+
+        <div class="detail-block" id="detail-extra-wrap" hidden>
+          <h3>Підказка</h3>
+          <pre id="detail-extra" class="codeblock"></pre>
+        </div>
+      </article>
     </section>
   </main>
 
-  <!-- ===== Footer ===== -->
-  <footer class="footer">
-    <div class="container row space-between align-center">
-      <small class="muted">© Zero-to-Bot v4. Навчальний майстер для швидкого старту.</small>
-      <div class="row gap-8">
-        <button class="btn btn-ghost" data-action="export-state">⬇️ Експорт стану</button>
-        <button class="btn btn-ghost" data-action="import-state">⬆️ Імпорт стану</button>
-      </div>
-    </div>
-  </footer>
-
-  <!-- ===== Templates ===== -->
-  <template id="tpl-section">
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title"></h2>
-        <span class="badge"></span>
-      </div>
-      <ol class="step-list"></ol>
-    </section>
-  </template>
-
-  <template id="tpl-step">
-    <li class="step-item" data-step-id="">
-      <div class="step-head">
-        <div class="row align-center gap-8">
-          <button class="step-check" title="Позначити як виконано" aria-label="Готово">✅</button>
-          <h3 class="step-title"></h3>
-        </div>
-        <div class="row gap-8">
-          <button class="btn btn-small btn-ghost" data-action="details">Детальна інструкція</button>
-          <button class="btn btn-small" data-action="done">✅ зроблено</button>
-        </div>
-      </div>
-      <div class="step-body">
-        <!-- Короткий опис і “Дія” -->
-      </div>
-    </li>
-  </template>
-
-  <!-- ===== Modals ===== -->
-  <dialog id="modal-details" class="modal">
-    <form method="dialog" class="modal-card">
-      <header class="modal-header">
-        <h3 id="modal-title">Деталі кроку</h3>
-        <button class="btn btn-ghost" value="close" aria-label="Закрити">✖</button>
-      </header>
-      <article class="modal-content" id="modal-content">
-        <!-- Markdown/HTML деталі кроку -->
-      </article>
-      <footer class="modal-footer">
-        <button class="btn" value="ok">Зрозуміло</button>
-      </footer>
-    </form>
-  </dialog>
-
+  <!-- Modals -->
   <dialog id="modal-import" class="modal">
     <form method="dialog" class="modal-card">
       <header class="modal-header">
@@ -244,25 +99,10 @@
     </form>
   </dialog>
 
-  <dialog id="modal-brief" class="modal">
-    <form method="dialog" class="modal-card">
-      <header class="modal-header">
-        <h3>Згенерований промпт</h3>
-        <button class="btn btn-ghost" value="close" aria-label="Закрити">✖</button>
-      </header>
-      <article class="modal-content">
-        <pre id="brief-text" class="codeblock" tabindex="0"></pre>
-      </article>
-      <footer class="modal-footer">
-        <button class="btn" id="btn-copy-brief" value="ok">Копіювати</button>
-      </footer>
-    </form>
-  </dialog>
-
-  <!-- ===== Toasts ===== -->
+  <!-- Toasts -->
   <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
 
-  <!-- ===== Data seed (read by app.js) ===== -->
+  <!-- Seed data -->
   <script id="seed" type="application/json">
   {
     "commandsByType": {
@@ -295,46 +135,38 @@
       {"section":"prep","id":7,"title":"Файл requirements.txt","body":"Додай залежності aiogram і python-dotenv.","action":"Створи `requirements.txt` із потрібним вмістом."},
       {"section":"prep","id":8,"title":"Файл main.py","body":"Створи порожній головний файл.","action":"Створи `main.py`."},
       {"section":"prep","id":9,"title":"Файл .env","body":"Збережи секрети, наприклад TOKEN.","action":"Створи `.env` і додай TOKEN=..."},
-      {"section":"prep","id":10,"title":"DEV BRIEF","body":"Генерується з вибору: ціль, команди, тип, мова, канал, збереження.","action":"Натисни «Скопіювати для ChatGPT» або «Відкрити в Codex»."},
+      {"section":"prep","id":10,"title":"DEV BRIEF","body":"Генерується з вибору: ціль, команди, тип, мова, канал, збереження.","action":"Зроби промпт для коду."},
       {"section":"prep","id":11,"title":"Промпт для коду","body":"Встав отриманий код у main.py.","action":"Скопіюй код у `main.py`."},
 
-      {"section":"db","id":12,"title":"Вибір типу зберігання","body":"JSON, SQLite, Google Sheets або Postgres.","action":"Познач варіант у лівій панелі."},
+      {"section":"db","id":12,"title":"Вибір типу зберігання","body":"JSON, SQLite, Google Sheets або Postgres.","action":"Познач варіант."},
       {"section":"db","id":13,"title":"Навіщо бекенд","body":"Без збереження бот забуває все після перезапуску.","action":"Обери варіант і рухайся далі."},
-      {"section":"db","id":14,"title":"Підтвердження вибору","body":"Система покаже кроки під твій варіант.","action":"Далі виконай кроки 15–18/19 згідно гілки."},
+      {"section":"db","id":14,"title":"Підтвердження вибору","body":"Система покаже кроки під твій варіант.","action":"Далі кроки 15+."},
 
-      {"section":"ui","id":19,"title":"Що таке дизайн","body":"Зовнішній вигляд: кнопки, меню, тексти.","action":"Перевір приклади нижче."},
+      {"section":"ui","id":19,"title":"Що таке дизайн","body":"Зовнішній вигляд: кнопки, меню, тексти.","action":"Перевір приклади."},
       {"section":"ui","id":20,"title":"Головне меню","body":"Reply-кнопки.","action":"Додай меню: 📋 Завдання, 🧠 Поради, ⚙️ Налаштування."},
-      {"section":"ui","id":21,"title":"Inline-кнопки","body":"Кнопки у повідомленні.","action":"Додай [✅ Готово] [❌ Пропустити] [📊 Статистика]."},
+      {"section":"ui","id":21,"title":"Inline-кнопки","body":"Кнопки у повідомленні.","action":"Додай [✅] [❌] [📊]."},
       {"section":"ui","id":22,"title":"Гарні тексти","body":"Емодзі і короткі фрази.","action":"Оформлення повідомлень."},
 
-      {"section":"stats","id":23,"title":"Команда /stats","body":"Показати зроблене за сьогодні, тиждень, всього.","action":"Додай ендпоінт /stats."},
-      {"section":"stats","id":24,"title":"Звіт із відсотками","body":"З емодзі та відсотками.","action":"Зроби форматований звіт."},
+      {"section":"stats","id":23,"title":"Команда /stats","body":"Показати зроблене за сьогодні, тиждень, всього.","action":"Додай /stats."},
+      {"section":"stats","id":24,"title":"Звіт із відсотками","body":"З емодзі та відсотками.","action":"Форматований звіт."},
       {"section":"stats","id":25,"title":"Щоденні нагадування","body":"Надсилай щоденний звіт о 20:00.","action":"Налаштуй планувальник."},
 
-      {"section":"payments","id":26,"title":"Вибір системи оплати","body":"Stripe або WayForPay.","action":"Обери платіжну систему."},
-      {"section":"payments","id":27,"title":"Ключі","body":"Додай STRIPE_KEY або WAYFORPAY_KEY у .env.","action":"Зареєструйся та додай ключі."},
+      {"section":"payments","id":26,"title":"Вибір системи оплати","body":"Stripe або WayForPay.","action":"Обери платіжку."},
+      {"section":"payments","id":27,"title":"Ключі","body":"Додай STRIPE_KEY або WAYFORPAY_KEY у .env.","action":"Отримай ключі."},
       {"section":"payments","id":28,"title":"Оплата — крок 1","body":"Підключення платежів і команда покупки.","action":"Додай /buy."},
-      {"section":"payments","id":29,"title":"Оплата — крок 2","body":"Тест платежу і підтвердження.","action":"Перевір «Дякую за оплату!»."},
+      {"section":"payments","id":29,"title":"Оплата — крок 2","body":"Тест платежу і підтвердження.","action":"Перевір оплату."},
 
       {"section":"launch","id":30,"title":"BotFather","body":"Створи бота та отримай токен.","action":"Встав TOKEN у .env."},
-      {"section":"launch","id":31,"title":"Запуск","body":"Запусти `python main.py`.","action":"Побач «Bot started» у терміналі."},
-      {"section":"launch","id":32,"title":"Перевір команди","body":"Переконайся, що /start, /help і кастомні працюють.","action":"Протести у Telegram."},
+      {"section":"launch","id":31,"title":"Запуск","body":"Запусти `python main.py`.","action":"Очікуй «Bot started»."},
+      {"section":"launch","id":32,"title":"Перевір команди","body":"Переконайся, що /start, /help і кастомні працюють.","action":"Тест у Telegram."},
       {"section":"launch","id":33,"title":"Резервна копія","body":"Скопіюй у хмару або GitHub.","action":"Перезапусти і перевір."},
 
-      {"section":"growth","id":34,"title":"Додаткові модулі","body":"Автозбереження, багатомовність, адмін-панель.","action":"Додай як окремі кроки."},
-      {"section":"growth","id":35,"title":"Фініш","body":"«Готово! Ти створив свого Telegram-бота.»","action":"Кнопки: Створити нового / Покращити поточного."}
-    ],
-    "backendBranches": {
-      "json": [15,16,17,18],
-      "sqlite": [15,16,17,18],
-      "gsheets": [15,16,17,18],
-      "postgres": [15,16,17,18,19]
-    }
+      {"section":"growth","id":34,"title":"Додаткові модулі","body":"Автозбереження, багатомовність, адмін-панель.","action":"Додай як кроки."},
+      {"section":"growth","id":35,"title":"Фініш","body":"«Готово! Ти створив свого Telegram-бота.»","action":"Створити нового / Покращити поточного."}
+    ]
   }
   </script>
 
-  <!-- ===== App script ===== -->
   <script src="app.js" defer></script>
 </body>
 </html>
-```
