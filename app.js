@@ -601,8 +601,49 @@ function renderEnvironmentStep(container) {
 }
 
 function renderToolsStep(container) {
-  const list = document.createElement('div');
-  list.className = 'checklist';
+  renderInfo(container, [
+    '• Python 3.10+ — встанови останню версію із офіційного сайту.',
+    '• IDE — VS Code або Cursor з розширеннями Python, Pylance, Copilot.',
+    '• GitHub — авторизуйся або створи акаунт.'
+  ].concat(state.choices.mode === 'codex' ? ['• Copilot — увімкни GitHub Copilot у VS Code.'] : []));
+
+  const grid = document.createElement('div');
+  grid.className = 'card-grid';
+
+  grid.appendChild(createToolCard({
+    title: 'Python 3.12',
+    description: 'Офіційний інсталятор для Windows / macOS / Linux.',
+    link: 'https://www.python.org/downloads/',
+    prompt: 'Поясни, як встановити Python 3.12 на мою систему. Додай кроки для перевірки python --version.'
+  }));
+
+  grid.appendChild(createToolCard({
+    title: 'VS Code',
+    description: 'Редактор із потрібними плагінами: Python, Pylance, Copilot.',
+    link: 'https://code.visualstudio.com/',
+    prompt: 'Поясни, як встановити VS Code та додати розширення Python, Pylance і GitHub Copilot.'
+  }));
+
+  grid.appendChild(createToolCard({
+    title: 'GitHub',
+    description: 'Створи або увійди у свій акаунт.',
+    link: 'https://github.com/',
+    prompt: 'Поясни, як зареєструватися на GitHub, увімкнути 2FA та налаштувати git config.'
+  }));
+
+  if (state.choices.mode === 'codex') {
+    grid.appendChild(createToolCard({
+      title: 'Copilot',
+      description: 'Активуй Copilot у VS Code, щоб працювати з Codex.',
+      link: 'https://github.com/features/copilot',
+      prompt: 'Поясни, як увімкнути GitHub Copilot у VS Code та авторизуватися.'
+    }));
+  }
+
+  container.appendChild(grid);
+
+  const checklist = document.createElement('div');
+  checklist.className = 'checklist';
   TOOL_CHECKLIST.forEach((tool) => {
     if (tool.optional && state.choices.mode !== 'codex') {
       state.tools[tool.id] = false;
@@ -623,9 +664,9 @@ function renderToolsStep(container) {
     caption.textContent = tool.label;
     label.appendChild(caption);
     row.appendChild(label);
-    list.appendChild(row);
+    checklist.appendChild(row);
   });
-  container.appendChild(list);
+  container.appendChild(checklist);
 }
 
 function renderRequirementsStep(container) {
@@ -822,11 +863,11 @@ function renderPaymentStep(container, title, step) {
 function renderAdviceStep(container) {
   const type = BOT_TYPES.find((item) => item.id === state.choices.botType);
   if (!type) {
-    renderInfo(container, ['Щоб отримати поради, спочатку обери тип бота.']);
+    renderInfo(container, ['• Щоб отримати поради, спочатку обери тип бота.']);
     return;
   }
   renderInfo(container, [`${type.title} — ключові рекомендації:`]);
-  renderInfo(container, type.tips);
+  renderInfo(container, type.tips.map((value) => `• ${value}`));
 }
 
 // ——— Допоміжні рендер-утиліти ———
@@ -888,41 +929,7 @@ function renderInfo(container, lines, footer) {
           openLabel: aiTarget === 'codex' ? 'Відкрити Codex' : 'Відкрити ChatGPT'
         });
         block.appendChild(promptBlock);
-      } else {
-        const row = document.createElement('div');
-        row.className = 'info-line';
-        row.textContent = line;
-        block.appendChild(row);
-
-        // Кнопки копіювання назв файлів/папок у `...`
-        const names = extractBackticked(line);
-        if (names.length) {
-          const btnWrap = document.createElement('div');
-          btnWrap.className = 'prompt-actions';
-          names.forEach((name) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'ghost copy-btn';
-            btn.textContent = `Скопіювати «${name}»`;
-            btn.addEventListener('click', () => copyText(name));
-            btnWrap.appendChild(btn);
-          });
-          block.appendChild(btnWrap);
-        }
-
-        // Кнопка BotFather
-        if (/BotFather/i.test(line)) {
-          const bfWrap = document.createElement('div');
-          bfWrap.className = 'prompt-actions';
-          const bfBtn = document.createElement('button');
-          bfBtn.type = 'button';
-          bfBtn.className = 'primary prompt-open';
-          bfBtn.textContent = 'Відкрити BotFather';
-          bfBtn.addEventListener('click', () => window.open('https://t.me/BotFather', '_blank', 'noopener'));
-          bfWrap.appendChild(bfBtn);
-          block.appendChild(bfWrap);
-        }
-      }
+      } else appendInfoLine(block, line);
     });
 
     container.appendChild(block);
@@ -1004,6 +1011,80 @@ function extractBackticked(line) {
     if (m[1]) out.push(m[1]);
   }
   return out;
+}
+
+function appendInfoLine(block, line) {
+  const row = document.createElement('div');
+  row.className = 'info-line';
+
+  const text = document.createElement('div');
+  text.className = 'info-line-text';
+  text.textContent = line;
+  row.appendChild(text);
+
+  const actions = document.createElement('div');
+  actions.className = 'inline-actions';
+
+  const snippets = extractBackticked(line);
+  snippets.forEach((snippet) => {
+    if (snippet === '@BotFather') return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ghost copy-btn';
+    btn.textContent = `Скопіювати ${snippet}`;
+    btn.addEventListener('click', () => copyText(snippet));
+    actions.appendChild(btn);
+  });
+
+  if (/BotFather/i.test(line)) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'primary prompt-open';
+    btn.textContent = 'Відкрити BotFather';
+    btn.addEventListener('click', () => openAi('https://t.me/BotFather'));
+    actions.appendChild(btn);
+  }
+
+  if (actions.childElementCount) row.appendChild(actions);
+  block.appendChild(row);
+}
+
+function createToolCard({ title, description, link, prompt }) {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const h = document.createElement('h3');
+  h.textContent = title;
+  card.appendChild(h);
+
+  if (description) {
+    const p = document.createElement('p');
+    p.textContent = description;
+    card.appendChild(p);
+  }
+
+  if (prompt) {
+    const promptBlock = createPromptBlock(prompt, {
+      copyLabel: 'Скопіювати інструкцію',
+      ai: 'chatgpt',
+      openLabel: 'Відкрити ChatGPT'
+    });
+    card.appendChild(promptBlock);
+  }
+
+  if (link) {
+    const actions = document.createElement('div');
+    actions.className = 'prompt-actions';
+    const linkBtn = document.createElement('button');
+    linkBtn.type = 'button';
+    linkBtn.className = 'primary prompt-open';
+    linkBtn.textContent = 'Відкрити сайт';
+    linkBtn.addEventListener('click', () => openAi(link));
+    actions.appendChild(linkBtn);
+    card.appendChild(actions);
+  }
+
+  return card;
 }
 
 function copyText(text) {
