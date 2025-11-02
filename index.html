@@ -8,17 +8,23 @@
 </head>
 <body>
   <nav class="top-nav">
-    <div class="nav-inner">
+    <button id="nav-toggle" class="nav-toggle" aria-label="Меню" aria-expanded="false" aria-controls="nav-menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div class="nav-inner" id="nav-menu">
       <div class="nav-group">
         <button id="reset-btn" class="nav-reset">Скинути</button>
         <button id="docs-btn" class="nav-docs">Документація</button>
       </div>
       <div class="jump-actions">
-        <select id="jump-select"></select>
+        <select id="jump-select" required aria-label="Повернутися до кроку"></select>
         <button id="jump-btn" class="ghost">Перейти</button>
       </div>
     </div>
   </nav>
+  <div id="nav-backdrop" class="nav-backdrop" hidden></div>
 
   <div id="app">
     <header>

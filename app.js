@@ -307,6 +307,10 @@ const elements = {
   prev: document.getElementById('prev-btn'),
   next: document.getElementById('next-btn'),
   reset: document.getElementById('reset-btn'),
+  navToggle: document.getElementById('nav-toggle'),
+  navMenu: document.getElementById('nav-menu'),
+  navBackdrop: document.getElementById('nav-backdrop'),
+  topNav: document.querySelector('.top-nav'),
   docsBtn: document.getElementById('docs-btn'),
   docsBackdrop: document.getElementById('docs-backdrop'),
   docsClose: document.getElementById('docs-close'),
@@ -346,9 +350,11 @@ if (elements.reset) {
   elements.reset.addEventListener('click', () => {
     if (!confirm('Скинути всі кроки та повернутися до початку?')) return;
     closeDocs();
+    closeNavMenu();
     state = structuredClone(defaultState);
     saveState();
     draw(true);
+    updateNavOnScroll();
     showToast('Майстер скинуто.');
   });
 }
@@ -387,10 +393,50 @@ if (elements.docsBackdrop) {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !elements.docsBackdrop?.hidden) {
     closeDocs();
+    return;
+  }
+  if (event.key === 'Escape' && isMobileNav() && elements.navMenu?.classList.contains('open')) {
+    closeNavMenu();
   }
 });
 
+if (elements.navToggle && elements.navMenu) {
+  elements.navToggle.addEventListener('click', () => {
+    toggleNavMenu();
+  });
+}
+
+if (elements.navBackdrop) {
+  elements.navBackdrop.addEventListener('click', () => {
+    if (elements.navMenu?.classList.contains('open')) closeNavMenu();
+  });
+}
+
+document.addEventListener('click', (event) => {
+  if (!isMobileNav()) return;
+  if (!elements.navMenu?.classList.contains('open')) return;
+  if (event.target.closest('.top-nav')) return;
+  closeNavMenu();
+});
+
+const mobileMedia = window.matchMedia('(max-width: 720px)');
+const handleMobileChange = () => {
+  if (!mobileMedia.matches) {
+    closeNavMenu();
+  }
+  updateNavOnScroll();
+};
+if (typeof mobileMedia.addEventListener === 'function') {
+  mobileMedia.addEventListener('change', handleMobileChange);
+} else if (typeof mobileMedia.addListener === 'function') {
+  mobileMedia.addListener(handleMobileChange);
+}
+
+window.addEventListener('scroll', updateNavOnScroll, { passive: true });
+handleMobileChange();
+
 draw(true);
+updateNavOnScroll();
 
 // --- Головні функції ---
 function draw(rebuild) {
@@ -566,11 +612,13 @@ function jumpToSelectedStep() {
   saveState();
   elements.jumpSelect.value = '';
   elements.jumpSelect.selectedIndex = 0;
+  closeNavMenu();
   draw(false);
 }
 
 function openDocs() {
   if (!elements.docsBackdrop) return;
+  closeNavMenu();
   elements.docsBackdrop.hidden = false;
   document.body.classList.add('modal-open');
 }
@@ -579,6 +627,57 @@ function closeDocs() {
   if (!elements.docsBackdrop) return;
   elements.docsBackdrop.hidden = true;
   document.body.classList.remove('modal-open');
+}
+
+function toggleNavMenu() {
+  if (!isMobileNav()) return;
+  if (!elements.navMenu || !elements.navToggle) return;
+  const willOpen = !elements.navMenu.classList.contains('open');
+  if (willOpen) {
+    openNavMenu();
+  } else {
+    closeNavMenu();
+  }
+}
+
+function updateNavOnScroll() {
+  if (!elements.topNav) return;
+  if (!isMobileNav()) {
+    elements.topNav.classList.remove('scrolled');
+    return;
+  }
+  if (elements.navMenu?.classList.contains('open')) {
+    elements.topNav.classList.remove('scrolled');
+    return;
+  }
+  const shouldBeTransparent = window.scrollY > 28;
+  elements.topNav.classList.toggle('scrolled', shouldBeTransparent);
+}
+
+function openNavMenu() {
+  if (!elements.navMenu || !elements.navToggle) return;
+  elements.navMenu.classList.add('open');
+  elements.navToggle.classList.add('open');
+  elements.navToggle.setAttribute('aria-expanded', 'true');
+  elements.topNav?.classList.add('menu-active');
+  elements.topNav?.classList.remove('scrolled');
+  if (elements.navBackdrop) elements.navBackdrop.hidden = false;
+  document.body.classList.add('nav-open');
+}
+
+function closeNavMenu() {
+  if (!elements.navMenu || !elements.navToggle) return;
+  elements.navMenu.classList.remove('open');
+  elements.navToggle.classList.remove('open');
+  elements.navToggle.setAttribute('aria-expanded', 'false');
+  if (elements.navBackdrop) elements.navBackdrop.hidden = true;
+  document.body.classList.remove('nav-open');
+  elements.topNav?.classList.remove('menu-active');
+  updateNavOnScroll();
+}
+
+function isMobileNav() {
+  return mobileMedia.matches;
 }
 
 // --- Рендери кроків ---
