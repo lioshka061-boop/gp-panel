@@ -840,6 +840,13 @@ function rebuildSteps() {
       state.currentStep = idx;
       return;
     }
+    if (isCustomBot(state)) {
+      const customStart = steps.findIndex((step) => step.id === 'custom-requirements');
+      if (customStart >= 0) {
+        state.currentStep = customStart;
+        return;
+      }
+    }
   }
   state.currentStep = Math.min(state.currentStep, steps.length - 1);
 }
@@ -1054,11 +1061,21 @@ function renderBotTypeStep(container) {
   `;
   table.addEventListener('change', (event) => {
     if (event.target.name === 'bot-type') {
-      state.choices.botType = event.target.value;
+      const previous = state.choices.botType;
+      const value = event.target.value;
+      state.choices.botType = value;
       const type = BOT_TYPES.find((item) => item.id === state.choices.botType);
       if (type) state.commands = [...type.commands];
+      if (value === 'custom' && previous !== 'custom') {
+        state.custom = structuredClone(defaultCustomState);
+        state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
+      }
+      if (previous === 'custom' && value !== 'custom') {
+        state.custom = structuredClone(defaultCustomState);
+        state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
+      }
       saveState();
-      draw(false);
+      draw(true);
     }
   });
   tableWrap.appendChild(table);
@@ -1420,11 +1437,20 @@ function renderDevBriefStep(container) {
     BOT_TYPES.map((t) => [t.id, `${t.title} — ${t.description}`]),
     state.choices.botType,
     (value) => {
+      const previous = state.choices.botType;
       state.choices.botType = value;
       const type = BOT_TYPES.find((item) => item.id === value);
       if (type) state.commands = [...type.commands];
+      if (value === 'custom' && previous !== 'custom') {
+        state.custom = structuredClone(defaultCustomState);
+        state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
+      }
+      if (previous === 'custom' && value !== 'custom') {
+        state.custom = structuredClone(defaultCustomState);
+        state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
+      }
       saveState();
-      draw(false);
+      draw(true);
     }
   )));
 
