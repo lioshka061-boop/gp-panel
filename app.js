@@ -91,6 +91,11 @@ const ENVIRONMENTS = [
   { id: 'codespaces', title: '☁️ Codespaces', description: 'Все у браузері через GitHub. Python встановлювати не треба.' }
 ];
 
+const ENTRY_FILE_OPTIONS = [
+  { id: 'main.py', label: 'main.py' },
+  { id: 'app.py', label: 'app.py' }
+];
+
 const TOOL_CHECKLIST = [
   { id: 'python', label: 'Python 3.10+ встановлено' },
   { id: 'editor', label: 'Редактор відкривається (VS Code / Cursor)' },
@@ -161,6 +166,71 @@ const BACKEND_OPTIONS = [
   }
 ];
 
+const FILE_STRUCTURE_STATIC_FILES = [
+  {
+    path: 'requirements.txt',
+    title: 'requirements.txt',
+    description: 'Список Python-залежностей. Встав у корені проєкту.',
+    content: 'aiogram==3.*\npython-dotenv'
+  },
+  {
+    path: '.env',
+    title: '.env',
+    description: 'Файл із секретами (TOKEN, креденшли). Не додавай у git.',
+    content: 'TOKEN=сюди_вставиш_токен'
+  }
+];
+
+const FILE_STRUCTURE_BACKEND_MAP = {
+  json: [
+    {
+      type: 'dir',
+      path: 'data/',
+      description: 'Папка під JSON-базу. Створи поруч із основним файлом.'
+    },
+    {
+      type: 'static',
+      path: 'data/db.json',
+      description: 'Порожній файл, бот заповнить його автоматично.',
+      content: '[]'
+    }
+  ],
+  sqlite: [
+    {
+      type: 'info',
+      path: 'db.sqlite3',
+      description: 'SQLite створить файл сам під час запуску. Переконайся, що каталог доступний для запису.'
+    }
+  ],
+  gsheets: [
+    {
+      type: 'note',
+      description: 'Google Sheets не вимагає додаткових файлів: просто збережи дані для підключення у `.env`.'
+    }
+  ],
+  postgres: [
+    {
+      type: 'ai',
+      path: 'docker-compose.yml',
+      description: 'Шаблон Docker для Postgres + сервісу бота. Згенеруй через ШІ та збережи поруч із основним файлом.',
+      prompt: 'Мені потрібен файл docker-compose.yml. Створи сервіс postgres (POSTGRES_PASSWORD=postgres, порт 5432) і сервіс для бота. Покажи весь файл одним блоком.'
+    }
+  ]
+};
+
+const defaultCustomState = {
+  requirements: '',
+  briefText: '',
+  brief: null,
+  files: [],
+  commandsText: '',
+  diag: {
+    description: '',
+    logs: '',
+    prompt: ''
+  }
+};
+
 const DESIGN_STEPS = [
   {
     title: 'Що таке дизайн',
@@ -213,12 +283,6 @@ const STATS_STEPS = [
   }
 ];
 
-const PAYMENT_INTRO = [
-  'Зареєструйся у Stripe (stripe.com) або WayForPay (wayforpay.com).',
-  'Додай у `.env` ключі STRIPE_KEY або WAYFORPAY_KEY.',
-  'API-ключ — секрет. Не ділись ним у репозиторії.'
-];
-
 const PAYMENT_METHODS = [
   {
     id: 'stripe',
@@ -246,6 +310,12 @@ const PAYMENT_METHODS = [
   }
 ];
 
+const PAYMENT_INTRO = [
+  'Зареєструйся у Stripe (stripe.com) або WayForPay (wayforpay.com).',
+  'Додай у `.env` ключі STRIPE_KEY або WAYFORPAY_KEY.',
+  'API-ключ — секрет. Не ділись ним у репозиторії.'
+];
+
 const LAUNCH_STEPS = [
   {
     title: 'Створення бота у BotFather',
@@ -257,7 +327,7 @@ const LAUNCH_STEPS = [
   },
   {
     title: 'Перевір команди',
-    items: ['`/start` — привітання є.', '`/help` — інструкція є.', 'Кастомна команда (наприклад `/add`) — працює.']
+    type: 'commands'
   },
   {
     title: 'Резервна копія',
@@ -283,19 +353,303 @@ const defaultState = {
     mode: null,
     environment: null,
     backend: null,
+    entryFile: ENTRY_FILE_OPTIONS[0].id,
     payment: 'none'
   },
   tools: TOOL_CHECKLIST.reduce((acc, tool) => {
     acc[tool.id] = false;
     return acc;
   }, { requirements: false, env: false }),
-  commands: ['/start', '/help']
+  commands: ['/start', '/help'],
+  custom: structuredClone(defaultCustomState)
 };
 
 const AI_LINKS = {
   chatgpt: 'https://chat.openai.com/',
   codex: 'https://cursor.com/'
 };
+
+function getEntryFile(currentState = state) {
+  const available = ENTRY_FILE_OPTIONS.map((item) => item.id);
+  const value = currentState?.choices?.entryFile;
+  return available.includes(value) ? value : ENTRY_FILE_OPTIONS[0].id;
+}
+
+function ensureCustomState(targetState = state) {
+  if (!targetState.custom) {
+    targetState.custom = structuredClone(defaultCustomState);
+  } else {
+    if (targetState.custom.diag === undefined) targetState.custom.diag = { description: '', logs: '', prompt: '' };
+    if (targetState.custom.files === undefined) targetState.custom.files = [];
+  }
+  return targetState.custom;
+}
+
+function isCustomBot(currentState = state) {
+  return currentState?.choices?.botType === 'custom';
+}
+
+function generateCustomBriefPrompt() {
+  const custom = ensureCustomState();
+  const requirements = custom.requirements?.trim() || 'Опис ще не додано.';
+  return [
+    `ТЗ: ${requirements}.`,
+    'Зроби бриф для розробки бота. Відповідай JSON:',
+    '{',
+    '  "commands": [...],',
+    '  "files": [',
+    '    {"path": "...", "purpose": "...", "isSimple": true|false}',
+    '  ],',
+    '  "backend": {"language": "...", "framework": "...", "notes": "..."},',
+    '  "storage": {"type": "...", "details": "...", "reason": "..."},',
+    '  "ui": {',
+    '    "reply": {',
+    '      "needed": true|false,',
+    '      "buttons": [',
+    '        {"text": "...", "purpose": "..."}',
+    '      ],',
+    '      "notes": "..."',
+    '    },',
+    '    "inline": {',
+    '      "needed": true|false,',
+    '      "buttons": [',
+    '        {"text": "...", "purpose": "...", "callback": "..."}',
+    '      ],',
+    '      "notes": "..."',
+    '    }',
+    '  }',
+    '}'
+  ].join('\n');
+}
+
+function generateManualFilePromptForSpec(brief, fileSpec) {
+  const serializedBrief = JSON.stringify(brief, null, 2);
+  const path = fileSpec.path || 'main.py';
+  const purpose = fileSpec.purpose || 'Основна логіка';
+  return [
+    `Контекст бота: ${serializedBrief}.`,
+    `Файл: ${path}. Призначення: ${purpose}.`,
+    'Згенеруй повний вміст файлу, самодостатній, без пропусків.'
+  ].join('\n');
+}
+
+function createSimpleFileInstructions(fileSpec) {
+  const path = fileSpec.path || 'file.txt';
+  const purpose = fileSpec.purpose || 'Допоміжний файл';
+  return `Створи файл ${path}. Призначення: ${purpose}. Заповни відповідно до брифу та збережи у зазначеній директорії.`;
+}
+
+function updateCustomFilePlan(parsedBrief) {
+  const custom = ensureCustomState();
+  const previousStatus = new Map(custom.files.map((item) => [item.path, !!item.done]));
+  const files = Array.isArray(parsedBrief?.files) ? parsedBrief.files : [];
+  custom.files = files.map((fileSpec, index) => {
+    const path = fileSpec?.path || `file_${index + 1}.txt`;
+    const isSimple = !!fileSpec?.isSimple;
+    return {
+      id: `${index}-${path}`,
+      path,
+      purpose: fileSpec?.purpose || '',
+      isSimple,
+      instructions: isSimple ? createSimpleFileInstructions(fileSpec) : null,
+      prompt: isSimple ? null : generateManualFilePromptForSpec(parsedBrief, fileSpec),
+      done: previousStatus.get(path) || false
+    };
+  });
+}
+
+function deriveDefaultCommands(customState, entryFile) {
+  const commands = [];
+  const hasRequirements = customState.files.some((file) => file.path === 'requirements.txt');
+  if (hasRequirements) commands.push('pip install -r requirements.txt');
+  const pythonFile = customState.files.find((file) => /\.py$/i.test(file.path) && !file.isSimple)?.path || entryFile || 'main.py';
+  commands.push(`python ${pythonFile}`);
+  return commands.join('\n');
+}
+
+function composeCustomDiagnosticPrompt(customState) {
+  const briefText = customState.brief ? JSON.stringify(customState.brief, null, 2) : 'Бриф ще не збережено.';
+  const knownFiles = customState.files.length
+    ? customState.files.map((file) => `${file.path} — ${file.isSimple ? 'simple' : 'code'}`).join('\n')
+    : 'Файли ще не сформовано.';
+  return [
+    `Контекст бота: ${briefText}.`,
+    `Опис помилки: ${customState.diag.description || 'не вказано'}.`,
+    `Логи терміналу: ${customState.diag.logs || 'не надано'}.`,
+    `Поточна структура файлів: ${knownFiles}.`,
+    'Покажи повністю виправлений код і чітко вкажи, в які файли його вставити.'
+  ].join('\n');
+}
+
+function getCustomCommandsList(customState) {
+  return customState.commandsText
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getRecommendedBackendId(currentState = state) {
+  if (!isCustomBot(currentState)) return null;
+  const custom = ensureCustomState(currentState);
+  const brief = custom.brief || {};
+  const candidates = [
+    brief.storage?.type,
+    brief.backend?.type,
+    brief.storage?.name,
+    brief.storage?.id
+  ].map((value) => (typeof value === 'string' ? value.toLowerCase() : ''));
+
+  const text = candidates.filter(Boolean).join(' ');
+  const map = [
+    { key: 'postgresql', value: 'postgres' },
+    { key: 'postgres', value: 'postgres' },
+    { key: 'sqlite', value: 'sqlite' },
+    { key: 'google sheets', value: 'gsheets' },
+    { key: 'gsheets', value: 'gsheets' },
+    { key: 'sheets', value: 'gsheets' },
+    { key: 'json', value: 'json' }
+  ];
+  for (const item of map) {
+    if (text.includes(item.key)) return item.value;
+  }
+  return null;
+}
+
+function normalizeCommand(command) {
+  if (typeof command !== 'string') return '';
+  const trimmed = command.trim();
+  if (!trimmed) return '';
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
+function customBriefHasCommand(command) {
+  const custom = ensureCustomState();
+  const target = normalizeCommand(command);
+  if (!target) return false;
+  const commands = Array.isArray(custom.brief?.commands)
+    ? custom.brief.commands
+    : state.commands;
+  return commands.some((cmd) => normalizeCommand(cmd).toLowerCase() === target.toLowerCase());
+}
+
+function customBriefHasReminder() {
+  const custom = ensureCustomState();
+  const commands = Array.isArray(custom.brief?.commands) ? custom.brief.commands : state.commands;
+  const commandMatch = commands.some((cmd) => {
+    const normalized = normalizeCommand(cmd).toLowerCase();
+    return normalized.includes('remind') || normalized.includes('daily') || normalized.includes('schedule');
+  });
+  if (commandMatch) return true;
+  const featuresCandidates = [].concat(
+    Array.isArray(custom.brief?.features) ? custom.brief.features : [],
+    Array.isArray(custom.brief?.modules) ? custom.brief.modules : [],
+    Array.isArray(custom.brief?.capabilities) ? custom.brief.capabilities : []
+  );
+  return featuresCandidates.some((item) =>
+    typeof item === 'string' && /нагад|remind|schedule|daily/i.test(item)
+  );
+}
+
+function extractBriefList(brief, candidates) {
+  if (!brief) return [];
+  for (const path of candidates) {
+    const parts = path.split('.');
+    let current = brief;
+    for (const part of parts) {
+      if (current && typeof current === 'object' && part in current) {
+        current = current[part];
+      } else {
+        current = undefined;
+        break;
+      }
+    }
+    if (Array.isArray(current) && current.length) {
+      return current;
+    }
+  }
+  return [];
+}
+
+function formatBriefItem(item) {
+  if (typeof item === 'string') return item;
+  if (item && typeof item === 'object') {
+    return item.title || item.text || item.label || JSON.stringify(item);
+  }
+  return String(item);
+}
+
+function generateCommandFixPrompt(customState) {
+  const briefText = customState.brief ? JSON.stringify(customState.brief, null, 2) : 'Бриф ще не збережено.';
+  const commands = (state.commands || []).map((cmd) => normalizeCommand(cmd)).filter(Boolean).join(', ');
+  const lines = [
+    `Контекст бота: ${briefText}.`,
+    `Поточний список команд: ${commands || 'не визначено'}.`,
+    'Опиши, яка команда або набір команд працює некоректно.'
+  ];
+  if (state.choices.mode === 'chatgpt') {
+    lines.push('Попроси ШІ повернути повні оновлені версії змінених файлів (цілком), щоб їх можна було вставити без правок.');
+  } else {
+    lines.push('Попроси ШІ пояснити, які зміни внести, та надати оновлений код для відповідних файлів.');
+  }
+  return lines.join('\n');
+}
+
+function getUiSection(section, currentState = state) {
+  const custom = ensureCustomState(currentState);
+  const ui = custom.brief?.ui;
+  if (!ui || typeof ui !== 'object') return null;
+  const data = ui[section];
+  if (!data || typeof data !== 'object') return null;
+  const needed = data.needed;
+  const buttons = Array.isArray(data.buttons) ? data.buttons : [];
+  const notes = typeof data.notes === 'string' ? data.notes : '';
+  return { needed, buttons, notes };
+}
+
+function generateUiCodePrompt(section, buttons) {
+  const custom = ensureCustomState();
+  const briefText = custom.brief ? JSON.stringify(custom.brief, null, 2) : 'Бриф ще не збережено.';
+  const entryFile = getEntryFile();
+  const mode = state.choices.mode;
+  const spec = JSON.stringify(buttons, null, 2);
+  const readable = section === 'reply' ? 'reply-меню' : 'inline-кнопки';
+  const lines = [
+    `Контекст бота: ${briefText}.`,
+    `Специфікація ${readable}:`,
+    spec,
+    `Онови файл ${entryFile}, додавши ${readable} та необхідні обробники.`,
+    'Використовуй українські підписи та дружні повідомлення.'
+  ];
+  if (mode === 'chatgpt') {
+    lines.push(`Поверни повний оновлений код файла ${entryFile} одним блоком без пропусків.`);
+  } else {
+    lines.push(`Опиши внесені зміни та наведи оновлений код для відповідних частин ${entryFile}.`);
+  }
+  return lines.join('\n');
+}
+
+function generateUiDiscoveryPrompt(section) {
+  const custom = ensureCustomState();
+  const briefText = custom.brief ? JSON.stringify(custom.brief, null, 2) : 'Бриф ще не збережено.';
+  const entryFile = getEntryFile();
+  const mode = state.choices.mode;
+  const readable = section === 'reply' ? 'reply-меню' : 'inline-кнопки';
+  const elementFormat = section === 'reply'
+    ? '{"text": "...", "purpose": "..."}'
+    : '{"text": "...", "purpose": "...", "callback": "..."}';
+  const lines = [
+    `Контекст бота: ${briefText}.`,
+    `Запропонуй, чи потрібне ${readable}. Якщо так, сформуй масив об’єктів формату ${elementFormat}.`,
+    `Після цього онови файл ${entryFile}, додавши ${readable} та необхідну логіку.`,
+    'Використовуй українські підписи.'
+  ];
+  if (mode === 'chatgpt') {
+    lines.push(`Поверни повний оновлений код файла ${entryFile} одним блоком.`);
+  } else {
+    lines.push(`Поясни, які зміни треба внести у ${entryFile}, та додай оновлений код для відповідних частин.`);
+  }
+  return lines.join('\n');
+}
 
 const elements = {
   section: document.getElementById('section-label'),
@@ -311,6 +665,7 @@ const elements = {
   navMenu: document.getElementById('nav-menu'),
   navBackdrop: document.getElementById('nav-backdrop'),
   topNav: document.querySelector('.top-nav'),
+  navSummary: document.getElementById('nav-summary'),
   docsBtn: document.getElementById('docs-btn'),
   docsBackdrop: document.getElementById('docs-backdrop'),
   docsClose: document.getElementById('docs-close'),
@@ -382,66 +737,100 @@ if (elements.docsClose) {
   elements.docsClose.addEventListener('click', closeDocs);
 }
 
-if (elements.docsBackdrop) {
-  elements.docsBackdrop.addEventListener('click', (event) => {
-    if (event.target === elements.docsBackdrop) {
-      closeDocs();
-    }
-  });
-}
-
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && !elements.docsBackdrop?.hidden) {
-    closeDocs();
-    return;
-  }
-  if (event.key === 'Escape' && isMobileNav() && elements.navMenu?.classList.contains('open')) {
-    closeNavMenu();
-  }
-});
-
-if (elements.navToggle && elements.navMenu) {
+if (elements.navToggle) {
   elements.navToggle.addEventListener('click', () => {
-    toggleNavMenu();
+    if (elements.navMenu?.classList.contains('open')) {
+      closeNavMenu();
+    } else {
+      openNavMenu();
+    }
   });
 }
 
 if (elements.navBackdrop) {
   elements.navBackdrop.addEventListener('click', () => {
-    if (elements.navMenu?.classList.contains('open')) closeNavMenu();
+    closeNavMenu();
   });
 }
 
-document.addEventListener('click', (event) => {
-  if (!isMobileNav()) return;
-  if (!elements.navMenu?.classList.contains('open')) return;
-  if (event.target.closest('.top-nav')) return;
-  closeNavMenu();
-});
-
-const mobileMedia = window.matchMedia('(max-width: 720px)');
-const handleMobileChange = () => {
-  if (!mobileMedia.matches) {
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeDocs();
     closeNavMenu();
   }
+});
+
+function jumpToSelectedStep() {
+  if (!elements.jumpSelect) return;
+  const value = elements.jumpSelect.value;
+  if (!value) return;
+  const index = steps.findIndex((step) => step.id === value);
+  if (index === -1) return;
+  state.currentStep = index;
+  saveState();
+  draw(false);
+}
+
+function openDocs() {
+  elements.docsBackdrop.hidden = false;
+  document.body.classList.add('docs-open');
+}
+
+function closeDocs() {
+  elements.docsBackdrop.hidden = true;
+  document.body.classList.remove('docs-open');
+}
+
+function openNavMenu() {
+  if (!elements.navMenu || !elements.navToggle) return;
+  elements.navMenu.classList.add('open');
+  elements.navToggle.classList.add('open');
+  elements.navToggle.setAttribute('aria-expanded', 'true');
+  elements.topNav?.classList.add('menu-active');
+  elements.topNav?.classList.remove('scrolled');
+  if (elements.navBackdrop) elements.navBackdrop.hidden = false;
+  document.body.classList.add('nav-open');
+}
+
+function closeNavMenu() {
+  if (!elements.navMenu || !elements.navToggle) return;
+  elements.navMenu.classList.remove('open');
+  elements.navToggle.classList.remove('open');
+  elements.navToggle.setAttribute('aria-expanded', 'false');
+  if (elements.navBackdrop) elements.navBackdrop.hidden = true;
+  document.body.classList.remove('nav-open');
+  elements.topNav?.classList.remove('menu-active');
   updateNavOnScroll();
-};
-if (typeof mobileMedia.addEventListener === 'function') {
-  mobileMedia.addEventListener('change', handleMobileChange);
-} else if (typeof mobileMedia.addListener === 'function') {
-  mobileMedia.addListener(handleMobileChange);
+}
+
+function isMobileNav() {
+  return window.matchMedia('(max-width: 720px)').matches;
 }
 
 window.addEventListener('scroll', updateNavOnScroll, { passive: true });
-handleMobileChange();
+updateNavOnScroll();
+
+function updateNavOnScroll() {
+  if (!elements.topNav) return;
+  const scrolled = window.scrollY > 24;
+  elements.topNav.classList.toggle('scrolled', scrolled && !document.body.classList.contains('nav-open'));
+}
+
+function updateNavSummary() {
+  if (!elements.navSummary) return;
+  const type = BOT_TYPES.find((item) => item.id === state.choices.botType)?.title || 'не обрано';
+  const environment = ENVIRONMENTS.find((item) => item.id === state.choices.environment)?.title || 'не обрано';
+  const mode = MODE_OPTIONS.find((item) => item.id === state.choices.mode)?.title || 'не обрано';
+  elements.navSummary.innerHTML = `Тип: <span>${type}</span> | Середовище: <span>${environment}</span> | ШІ: <span>${mode}</span>`;
+}
 
 draw(true);
-updateNavOnScroll();
 
 // --- Головні функції ---
 function draw(rebuild) {
   if (rebuild) rebuildSteps();
   updateJumpControls();
+  updateNavSummary();
   if (!steps.length) return;
   const step = steps[state.currentStep];
 
@@ -513,6 +902,9 @@ function updateJumpControls() {
 
 function buildSteps(currentState) {
   const result = [];
+  const entryFile = getEntryFile(currentState);
+  const customBot = isCustomBot(currentState);
+  if (customBot) ensureCustomState(currentState);
 
   // I. Старт
   result.push(createStep('start', 'I. Старт', 'Привітання', renderStartStep, { hideNav: true }));
@@ -525,13 +917,23 @@ function buildSteps(currentState) {
   result.push(createStep('folder', 'II. Підготовка проєкту', 'Створення папки', (c) =>
     renderInfo(c, ['• Створи папку `mybot`.', '• Відкрий її у редакторі (VS Code / Cursor).'], 'Мета: мати чисте місце для файлів бота.')
   ));
-  result.push(createStep('main-file', 'II. Підготовка проєкту', 'Створення main.py', (c) =>
-    renderInfo(c, ['• Створи файл `main.py` у корені.', '• Поки залиш порожнім — код додамо далі.'])
-  ));
-  result.push(createStep('dev-brief', 'II. Підготовка проєкту', 'DEV BRIEF', renderDevBriefStep));
-  result.push(createStep('code-prompt', 'II. Підготовка проєкту', 'Промпт для коду', renderCodePromptStep));
-  result.push(createStep('requirements', 'II. Підготовка проєкту', 'Створення requirements.txt', renderRequirementsStep));
-  result.push(createStep('env-file', 'II. Підготовка проєкту', 'Створення .env', renderEnvStep));
+  if (customBot) {
+    result.push(createStep('custom-requirements', 'II. Підготовка проєкту', 'Опис кастомного бота', renderCustomRequirementsStep));
+    result.push(createStep('custom-brief-prompt', 'II. Підготовка проєкту', 'Промпт для брифу', renderCustomBriefPromptStep));
+    result.push(createStep('custom-brief-import', 'II. Підготовка проєкту', 'Збереження брифу', renderCustomBriefInputStep));
+    result.push(createStep('custom-files', 'III. Файли', 'Файли проєкту', renderCustomFilesStep));
+    result.push(createStep('custom-terminal', 'IV. Запуск', 'Команди для терміналу', renderCustomTerminalStep));
+    result.push(createStep('custom-diagnostics', 'IV. Запуск', 'Діагностика помилок', renderCustomDiagnosticsStep));
+  } else {
+    result.push(createStep('main-file', 'II. Підготовка проєкту', `Створення ${entryFile}`, (c) =>
+      renderInfo(c, [`• Створи файл \`${entryFile}\` у корені.`, '• Поки залиш порожнім — код додамо далі.'])
+    ));
+    result.push(createStep('file-structure', 'II. Підготовка проєкту', 'Структура файлів', renderFileStructureStep));
+    result.push(createStep('dev-brief', 'II. Підготовка проєкту', 'DEV BRIEF', renderDevBriefStep));
+    result.push(createStep('code-prompt', 'II. Підготовка проєкту', 'Промпт для коду', renderCodePromptStep));
+    result.push(createStep('requirements', 'II. Підготовка проєкту', 'Створення requirements.txt', renderRequirementsStep));
+    result.push(createStep('env-file', 'II. Підготовка проєкту', 'Створення .env', renderEnvStep));
+  }
 
   // III. База даних
   result.push(createStep('backend-explain', 'III. База даних', 'Пояснення від панелі', (c) =>
@@ -550,14 +952,29 @@ function buildSteps(currentState) {
   }
 
   // IV. Дизайн
-  DESIGN_STEPS.forEach((item, index) => {
-    result.push(createStep(`design-${index}`, 'IV. Дизайн', item.title, (c) => renderInfo(c, item.items)));
-  });
+  if (customBot) {
+    result.push(createStep('design-reply', 'IV. Дизайн', 'Головне меню (Reply-кнопки)', renderCustomReplyStep));
+    result.push(createStep('design-inline', 'IV. Дизайн', 'Inline-кнопки', renderCustomInlineStep));
+  } else {
+    DESIGN_STEPS.forEach((item, index) => {
+      result.push(createStep(`design-${index}`, 'IV. Дизайн', item.title, (c) => renderInfo(c, item.items)));
+    });
+  }
 
   // V. Статистика
-  STATS_STEPS.forEach((item, index) => {
-    result.push(createStep(`stats-${index}`, 'V. Статистика', item.title, (c) => renderInfo(c, item.items)));
-  });
+  if (customBot) {
+    if (customBriefHasCommand('/stats')) {
+      result.push(createStep('stats-commands', 'V. Статистика', STATS_STEPS[0].title, (c) => renderInfo(c, STATS_STEPS[0].items)));
+      result.push(createStep('stats-report', 'V. Статистика', STATS_STEPS[1].title, (c) => renderInfo(c, STATS_STEPS[1].items)));
+    }
+    if (customBriefHasReminder()) {
+      result.push(createStep('stats-reminder', 'V. Статистика', STATS_STEPS[2].title, (c) => renderInfo(c, STATS_STEPS[2].items)));
+    }
+  } else {
+    STATS_STEPS.forEach((item, index) => {
+      result.push(createStep(`stats-${index}`, 'V. Статистика', item.title, (c) => renderInfo(c, item.items)));
+    });
+  }
 
   // VI. Оплати
   result.push(createStep('payments-choice', 'VI. Оплати', 'Вибір системи оплати', renderPaymentsChoiceStep));
@@ -573,7 +990,7 @@ function buildSteps(currentState) {
 
   // VII. Запуск
   LAUNCH_STEPS.forEach((item, index) => {
-    result.push(createStep(`launch-${index}`, 'VII. Запуск', item.title, (c) => renderInfo(c, item.items)));
+    result.push(createStep(`launch-${index}`, 'VII. Запуск', item.title, (c) => renderLaunchStep(c, item)));
   });
 
   // VIII. Розвиток
@@ -581,106 +998,21 @@ function buildSteps(currentState) {
     result.push(createStep(`growth-${index}`, 'VIII. Розвиток', item.title, (c) => renderInfo(c, item.items)));
   });
 
-  // Поради
-  result.push(createStep('advice', 'Поради за типами', 'Поради для обраного типу', renderAdviceStep));
-
-  result.forEach((step, index) => {
-    step.number = index + 1;
-  });
-
   return result;
 }
 
 function createStep(id, section, title, renderFn, extras = {}) {
-  return { id, section, title, render: renderFn, hideNav: !!extras.hideNav, number: 0 };
+  const step = {
+    id,
+    section,
+    title,
+    render: renderFn,
+    number: 0
+  };
+  Object.assign(step, extras);
+  return step;
 }
 
-function jumpToSelectedStep() {
-  if (!elements.jumpSelect) return;
-  const targetId = elements.jumpSelect.value;
-  if (!targetId) {
-    showToast('Оберіть крок у списку.');
-    return;
-  }
-  const index = steps.findIndex((step) => step.id === targetId);
-  if (index === -1) {
-    showToast('Цей крок недоступний для поточного маршруту.');
-    updateJumpControls();
-    return;
-  }
-  state.currentStep = index;
-  saveState();
-  elements.jumpSelect.value = '';
-  elements.jumpSelect.selectedIndex = 0;
-  closeNavMenu();
-  draw(false);
-}
-
-function openDocs() {
-  if (!elements.docsBackdrop) return;
-  closeNavMenu();
-  elements.docsBackdrop.hidden = false;
-  document.body.classList.add('modal-open');
-}
-
-function closeDocs() {
-  if (!elements.docsBackdrop) return;
-  elements.docsBackdrop.hidden = true;
-  document.body.classList.remove('modal-open');
-}
-
-function toggleNavMenu() {
-  if (!isMobileNav()) return;
-  if (!elements.navMenu || !elements.navToggle) return;
-  const willOpen = !elements.navMenu.classList.contains('open');
-  if (willOpen) {
-    openNavMenu();
-  } else {
-    closeNavMenu();
-  }
-}
-
-function updateNavOnScroll() {
-  if (!elements.topNav) return;
-  if (!isMobileNav()) {
-    elements.topNav.classList.remove('scrolled');
-    return;
-  }
-  if (elements.navMenu?.classList.contains('open')) {
-    elements.topNav.classList.remove('scrolled');
-    return;
-  }
-  const shouldBeTransparent = window.scrollY > 28;
-  elements.topNav.classList.toggle('scrolled', shouldBeTransparent);
-}
-
-function openNavMenu() {
-  if (!elements.navMenu || !elements.navToggle) return;
-  elements.navMenu.classList.add('open');
-  elements.navToggle.classList.add('open');
-  elements.navToggle.setAttribute('aria-expanded', 'true');
-  elements.topNav?.classList.add('menu-active');
-  elements.topNav?.classList.remove('scrolled');
-  if (elements.navBackdrop) elements.navBackdrop.hidden = false;
-  document.body.classList.add('nav-open');
-}
-
-function closeNavMenu() {
-  if (!elements.navMenu || !elements.navToggle) return;
-  elements.navMenu.classList.remove('open');
-  elements.navToggle.classList.remove('open');
-  elements.navToggle.setAttribute('aria-expanded', 'false');
-  if (elements.navBackdrop) elements.navBackdrop.hidden = true;
-  document.body.classList.remove('nav-open');
-  elements.topNav?.classList.remove('menu-active');
-  updateNavOnScroll();
-}
-
-function isMobileNav() {
-  return mobileMedia.matches;
-}
-
-// --- Рендери кроків ---
 function renderStartStep(container) {
   const block = document.createElement('div');
   block.className = 'start-screen';
@@ -728,59 +1060,51 @@ function renderBotTypeStep(container) {
     <tbody>
       ${BOT_TYPES.map((type) => `
         <tr>
-          <td><strong>${type.title}</strong></td>
+          <td>
+            <label>
+              <input type="radio" name="bot-type" value="${type.id}" ${state.choices.botType === type.id ? 'checked' : ''} />
+              <span>${type.title}</span>
+            </label>
+          </td>
           <td>${type.description}</td>
           <td>${type.commands.join(', ')}</td>
         </tr>
       `).join('')}
     </tbody>
   `;
+  table.addEventListener('change', (event) => {
+    if (event.target.name === 'bot-type') {
+      state.choices.botType = event.target.value;
+      const type = BOT_TYPES.find((item) => item.id === state.choices.botType);
+      if (type) state.commands = [...type.commands];
+      saveState();
+      draw(false);
+    }
+  });
   tableWrap.appendChild(table);
   container.appendChild(tableWrap);
 
-  const cards = document.createElement('div');
-  cards.className = 'card-grid';
-  BOT_TYPES.forEach((type) => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    if (state.choices.botType === type.id) card.classList.add('active');
-    card.innerHTML = `
-      <h3>${type.title}</h3>
-      <p>${type.description}</p>
-      <div class="commands">${type.commands.join(', ')}</div>
-    `;
-    card.addEventListener('click', () => {
-      state.choices.botType = type.id;
-      state.commands = [...type.commands];
-      saveState();
-      draw(true);
-    });
-    cards.appendChild(card);
-  });
-  container.appendChild(cards);
-
-  renderInfo(container, ['Команда — це слово з косою рискою, яке ти пишеш боту. Наприклад, `/start`.']);
+  renderInfo(container, ['• Обери сценарій, який найближчий до твого проєкту.']);
 }
 
 function renderModeStep(container) {
   const cards = document.createElement('div');
   cards.className = 'card-grid';
-  MODE_OPTIONS.forEach((mode) => {
+  MODE_OPTIONS.forEach((option) => {
     const card = document.createElement('div');
     card.className = 'card';
-    if (state.choices.mode === mode.id) card.classList.add('active');
-    card.innerHTML = `<h3>${mode.title}</h3><p>${mode.description}</p>`;
+    if (state.choices.mode === option.id) card.classList.add('active');
+    card.innerHTML = `<h3>${option.title}</h3><p>${option.description}</p>`;
     card.addEventListener('click', () => {
-      state.choices.mode = mode.id;
-      if (mode.id !== 'codex') state.tools.copilot = false;
+      state.choices.mode = option.id;
       saveState();
-      draw(true);
+      draw(false);
     });
     cards.appendChild(card);
   });
   container.appendChild(cards);
 
-  renderInfo(container, ['Система підлаштує підказки: «Скопіювати для ChatGPT» або «Відкрити в Codex».']);
+  renderInfo(container, ['• Режим впливає на кнопки «Скопіювати для ChatGPT / Codex».']);
 }
 
 function renderEnvironmentStep(container) {
@@ -794,11 +1118,13 @@ function renderEnvironmentStep(container) {
     card.addEventListener('click', () => {
       state.choices.environment = env.id;
       saveState();
-      draw(true);
+      draw(false);
     });
     cards.appendChild(card);
   });
   container.appendChild(cards);
+
+  renderInfo(container, ['• Вибір середовища підлаштує підказки та команди.']);
 }
 
 function renderToolsStep(container) {
@@ -873,111 +1199,232 @@ function renderToolsStep(container) {
   container.appendChild(checklist);
 }
 
-function renderRequirementsStep(container) {
-  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
-  const promptBlock = createPromptBlock(
-    `Створи файл requirements.txt і додай рядки:\n\naiogram==3.*\npython-dotenv`,
-    {
-      copyLabel: 'Скопіювати інструкцію',
-      ai: aiTarget,
-      openLabel: getAiLabel(aiTarget)
-    }
-  );
-  container.appendChild(promptBlock);
+function renderFileStructureStep(container) {
+  const entryFile = getEntryFile();
 
-  const checklist = document.createElement('div');
-  checklist.className = 'info-block';
-  const label = document.createElement('label');
-  label.className = 'info-line';
-  const text = document.createElement('span');
-  text.textContent = 'Познач, що файл requirements.txt створено:';
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.checked = !!state.tools.requirements;
-  input.addEventListener('change', (event) => {
-    state.tools.requirements = event.target.checked;
-    saveState();
-    draw(false);
+  const selector = document.createElement('div');
+  selector.className = 'file-structure-selector';
+
+  const selectorLabel = document.createElement('label');
+  selectorLabel.textContent = 'Основний файл проєкту:';
+  selector.appendChild(selectorLabel);
+
+  const select = document.createElement('select');
+  select.id = 'entry-file-select';
+  selectorLabel.setAttribute('for', select.id);
+  ENTRY_FILE_OPTIONS.forEach((option) => {
+    const opt = document.createElement('option');
+    opt.value = option.id;
+    opt.textContent = option.label;
+    select.appendChild(opt);
   });
-  label.append(text, input);
-  checklist.appendChild(label);
-  container.appendChild(checklist);
+  select.value = entryFile;
+  select.addEventListener('change', (event) => {
+    state.choices.entryFile = event.target.value;
+    saveState();
+    draw(true);
+  });
+  selector.appendChild(select);
 
-  if (!state.tools.requirements) {
-    const carousel = document.createElement('div');
-    carousel.className = 'carousel';
+  container.appendChild(selector);
 
-    carousel.appendChild(createCarouselSlide({
-      title: 'Крок 1. Створи файл',
-      body: 'У редакторі натисни New File, назви файл requirements.txt та збережи його у корені проєкту.'
-    }));
+  // Секція з індивідуальним кодом
+  const manualSection = createFileSection('Файли з індивідуальним кодом', 'Попроси ШІ згенерувати ці файли та встав їх вручну.');
+  const manualList = document.createElement('div');
+  manualList.className = 'file-card-stack';
+  manualList.appendChild(createManualFileCard(entryFile));
+  manualSection.appendChild(manualList);
+  container.appendChild(manualSection);
 
-    carousel.appendChild(createCarouselSlide({
-      title: 'Крок 2. Додай залежності',
-      body: 'Встав рядки aiogram==3.* та python-dotenv, збережи (Ctrl/Cmd+S).',
-      code: 'aiogram==3.*\npython-dotenv'
-    }));
+  // Статичні файли
+  const staticSection = createFileSection('Готові заготовки', 'Скопіюй вказаний код та встав у відповідні файли без змін.');
+  const staticList = document.createElement('div');
+  staticList.className = 'file-card-stack';
+  FILE_STRUCTURE_STATIC_FILES.forEach((item) => {
+    staticList.appendChild(createStaticFileCard(item));
+  });
+  staticSection.appendChild(staticList);
+  container.appendChild(staticSection);
 
-    carousel.appendChild(createCarouselSlide({
-      title: 'Крок 3. Перевір',
-      body: 'Переконайся, що файл поруч із main.py. Команда `pip install -r requirements.txt` встановить залежності.'
-    }));
+  // Бекенд-специфічні файли
+  const backend = state.choices.backend;
+  const backendEntries = FILE_STRUCTURE_BACKEND_MAP[backend] || [];
+  const backendSection = createFileSection('Додатково для обраного бекенду', backend
+    ? 'Створи ці елементи, щоб сховище працювало коректно.'
+    : 'Оберіть бекенд, щоб побачити додаткові файли/папки.');
 
-    container.appendChild(carousel);
+  if (!backend) {
+    const info = document.createElement('p');
+    info.className = 'file-section-hint';
+    info.textContent = 'Бекенд ще не обрано. Перейдіть на крок «Вибір типу зберігання».';
+    backendSection.appendChild(info);
+  } else if (!backendEntries.length) {
+    const info = document.createElement('p');
+    info.className = 'file-section-hint';
+    info.textContent = 'Для цього бекенду немає додаткових файлів — достатньо основної структури.';
+    backendSection.appendChild(info);
+  } else {
+    const backendList = document.createElement('div');
+    backendList.className = 'file-card-stack';
+    backendEntries.forEach((item) => {
+      backendList.appendChild(createBackendCard(item));
+    });
+    backendSection.appendChild(backendList);
   }
-}
 
-function renderEnvStep(container) {
-  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
-  const promptBlock = createPromptBlock(
-    `Створи файл .env і додай рядок:\n\nTOKEN=сюди_вставиш_токен`,
-    {
-      copyLabel: 'Скопіювати інструкцію',
+  container.appendChild(backendSection);
+
+  function createFileSection(title, subtitle) {
+    const section = document.createElement('section');
+    section.className = 'file-structure-section';
+
+    const head = document.createElement('header');
+    head.className = 'file-section-head';
+
+    const h3 = document.createElement('h3');
+    h3.textContent = title;
+    head.appendChild(h3);
+
+    if (subtitle) {
+      const p = document.createElement('p');
+      p.textContent = subtitle;
+      head.appendChild(p);
+    }
+
+    section.appendChild(head);
+    return section;
+  }
+
+  function createManualFileCard(fileName) {
+    const wrapper = document.createElement('article');
+    wrapper.className = 'file-card manual';
+
+    const title = document.createElement('header');
+    title.className = 'file-card-path';
+    title.textContent = fileName;
+    wrapper.appendChild(title);
+
+    const desc = document.createElement('p');
+    desc.className = 'file-card-description';
+    desc.textContent = 'Цей файл містить бізнес-логіку бота. Запроси у ШІ повний вміст і встав його в редактор.';
+    wrapper.appendChild(desc);
+
+    const prompt = generateManualFilePrompt(fileName);
+    const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+    wrapper.appendChild(createPromptBlock(prompt, {
+      copyLabel: 'Скопіювати промпт для ШІ',
       ai: aiTarget,
       openLabel: getAiLabel(aiTarget)
+    }));
+
+    const note = document.createElement('p');
+    note.className = 'file-card-note';
+    note.textContent = 'Після вставки коду збережи файл та переходь до наступних кроків.';
+    wrapper.appendChild(note);
+
+    return wrapper;
+  }
+
+  function createStaticFileCard(item) {
+    const card = document.createElement('article');
+    card.className = 'file-card static';
+
+    const title = document.createElement('header');
+    title.className = 'file-card-path';
+    title.textContent = item.title;
+    card.appendChild(title);
+
+    if (item.description) {
+      const desc = document.createElement('p');
+      desc.className = 'file-card-description';
+      desc.textContent = item.description;
+      card.appendChild(desc);
     }
-  );
-  container.appendChild(promptBlock);
 
-  const checklist = document.createElement('div');
-  checklist.className = 'info-block';
-  const label = document.createElement('label');
-  label.className = 'info-line';
-  const text = document.createElement('span');
-  text.textContent = 'Познач, що файл .env створено:';
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.checked = !!state.tools.env;
-  input.addEventListener('change', (event) => {
-    state.tools.env = event.target.checked;
-    saveState();
-    draw(false);
-  });
-  label.append(text, input);
-  checklist.appendChild(label);
-  container.appendChild(checklist);
+    if (item.content) {
+      const code = document.createElement('pre');
+      code.className = 'file-card-code';
+      code.textContent = item.content;
+      card.appendChild(code);
 
-  if (!state.tools.env) {
-    const carousel = document.createElement('div');
-    carousel.className = 'carousel';
+      const actions = document.createElement('div');
+      actions.className = 'file-card-actions';
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'ghost copy-btn';
+      copyBtn.textContent = 'Скопіювати вміст';
+      copyBtn.addEventListener('click', () => copyText(item.content));
+      actions.appendChild(copyBtn);
+      card.appendChild(actions);
+    }
 
-    carousel.appendChild(createCarouselSlide({
-      title: 'Крок 1. Створи файл',
-      body: 'У редакторі натисни New File, назви файл .env та збережи його у корені проєкту.'
-    }));
+    return card;
+  }
 
-    carousel.appendChild(createCarouselSlide({
-      title: 'Крок 2. Додай токен',
-      body: 'Встав рядок TOKEN=сюди_вставиш_токен, заміни значення на реальний токен.',
-      code: 'TOKEN=сюди_вставиш_токен'
-    }));
+  function createBackendCard(item) {
+    if (item.type === 'note') {
+      const note = document.createElement('p');
+      note.className = 'file-section-hint';
+      note.textContent = item.description;
+      return note;
+    }
 
-    carousel.appendChild(createCarouselSlide({
-      title: 'Крок 3. Захисти токен',
-      body: 'Переконайся, що .env доданий у .gitignore та не потрапить у репозиторій.'
-    }));
+    const card = document.createElement('article');
+    card.className = `file-card backend ${item.type || 'info'}`;
 
-    container.appendChild(carousel);
+    if (item.path) {
+      const title = document.createElement('header');
+      title.className = 'file-card-path';
+      title.textContent = item.path;
+      card.appendChild(title);
+    }
+
+    if (item.description) {
+      const desc = document.createElement('p');
+      desc.className = 'file-card-description';
+      desc.textContent = item.description;
+      card.appendChild(desc);
+    }
+
+    if (item.type === 'static' && item.content) {
+      const code = document.createElement('pre');
+      code.className = 'file-card-code';
+      code.textContent = item.content;
+      card.appendChild(code);
+
+      const actions = document.createElement('div');
+      actions.className = 'file-card-actions';
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'ghost copy-btn';
+      copyBtn.textContent = 'Скопіювати вміст';
+      copyBtn.addEventListener('click', () => copyText(item.content));
+      actions.appendChild(copyBtn);
+      card.appendChild(actions);
+    }
+
+    if (item.type === 'dir' || item.type === 'info') {
+      const actions = document.createElement('div');
+      actions.className = 'file-card-actions';
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'ghost copy-btn';
+      copyBtn.textContent = 'Скопіювати шлях';
+      copyBtn.addEventListener('click', () => copyText(item.path));
+      actions.appendChild(copyBtn);
+      card.appendChild(actions);
+    }
+
+    if (item.type === 'ai' && item.prompt) {
+      const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+      card.appendChild(createPromptBlock(item.prompt, {
+        copyLabel: 'Скопіювати промпт',
+        ai: aiTarget,
+        openLabel: getAiLabel(aiTarget)
+      }));
+    }
+
+    return card;
   }
 }
 
@@ -1053,14 +1500,462 @@ function renderCodePromptStep(container) {
   container.appendChild(block);
 }
 
+function renderRequirementsStep(container) {
+  const entryFile = getEntryFile();
+  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+  const promptBlock = createPromptBlock(
+    `Створи файл requirements.txt і додай рядки:\n\naiogram==3.*\npython-dotenv`,
+    {
+      copyLabel: 'Скопіювати інструкцію',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget)
+    }
+  );
+  container.appendChild(promptBlock);
+
+  const checklist = document.createElement('div');
+  checklist.className = 'info-block';
+  const label = document.createElement('label');
+  label.className = 'info-line';
+  const text = document.createElement('span');
+  text.textContent = 'Познач, що файл requirements.txt створено:';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.checked = !!state.tools.requirements;
+  input.addEventListener('change', (event) => {
+    state.tools.requirements = event.target.checked;
+    saveState();
+    draw(false);
+  });
+  label.append(text, input);
+  checklist.appendChild(label);
+  container.appendChild(checklist);
+
+  if (!state.tools.requirements) {
+    const carousel = document.createElement('div');
+    carousel.className = 'carousel';
+
+    carousel.appendChild(createCarouselSlide({
+      title: 'Крок 1. Створи файл',
+      body: 'У редакторі натисни New File, назви файл requirements.txt та збережи його у корені проєкту.'
+    }));
+
+    carousel.appendChild(createCarouselSlide({
+      title: 'Крок 2. Додай залежності',
+      body: 'Встав рядки aiogram==3.* та python-dotenv, збережи (Ctrl/Cmd+S).',
+      code: 'aiogram==3.*\npython-dotenv'
+    }));
+
+    carousel.appendChild(createCarouselSlide({
+      title: 'Крок 3. Перевір',
+      body: `Переконайся, що файл поруч із ${entryFile}. Команда \`pip install -r requirements.txt\` встановить залежності.`
+    }));
+
+    container.appendChild(carousel);
+  }
+}
+
+function renderCustomRequirementsStep(container) {
+  const custom = ensureCustomState();
+  renderInfo(container, [
+    '• Опиши словами, що робитиме твій бот: сценарії, команди, інтеграції.',
+    '• Чим детальніше поясниш — тим точніше буде бриф.'
+  ]);
+
+  const textarea = document.createElement('textarea');
+  textarea.value = custom.requirements;
+  textarea.placeholder = 'Наприклад: “Бот для фітнес-коуча: збір заявок, розклад, нагадування...”';
+  textarea.addEventListener('input', (event) => {
+    custom.requirements = event.target.value;
+    saveState();
+  });
+  container.appendChild(makeRow('Опис бота', wrapControl(textarea)));
+}
+
+function renderCustomBriefPromptStep(container) {
+  const custom = ensureCustomState();
+  if (!custom.requirements.trim()) {
+    renderInfo(container, ['• Спочатку заповни опис бота, щоб сформувати промпт.']);
+    return;
+  }
+  renderInfo(container, ['Скопіюй промпт і встав у ChatGPT / Codex, щоб отримати JSON-бриф.']);
+  const prompt = generateCustomBriefPrompt();
+  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+  container.appendChild(createPromptBlock(prompt, {
+    copyLabel: 'Скопіювати промпт для брифу',
+    ai: aiTarget,
+    openLabel: getAiLabel(aiTarget)
+  }));
+}
+
+function renderCustomBriefInputStep(container) {
+  const custom = ensureCustomState();
+  renderInfo(container, ['Встав JSON із брифом. Після збереження система побудує план файлів.']);
+
+  const textarea = document.createElement('textarea');
+  textarea.value = custom.briefText;
+  textarea.placeholder = '{\n  "commands": [...],\n  "files": [...],\n  ...\n}';
+  textarea.rows = 12;
+  textarea.addEventListener('input', (event) => {
+    custom.briefText = event.target.value;
+    saveState();
+  });
+  container.appendChild(makeRow('JSON-бриф', wrapControl(textarea)));
+
+  const actions = document.createElement('div');
+  actions.className = 'prompt-actions';
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'primary';
+  saveBtn.textContent = 'Зберегти бриф';
+  saveBtn.addEventListener('click', () => {
+    try {
+      const parsed = JSON.parse(custom.briefText);
+      custom.brief = parsed;
+      updateCustomFilePlan(parsed);
+      if (Array.isArray(parsed.commands) && parsed.commands.length) {
+        state.commands = parsed.commands.map((cmd) => normalizeCommand(cmd)).filter(Boolean);
+      }
+      if (!custom.commandsText?.trim()) {
+        custom.commandsText = deriveDefaultCommands(custom, getEntryFile());
+      }
+      const recommendedBackend = getRecommendedBackendId();
+      if (recommendedBackend && !state.choices.backend) {
+        state.choices.backend = recommendedBackend;
+      }
+      custom.diag.prompt = '';
+      saveState();
+      draw(true);
+      showToast('Бриф збережено.');
+    } catch (error) {
+      console.error('Не вдалося розпарсити бриф', error);
+      showToast('Помилка JSON. Перевір синтаксис.');
+    }
+  });
+  actions.appendChild(saveBtn);
+  container.appendChild(actions);
+}
+
+function renderCustomFilesStep(container) {
+  const custom = ensureCustomState();
+  if (!custom.brief) {
+    renderInfo(container, ['• Спочатку збережи JSON-бриф, щоб побачити перелік файлів.']);
+    return;
+  }
+
+  if (!custom.files.length) {
+    renderInfo(container, ['• Бриф не містить файлів. Додай їх у відповідь ШІ, щоб побудувати план.']);
+    return;
+  }
+
+  renderInfo(container, ['Познач файли як виконані після того, як вставиш код або заповниш прості шаблони.']);
+
+  const stack = document.createElement('div');
+  stack.className = 'file-card-stack';
+
+  custom.files.forEach((file) => {
+    const card = document.createElement('article');
+    card.className = `file-card ${file.isSimple ? 'static' : 'manual'}`;
+
+    const header = document.createElement('header');
+    header.className = 'file-card-path';
+    header.textContent = file.path;
+    card.appendChild(header);
+
+    if (file.purpose) {
+      const desc = document.createElement('p');
+      desc.className = 'file-card-description';
+      desc.textContent = file.purpose;
+      card.appendChild(desc);
+    }
+
+    const statusRow = document.createElement('label');
+    statusRow.className = 'form-label';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = !!file.done;
+    checkbox.addEventListener('change', (event) => {
+      file.done = event.target.checked;
+      saveState();
+    });
+    const span = document.createElement('span');
+    span.textContent = 'Файл готовий';
+    statusRow.append(checkbox, span);
+    card.appendChild(statusRow);
+
+    if (file.isSimple) {
+      const note = document.createElement('p');
+      note.className = 'file-card-note';
+      note.textContent = file.instructions;
+      card.appendChild(note);
+    } else if (file.prompt) {
+      const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+      card.appendChild(createPromptBlock(file.prompt, {
+        copyLabel: `Промпт для ${file.path}`,
+        ai: aiTarget,
+        openLabel: getAiLabel(aiTarget),
+        collapsible: true
+      }));
+      const tip = document.createElement('p');
+      tip.className = 'file-card-note';
+      tip.textContent = 'Згенеруй код, встав у файл і познач, що він готовий.';
+      card.appendChild(tip);
+    }
+
+    stack.appendChild(card);
+  });
+
+  container.appendChild(stack);
+}
+
+function renderCustomTerminalStep(container) {
+  const custom = ensureCustomState();
+  if (!custom.files.length) {
+    renderInfo(container, ['• Спочатку сформуй і виконай кроки зі створення файлів.']);
+    return;
+  }
+
+  renderInfo(container, ['Ці команди допоможуть перевірити проєкт. Можеш редагувати список під себе.']);
+
+  const textarea = document.createElement('textarea');
+  textarea.value = custom.commandsText;
+  textarea.placeholder = 'pip install -r requirements.txt\npython main.py';
+  textarea.rows = 6;
+  textarea.addEventListener('input', (event) => {
+    custom.commandsText = event.target.value;
+    saveState();
+  });
+  textarea.addEventListener('blur', () => {
+    draw(false);
+  });
+  container.appendChild(makeRow('Команди для запуску', wrapControl(textarea)));
+
+  const commands = getCustomCommandsList(custom);
+  if (commands.length) {
+    const list = document.createElement('div');
+    list.className = 'file-card-stack';
+    commands.forEach((cmd, index) => {
+      const card = document.createElement('article');
+      card.className = 'file-card static';
+      const header = document.createElement('header');
+      header.className = 'file-card-path';
+      header.textContent = `Крок ${index + 1}`;
+      card.appendChild(header);
+      const pre = document.createElement('pre');
+      pre.className = 'file-card-code';
+      pre.textContent = cmd;
+      card.appendChild(pre);
+      const actions = document.createElement('div');
+      actions.className = 'file-card-actions';
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'ghost copy-btn';
+      copyBtn.textContent = 'Скопіювати команду';
+      copyBtn.addEventListener('click', () => copyText(cmd));
+      actions.appendChild(copyBtn);
+      card.appendChild(actions);
+      list.appendChild(card);
+    });
+    const allActions = document.createElement('div');
+    allActions.className = 'prompt-actions';
+    const copyAll = document.createElement('button');
+    copyAll.type = 'button';
+    copyAll.className = 'ghost copy-btn';
+    copyAll.textContent = 'Скопіювати всі команди';
+    copyAll.addEventListener('click', () => copyText(custom.commandsText));
+    allActions.appendChild(copyAll);
+    container.appendChild(list);
+    container.appendChild(allActions);
+  }
+}
+
+function renderCustomDiagnosticsStep(container) {
+  const custom = ensureCustomState();
+  renderInfo(container, [
+    'Якщо команда впала або бот не працює, зафіксуй помилку й згенеруй діагностичний промпт.'
+  ]);
+
+  const descArea = document.createElement('textarea');
+  descArea.value = custom.diag.description;
+  descArea.placeholder = 'Короткий опис: що робили, що очікували, що сталося.';
+  descArea.rows = 4;
+  descArea.addEventListener('input', (event) => {
+    custom.diag.description = event.target.value;
+    saveState();
+  });
+
+  const logsArea = document.createElement('textarea');
+  logsArea.value = custom.diag.logs;
+  logsArea.placeholder = 'Скопіюй сюди логи з терміналу або текст помилки.';
+  logsArea.rows = 6;
+  logsArea.addEventListener('input', (event) => {
+    custom.diag.logs = event.target.value;
+    saveState();
+  });
+
+  container.appendChild(makeRow('Опис помилки', wrapControl(descArea)));
+  container.appendChild(makeRow('Логи терміналу', wrapControl(logsArea)));
+
+  const actions = document.createElement('div');
+  actions.className = 'prompt-actions';
+  const composeBtn = document.createElement('button');
+  composeBtn.type = 'button';
+  composeBtn.className = 'primary';
+  composeBtn.textContent = 'Зібрати діагностичний промпт';
+  composeBtn.addEventListener('click', () => {
+    custom.diag.prompt = composeCustomDiagnosticPrompt(custom);
+    saveState();
+    draw(false);
+    showToast('Промпт зібрано.');
+  });
+  actions.appendChild(composeBtn);
+  container.appendChild(actions);
+
+  if (custom.diag.prompt) {
+    const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+    container.appendChild(createPromptBlock(custom.diag.prompt, {
+      copyLabel: 'Скопіювати промпт',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget)
+    }));
+    renderInfo(container, ['Після виправлень повернись до кроку з командами та протестуй знову.']);
+  }
+}
+
+function renderCustomReplyStep(container) {
+  const custom = ensureCustomState();
+  if (!custom.brief) {
+    renderInfo(container, ['• Спочатку збережи бриф, щоб побачити рекомендоване меню.']);
+    return;
+  }
+  const replyList = extractBriefList(custom.brief, [
+    'replyMenu',
+    'reply_menu',
+    'replyButtons',
+    'reply_buttons',
+    'ui.reply',
+    'ui.replyMenu'
+  ]);
+  if (replyList.length) {
+    const items = replyList.map((item) => `• ${formatBriefItem(item)}`);
+    renderInfo(container, items, 'Додай кнопки у бота та протестуй /start.');
+  } else {
+    renderInfo(container, ['• У брифі немає даних про reply-меню. Попроси ШІ запропонувати структуру.']);
+    const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+    const prompt = [
+      `Контекст бота: ${JSON.stringify(custom.brief, null, 2)}.`,
+      'Запропонуй набір reply-кнопок (текст і призначення) українською.'
+    ].join('\n');
+    container.appendChild(createPromptBlock(prompt, {
+      copyLabel: 'Запросити варіанти меню',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true
+    }));
+  }
+}
+
+function renderCustomInlineStep(container) {
+  const custom = ensureCustomState();
+  if (!custom.brief) {
+    renderInfo(container, ['• Спочатку збережи бриф, щоб побачити inline-кнопки.']);
+    return;
+  }
+  const inlineList = extractBriefList(custom.brief, [
+    'inlineButtons',
+    'inline_buttons',
+    'ui.inline',
+    'ui.inlineButtons'
+  ]);
+  if (inlineList.length) {
+    const items = inlineList.map((item) => `• ${formatBriefItem(item)}`);
+    renderInfo(container, items, 'Налаштуй callback-и й протестуй сценарії.' );
+  } else {
+    renderInfo(container, ['• Бриф не містить inline-кнопок. Використай промпт нижче, щоб отримати рекомендації.']);
+    const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+    const prompt = [
+      `Контекст бота: ${JSON.stringify(custom.brief, null, 2)}.`,
+      'Склади варіанти inline-кнопок (текст, callback/URL) для ключових сценаріїв.'
+    ].join('\n');
+    container.appendChild(createPromptBlock(prompt, {
+      copyLabel: 'Попросити inline-кнопки',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true
+    }));
+  }
+}
+
+function renderEnvStep(container) {
+  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+  const promptBlock = createPromptBlock(
+    `Створи файл .env і додай рядок:\n\nTOKEN=сюди_вставиш_токен`,
+    {
+      copyLabel: 'Скопіювати інструкцію',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget)
+    }
+  );
+  container.appendChild(promptBlock);
+
+  const checklist = document.createElement('div');
+  checklist.className = 'info-block';
+  const label = document.createElement('label');
+  label.className = 'info-line';
+  const text = document.createElement('span');
+  text.textContent = 'Познач, що файл .env створено:';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.checked = !!state.tools.env;
+  input.addEventListener('change', (event) => {
+    state.tools.env = event.target.checked;
+    saveState();
+    draw(false);
+  });
+  label.append(text, input);
+  checklist.appendChild(label);
+  container.appendChild(checklist);
+
+  if (!state.tools.env) {
+    const carousel = document.createElement('div');
+    carousel.className = 'carousel';
+
+    carousel.appendChild(createCarouselSlide({
+      title: 'Крок 1. Створи файл',
+      body: 'У редакторі натисни New File, назви файл .env та збережи його у корені проєкту.'
+    }));
+
+    carousel.appendChild(createCarouselSlide({
+      title: 'Крок 2. Додай токен',
+      body: 'Встав рядок TOKEN=сюди_вставиш_токен, заміни значення на реальний токен.',
+      code: 'TOKEN=сюди_вставиш_токен'
+    }));
+
+    carousel.appendChild(createCarouselSlide({
+      title: 'Крок 3. Захисти токен',
+      body: 'Переконайся, що .env доданий у .gitignore та не потрапить у репозиторій.'
+    }));
+
+    container.appendChild(carousel);
+  }
+}
+
 function renderBackendChoiceStep(container) {
   const cards = document.createElement('div');
   cards.className = 'card-grid';
+  const recommendedId = isCustomBot() ? getRecommendedBackendId() : null;
   BACKEND_OPTIONS.forEach((option) => {
     const card = document.createElement('div');
     card.className = 'card';
     if (state.choices.backend === option.id) card.classList.add('active');
     card.innerHTML = `<h3>${option.title}</h3><p>${option.summary}</p>`;
+    if (recommendedId && option.id === recommendedId) {
+      card.classList.add('recommended');
+      const badge = document.createElement('div');
+      badge.className = 'backend-recommend';
+      badge.textContent = 'Рекомендуємо для вашого бота';
+      card.appendChild(badge);
+    }
     card.addEventListener('click', () => {
       state.choices.backend = option.id;
       saveState();
@@ -1145,23 +2040,39 @@ function renderPaymentStep(container, title, step) {
   }
 }
 
-function renderAdviceStep(container) {
-  const type = BOT_TYPES.find((item) => item.id === state.choices.botType);
-  if (!type) {
-    renderInfo(container, ['• Щоб отримати поради, спочатку обери тип бота.']);
+function renderLaunchStep(container, step) {
+  if (step.type === 'commands') {
+    const commands = (state.commands && state.commands.length ? state.commands : ['/start', '/help']).map((cmd) => cmd.trim()).filter(Boolean);
+    if (!commands.length) {
+      commands.push('/start', '/help');
+    }
+    const lines = ['Перевір, що ключові команди працюють у чаті:'].concat(commands.map((cmd) => `• ${cmd}`));
+    renderInfo(container, lines);
+    if (isCustomBot() && ensureCustomState().brief) {
+      renderInfo(container, ['Якщо якась команда не працює, скористайся промптом нижче для виправлення.']);
+      const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+      const prompt = generateCommandFixPrompt(ensureCustomState());
+      container.appendChild(createPromptBlock(prompt, {
+        copyLabel: 'Промпт для виправлення команд',
+        ai: aiTarget,
+        openLabel: getAiLabel(aiTarget),
+        collapsible: true
+      }));
+    }
     return;
   }
-  renderInfo(container, [`${type.title} — ключові рекомендації:`]);
-  renderInfo(container, type.tips.map((tip) => `• ${tip}`));
+  renderInfo(container, step.items || []);
 }
 
-// --- Допоміжні рендер-утиліти ---
 function renderInfo(container, lines, footer) {
-  if (lines?.length) {
+  const entryFile = getEntryFile();
+  const processedLines = lines?.map((line) => replaceEntryFileTokens(line, entryFile));
+
+  if (processedLines?.length) {
     const block = document.createElement('div');
     block.className = 'info-block';
 
-    lines.forEach((line) => {
+    processedLines.forEach((line) => {
       const parsed = parseAiLine(line);
       if (parsed) {
         const label = document.createElement('div');
@@ -1188,7 +2099,7 @@ function renderInfo(container, lines, footer) {
   if (footer) {
     const note = document.createElement('div');
     note.className = 'note-block';
-    note.textContent = footer;
+    note.textContent = replaceEntryFileTokens(footer, entryFile);
     container.appendChild(note);
   }
 }
@@ -1236,6 +2147,27 @@ function createPromptBlock(text, options = {}) {
   const content = document.createElement('pre');
   content.className = 'prompt-text';
   content.textContent = text;
+
+  if (options.collapsible) {
+    block.classList.add('prompt-collapsible', 'collapsed');
+    const toggleWrap = document.createElement('div');
+    toggleWrap.className = 'prompt-collapse-head';
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'ghost prompt-toggle';
+    const collapsedLabel = options.expandLabel || 'Розгорнути весь промт';
+    const expandedLabel = options.collapseLabel || 'Згорнути промт';
+    toggleBtn.textContent = collapsedLabel;
+    toggleBtn.addEventListener('click', () => {
+      const collapsed = block.classList.toggle('collapsed');
+      content.hidden = collapsed;
+      toggleBtn.textContent = collapsed ? collapsedLabel : expandedLabel;
+    });
+    toggleWrap.appendChild(toggleBtn);
+    block.appendChild(toggleWrap);
+    content.hidden = true;
+  }
+
   block.appendChild(content);
 
   const actions = document.createElement('div');
@@ -1370,6 +2302,11 @@ function extractBackticked(line) {
   return items;
 }
 
+function replaceEntryFileTokens(text, entryFile) {
+  if (typeof text !== 'string') return text;
+  return text.replace(/main\.py/g, entryFile || 'main.py');
+}
+
 function appendInfoLine(block, line) {
   const row = document.createElement('div');
   row.className = 'info-line';
@@ -1443,6 +2380,24 @@ function validateStep(step) {
       return state.tools.env ? ok() : fail('Створи .env або познач, що зробиш це.');
     case 'backend-choice':
       return state.choices.backend ? ok() : fail('Оберіть тип зберігання.');
+    case 'custom-requirements': {
+      const custom = ensureCustomState();
+      return custom.requirements?.trim() ? ok() : fail('Опиши, якого бота ти хочеш.');
+    }
+    case 'custom-brief-import': {
+      const custom = ensureCustomState();
+      return custom.brief ? ok() : fail('Додай JSON-бриф і натисни «Зберегти бриф».');
+    }
+    case 'custom-files': {
+      const custom = ensureCustomState();
+      if (!custom.files.length) return fail('Спочатку збережи бриф, щоб побудувати список файлів.');
+      const allDone = custom.files.every((file) => file.done);
+      return allDone ? ok() : fail('Познач усі файли як виконані.');
+    }
+    case 'custom-terminal': {
+      const custom = ensureCustomState();
+      return custom.commandsText?.trim() ? ok() : fail('Додай або підтвердь команди для запуску.');
+    }
     default:
       return ok();
   }
@@ -1475,20 +2430,30 @@ function generateDevBrief() {
   ].join('\n');
 }
 
+function generateManualFilePrompt(entryFile, currentState = state) {
+  const type = BOT_TYPES.find((item) => item.id === currentState.choices.botType);
+  const backend = BACKEND_OPTIONS.find((item) => item.id === currentState.choices.backend);
+
+  return [
+    `Мені потрібен файл ${entryFile}.`,
+    `Тип бота: ${type ? `${type.title} — ${type.description}` : 'базовий асистент'}.`,
+    `Команди: ${currentState.commands.length ? currentState.commands.join(', ') : '/start, /help'}.`,
+    `Бекенд/зберігання: ${backend ? backend.title : 'JSON (просте збереження у файлі)'}.`,
+    `Покажи повний код файла ${entryFile} одним блоком без коментарів та зайвих пояснень.`,
+    'Наприкінці коротко нагадай, як запустити бота (python ' + entryFile + ').'
+  ].join('\n');
+}
+
 function generateCodePrompt() {
-  const type = BOT_TYPES.find((item) => item.id === state.choices.botType);
-  const backend = BACKEND_OPTIONS.find((item) => item.id === state.choices.backend);
+  const entryFile = getEntryFile();
+  const manualPrompt = generateManualFilePrompt(entryFile);
 
   return [
     'Ти — досвідчений Python-розробник. Побудуй Telegram-бота на aiogram v3.',
-    `Тип бота: ${type ? `${type.title} — ${type.description}` : 'базовий асистент'}.`,
-    `Команди: ${state.commands.length ? state.commands.join(', ') : '/start, /help'}.`,
-    `Бекенд/зберігання: ${backend ? backend.title : 'JSON (просте збереження у файлі)'}.`,
-    'Файли проєкту:',
-    '- requirements.txt (aiogram==3.*, python-dotenv)',
-    '- main.py (головний файл)',
-    '- .env (TOKEN та інші секрети)',
-    'Опиши, як запустити бота (python main.py). Використовуй дружні повідомлення українською.'
+    manualPrompt,
+    'Не додавай інші файли чи розрізнені фрагменти — тільки повний код зазначеного файла.',
+    'Після коду дай інструкції з встановлення залежностей (pip install -r requirements.txt) та запуску бота.',
+    'Використовуй дружні повідомлення українською.'
   ].join('\n');
 }
 
@@ -1501,6 +2466,10 @@ function loadState() {
     merged.tools = Object.assign({}, defaultState.tools, merged.tools);
     if (merged.tools.requirements === undefined) merged.tools.requirements = false;
     if (merged.tools.env === undefined) merged.tools.env = false;
+    merged.custom = Object.assign(structuredClone(defaultCustomState), merged.custom || {});
+    if (!Array.isArray(merged.custom.files)) merged.custom.files = [];
+    if (!merged.custom.diag) merged.custom.diag = { description: '', logs: '', prompt: '' };
+    if (!merged.choices.entryFile) merged.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
     return merged;
   } catch (error) {
     console.error('Не вдалося завантажити стан', error);
