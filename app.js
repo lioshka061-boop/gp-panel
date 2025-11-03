@@ -11,7 +11,61 @@ const BOT_TYPES = [
       'Зберігай клієнтів та завдання з полями: ім’я, статус, наступний крок.',
       'Комбінація команд: /add → /clients → /tasks → /done.',
       'Рекомендований бекенд: SQLite або Postgres.'
-    ]
+    ],
+    ui: {
+      reply: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Повне меню CRM',
+            description: 'Доступ до бази клієнтів, завдань і аналітики.',
+            buttons: [
+              { text: '📋 Клієнти', purpose: 'показати список активних клієнтів' },
+              { text: '➕ Новий клієнт', purpose: 'створити нову заявку' },
+              { text: '✅ Завдання', purpose: 'перейдіть до актуальних завдань' },
+              { text: '📈 Статистика', purpose: 'показати короткий звіт по продажах' }
+            ]
+          },
+          {
+            id: 'minimal',
+            title: 'Мінімальне меню',
+            description: 'Для старту з коротким переліком дій.',
+            buttons: [
+              { text: '📋 Клієнти', purpose: 'активні клієнти' },
+              { text: '📝 Завдання', purpose: 'список завдань' },
+              { text: '➕ Додати', purpose: 'швидко додати клієнта або завдання' }
+            ],
+            notes: 'Підійде, якщо команда працює лише з базовими сценаріями.'
+          }
+        ],
+        discoveryHint: 'Сфокусуйся на кнопках для продажів: клієнти, завдання, аналітика.'
+      },
+      inline: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Менеджмент ліда',
+            description: 'Кнопки в картці клієнта або завдання.',
+            buttons: [
+              { text: '✅ Взяти в роботу', purpose: 'перевести лід у роботу', callback: 'lead_take' },
+              { text: '➕ Коментар', purpose: 'додати нотатку до клієнта', callback: 'lead_add_note' },
+              { text: '📅 Нагадати', purpose: 'створити нагадування', callback: 'lead_remind' },
+              { text: '❌ Закрити', purpose: 'позначити лід як закритий', callback: 'lead_close' }
+            ]
+          },
+          {
+            id: 'minimal',
+            title: 'Керування завданням',
+            description: 'Стисла панель для оновлення статусу.',
+            buttons: [
+              { text: '✅ Готово', purpose: 'позначити завдання виконаним', callback: 'task_done' },
+              { text: '↩️ Назад', purpose: 'повернутися до переліку завдань', callback: 'task_back' }
+            ]
+          }
+        ],
+        discoveryHint: 'Надішли кнопки для роботи з лідами: брати в роботу, залишати коментар, нагадування.'
+      }
+    }
   },
   {
     id: 'task',
@@ -22,7 +76,60 @@ const BOT_TYPES = [
       'Фіксуй виконавця, дедлайн та статус.',
       'Стартуй із JSON, переходь на SQLite, коли команда виросте.',
       'Додай нагадування про дедлайни.'
-    ]
+    ],
+    ui: {
+      reply: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Командне меню',
+            description: 'Повний доступ до завдань і плану на день.',
+            buttons: [
+              { text: '🆕 Додати', purpose: 'створити нове завдання' },
+              { text: '📋 Список', purpose: 'показати всі активні завдання' },
+              { text: '🔥 Сьогодні', purpose: 'переглянути задачі на сьогодні' },
+              { text: '⚙️ Налаштування', purpose: 'увімкнути нагадування та ролі' }
+            ]
+          },
+          {
+            id: 'minimal',
+            title: 'Мінімалістичне меню',
+            description: 'Коли потрібні лише базові дії.',
+            buttons: [
+              { text: '🆕 Додати', purpose: 'нове завдання' },
+              { text: '📋 Завдання', purpose: 'актуальний список' },
+              { text: '✅ Готові', purpose: 'переглянути виконані задачі' }
+            ]
+          }
+        ],
+        discoveryHint: 'Підкажи кнопки для створення, перегляду та завершення завдань.'
+      },
+      inline: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Керування завданням',
+            description: 'Для картки конкретного завдання.',
+            buttons: [
+              { text: '✅ Готово', purpose: 'закрити завдання', callback: 'task_done' },
+              { text: '❌ Пропустити', purpose: 'позначити як пропущене', callback: 'task_skip' },
+              { text: '⏰ Відкласти', purpose: 'перенести дедлайн', callback: 'task_delay' },
+              { text: '📎 Деталі', purpose: 'показати розширену інформацію', callback: 'task_details' }
+            ]
+          },
+          {
+            id: 'minimal',
+            title: 'Швидкі дії',
+            description: 'Базові кнопки для оновлення статусу.',
+            buttons: [
+              { text: '✅ Закрити', purpose: 'завершити завдання', callback: 'task_done' },
+              { text: '🔁 Повернути', purpose: 'повернути в роботу', callback: 'task_return' }
+            ]
+          }
+        ],
+        discoveryHint: 'Запропонуй inline-кнопки для зміни статусу завдання та перегляду деталей.'
+      }
+    }
   },
   {
     id: 'habit',
@@ -33,7 +140,60 @@ const BOT_TYPES = [
       'Записуй назву звички, час доби та прогрес.',
       'Нагадування — обов’язкові.',
       'Зберігання: JSON (старт) або SQLite (звітність).'
-    ]
+    ],
+    ui: {
+      reply: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Трекер прогресу',
+            description: 'Фокус на щоденних звичках і плані.',
+            buttons: [
+              { text: '🔥 Сьогодні', purpose: 'звички, заплановані на сьогодні' },
+              { text: '➕ Нова звичка', purpose: 'додати нову звичку' },
+              { text: '📈 Прогрес', purpose: 'переглянути статистику по звичках' },
+              { text: '⚙️ План', purpose: 'налаштувати нагадування та графік' }
+            ]
+          },
+          {
+            id: 'wellness',
+            title: 'Велнес-режим',
+            description: 'Для ботів з порадами та мотивацією.',
+            buttons: [
+              { text: '🌅 Ранок', purpose: 'поради на ранок і звички' },
+              { text: '🌙 Вечір', purpose: 'вечірній чек-ін' },
+              { text: '📊 Статистика', purpose: 'дні підряд та прогрес' }
+            ],
+            notes: 'Підійде, якщо бот працює за сценаріями ранку/вечора.'
+          }
+        ],
+        discoveryHint: 'Запропонуй кнопки для трекінгу звичок, статистики та плану.'
+      },
+      inline: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Оновлення звички',
+            description: 'Кнопки в повідомленні зі звичкою.',
+            buttons: [
+              { text: '✅ Виконав', purpose: 'позначити звичку виконаною', callback: 'habit_done' },
+              { text: '🔁 Відкласти', purpose: 'перенести на пізніше', callback: 'habit_skip' },
+              { text: '📊 Деталі', purpose: 'показати історію виконань', callback: 'habit_stats' }
+            ]
+          },
+          {
+            id: 'streak',
+            title: 'Робота з прогресом',
+            description: 'Для повідомлень зі статистикою.',
+            buttons: [
+              { text: '📅 Календар', purpose: 'відкрити календар виконань', callback: 'habit_calendar' },
+              { text: '🔔 Нагадування', purpose: 'налаштувати час нагадувань', callback: 'habit_reminder' }
+            ]
+          }
+        ],
+        discoveryHint: 'Потрібні кнопки, щоб відмічати звичку, відкладати та дивитись прогрес.'
+      }
+    }
   },
   {
     id: 'faq',
@@ -44,7 +204,62 @@ const BOT_TYPES = [
       'Контент тримай у Google Sheets — легко оновлювати.',
       'Додай кнопки “Написати менеджеру”, “Отримати знижку”.',
       'Пиши коротко, дружньо, з емодзі.'
-    ]
+    ],
+    ui: {
+      reply: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Підтримка клієнтів',
+            description: 'Швидкий доступ до основних розділів.',
+            buttons: [
+              { text: 'ℹ️ FAQ', purpose: 'переглянути популярні питання' },
+              { text: '📩 Залишити запит', purpose: 'залишити заявку менеджеру' },
+              { text: '☎️ Контакти', purpose: 'отримати контакти підтримки' },
+              { text: '🎁 Акції', purpose: 'актуальні пропозиції' }
+            ]
+          },
+          {
+            id: 'support',
+            title: 'Фокус на підтримці',
+            description: 'Коли головне — зв’язок з менеджером.',
+            buttons: [
+              { text: '🆘 Підтримка', purpose: 'написати менеджеру' },
+              { text: '📄 Інструкції', purpose: 'короткі гайди' },
+              { text: '💬 Зв’язок', purpose: 'месенджери/телефон' }
+            ]
+          }
+        ],
+        discoveryHint: 'Запропонуй меню для FAQ-бота: часті питання, заявка на підтримку, контакти.'
+      },
+      inline: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Категорії питань',
+            description: 'Для повідомлень з переліком тем.',
+            buttons: [
+              { text: '🧾 Доставка', purpose: 'роз’яснення умов доставки', callback: 'faq_delivery' },
+              { text: '💳 Оплата', purpose: 'інформація про оплату', callback: 'faq_payment' },
+              { text: '⌚️ Графік', purpose: 'години роботи', callback: 'faq_schedule' },
+              { text: '👤 Менеджер', purpose: 'звʼязок із менеджером', callback: 'faq_manager' }
+            ]
+          },
+          {
+            id: 'links',
+            title: 'Швидкі посилання',
+            description: 'Для повідомлень з ресурсами.',
+            buttons: [
+              { text: '📘 Інструкція', purpose: 'посилання на довідник', url: 'https://example.com/manual' },
+              { text: '🎟 Знижка', purpose: 'отримати промокод', callback: 'faq_discount' },
+              { text: '🔙 Назад', purpose: 'повернутися до списку тем', callback: 'faq_back' }
+            ],
+            notes: 'Замініть URL на власний ресурс.'
+          }
+        ],
+        discoveryHint: 'Потрібні inline-кнопки для різних категорій FAQ або переходу до менеджера.'
+      }
+    }
   },
   {
     id: 'shop',
@@ -55,7 +270,61 @@ const BOT_TYPES = [
       'Каталог = назва, опис, ціна, наявність.',
       'Бекенд: SQLite + Stripe/WayForPay.',
       'Повідомляй менеджера про нові замовлення.'
-    ]
+    ],
+    ui: {
+      reply: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Повний магазин',
+            description: 'Базові розділи онлайн-магазину.',
+            buttons: [
+              { text: '🛍 Каталог', purpose: 'переглянути товари' },
+              { text: '🛒 Кошик', purpose: 'відкрити кошик' },
+              { text: '📦 Замовлення', purpose: 'історія та статус замовлень' },
+              { text: '💬 Підтримка', purpose: 'зв’язок з менеджером' }
+            ]
+          },
+          {
+            id: 'minimal',
+            title: 'Швидкий старт',
+            description: 'Для MVP з двома діями.',
+            buttons: [
+              { text: '🛍 Каталог', purpose: 'переглянути доступні товари' },
+              { text: '🛒 Кошик', purpose: 'перейти до кошика' },
+              { text: '📞 Контакт', purpose: 'зв’язатися з продавцем' }
+            ]
+          }
+        ],
+        discoveryHint: 'Запропонуй меню для магазину: каталог, кошик, підтримка.'
+      },
+      inline: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Картка товару',
+            description: 'Кнопки під повідомленням з товаром.',
+            buttons: [
+              { text: '➕ У кошик', purpose: 'додати товар у кошик', callback: 'product_add' },
+              { text: '💳 Купити', purpose: 'оформити миттєву покупку', callback: 'product_buy' },
+              { text: 'ℹ️ Деталі', purpose: 'показати опис та характеристики', callback: 'product_details' },
+              { text: '🔙 Назад', purpose: 'повернутися до каталогу', callback: 'product_back' }
+            ]
+          },
+          {
+            id: 'upsell',
+            title: 'Upsell-пропозиції',
+            description: 'Додаткові товари чи бонуси.',
+            buttons: [
+              { text: '🎁 Бонус', purpose: 'додати супутній товар', callback: 'product_bonus' },
+              { text: '⭐️ Відгуки', purpose: 'показати відгуки', callback: 'product_reviews' },
+              { text: '📦 Доставка', purpose: 'інформація про доставку', callback: 'product_shipping' }
+            ]
+          }
+        ],
+        discoveryHint: 'Потрібні inline-кнопки: додати в кошик, купити, показати деталі.'
+      }
+    }
   },
   {
     id: 'booking',
@@ -66,7 +335,63 @@ const BOT_TYPES = [
       'Фіксуй дату, час, клієнта, статус.',
       'SQLite або Google Sheets — чудовий вибір.',
       'Налаштуй нагадування за 2 години до зустрічі.'
-    ]
+    ],
+    ui: {
+      reply: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Запис на послуги',
+            description: 'Кнопки для клієнтів і адміністратора.',
+            buttons: [
+              { text: '📅 Записатися', purpose: 'почати процес бронювання' },
+              { text: '🕒 Розклад', purpose: 'показати доступні слоти' },
+              { text: '📋 Мої броні', purpose: 'переглянути поточні записи' },
+              { text: '☎️ Контакти', purpose: 'зв’язатися з адміністратором' }
+            ]
+          },
+          {
+            id: 'services',
+            title: 'Меню послуг',
+            description: 'Підходить, якщо є декілька різних послуг.',
+            buttons: [
+              { text: '💇‍♀️ Послуги', purpose: 'перелік доступних послуг' },
+              { text: '📆 Обрати час', purpose: 'перейти до розкладу' },
+              { text: '📞 Адміністратор', purpose: 'швидкий зв’язок' }
+            ]
+          }
+        ],
+        discoveryHint: 'Потрібні кнопки для запису, перегляду розкладу та зв’язку.'
+      },
+      inline: {
+        variants: [
+          {
+            id: 'default',
+            title: 'Керування бронюванням',
+            description: 'Під повідомленням з конкретною бронню.',
+            buttons: [
+              { text: '✅ Підтвердити', purpose: 'підтвердити вибране вікно', callback: 'booking_confirm' },
+              { text: '🔄 Інший час', purpose: 'запросити інший слот', callback: 'booking_reschedule' },
+              { text: '❌ Скасувати', purpose: 'скасувати бронювання', callback: 'booking_cancel' },
+              { text: '💬 Менеджер', purpose: 'зв’язок зі спеціалістом', callback: 'booking_support' }
+            ]
+          },
+          {
+            id: 'slots',
+            title: 'Вибір слоту',
+            description: 'Для повідомлень зі списком часових слотів.',
+            buttons: [
+              { text: '🕒 10:00', purpose: 'забронювати час 10:00', callback: 'slot_1000' },
+              { text: '🕒 12:00', purpose: 'забронювати час 12:00', callback: 'slot_1200' },
+              { text: '🕒 14:00', purpose: 'забронювати час 14:00', callback: 'slot_1400' },
+              { text: '🔙 Назад', purpose: 'повернутися до переліку дат', callback: 'slot_back' }
+            ],
+            notes: 'Замініть часи на реальні доступні інтервали.'
+          }
+        ],
+        discoveryHint: 'Запропонуй inline-кнопки для підтвердження запису, вибору іншого часу та скасування.'
+      }
+    }
   },
   {
     id: 'custom',
@@ -100,6 +425,13 @@ const TOOL_CHECKLIST = [
   { id: 'python', label: 'Python 3.10+ встановлено' },
   { id: 'editor', label: 'Редактор відкривається (VS Code / Cursor)' },
   { id: 'github', label: 'Є обліковий запис GitHub' },
+  { id: 'copilot', label: 'Copilot увімкнений (для режиму Codex)', optional: true }
+];
+
+const CODESPACES_TOOL_CHECKLIST = [
+  { id: 'github', label: 'Увійшов / створив GitHub акаунт' },
+  { id: 'codespace', label: 'Створив Codespace і відкрив репозиторій у браузері' },
+  { id: 'browser', label: 'Відкрив термінал у Codespaces та запустив тестову команду' },
   { id: 'copilot', label: 'Copilot увімкнений (для режиму Codex)', optional: true }
 ];
 
@@ -231,6 +563,13 @@ const defaultCustomState = {
   }
 };
 
+const defaultUiState = {
+  replyVariant: 'default',
+  inlineVariant: 'default',
+  replyCustomSpec: '',
+  inlineCustomSpec: ''
+};
+
 const DESIGN_STEPS = [
   {
     title: 'Що таке дизайн',
@@ -346,6 +685,13 @@ const GROWTH_STEPS = [
   }
 ];
 
+const defaultTools = TOOL_CHECKLIST.reduce((acc, tool) => {
+  acc[tool.id] = false;
+  return acc;
+}, { requirements: false, env: false });
+defaultTools.codespace = false;
+defaultTools.browser = false;
+
 const defaultState = {
   currentStep: 0,
   choices: {
@@ -356,11 +702,9 @@ const defaultState = {
     entryFile: ENTRY_FILE_OPTIONS[0].id,
     payment: 'none'
   },
-  tools: TOOL_CHECKLIST.reduce((acc, tool) => {
-    acc[tool.id] = false;
-    return acc;
-  }, { requirements: false, env: false }),
+  tools: structuredClone(defaultTools),
   commands: ['/start', '/help'],
+  ui: structuredClone(defaultUiState),
   custom: structuredClone(defaultCustomState)
 };
 
@@ -383,6 +727,18 @@ function ensureCustomState(targetState = state) {
     if (targetState.custom.files === undefined) targetState.custom.files = [];
   }
   return targetState.custom;
+}
+
+function ensureUiState(targetState = state) {
+  if (!targetState.ui) {
+    targetState.ui = structuredClone(defaultUiState);
+  } else {
+    if (!targetState.ui.replyVariant) targetState.ui.replyVariant = 'default';
+    if (!targetState.ui.inlineVariant) targetState.ui.inlineVariant = 'default';
+    if (typeof targetState.ui.replyCustomSpec !== 'string') targetState.ui.replyCustomSpec = '';
+    if (typeof targetState.ui.inlineCustomSpec !== 'string') targetState.ui.inlineCustomSpec = '';
+  }
+  return targetState.ui;
 }
 
 function isCustomBot(currentState = state) {
@@ -617,6 +973,117 @@ function generateUiDiscoveryPrompt(section) {
     lines.push(`Поверни повний оновлений код файла ${entryFile} одним блоком.`);
   } else {
     lines.push(`Поясни, які зміни треба внести у ${entryFile}, та додай оновлений код для відповідних частин.`);
+  }
+  return lines.join('\n');
+}
+
+function getPresetUiSpec(section, currentState = state) {
+  const typeId = currentState?.choices?.botType;
+  if (!typeId) return null;
+  const type = BOT_TYPES.find((item) => item.id === typeId);
+  if (!type || !type.ui) return null;
+  const config = type.ui[section];
+  if (!config) return null;
+
+  const baseNotes = typeof config.notes === 'string' ? config.notes : '';
+  const discoveryHint = typeof config.discoveryHint === 'string' ? config.discoveryHint : '';
+
+  let variants = [];
+  if (Array.isArray(config.variants) && config.variants.length) {
+    variants = config.variants.map((variant, index) => ({
+      id: variant.id || `variant-${index}`,
+      title: variant.title || 'Варіант',
+      description: variant.description || '',
+      buttons: Array.isArray(variant.buttons) ? variant.buttons : [],
+      notes: typeof variant.notes === 'string' ? variant.notes : ''
+    }));
+  } else if (Array.isArray(config.buttons) && config.buttons.length) {
+    variants = [
+      {
+        id: 'default',
+        title: 'Рекомендовані кнопки',
+        description: '',
+        buttons: config.buttons,
+        notes: baseNotes
+      }
+    ];
+  }
+
+  return {
+    needed: config.needed !== false,
+    variants,
+    notes: baseNotes,
+    discoveryHint,
+    type
+  };
+}
+
+function generatePresetUiCodePrompt(section, variant, type) {
+  const entryFile = getEntryFile();
+  const mode = state.choices.mode;
+  const commands = state.commands.length ? state.commands.join(', ') : '/start, /help';
+  const readable = section === 'reply' ? 'reply-меню' : 'inline-кнопки';
+  const spec = JSON.stringify(variant.buttons, null, 2);
+  const lines = [
+    `Тип бота: ${type.title}.`,
+    `Опис: ${type.description}.`,
+    `Доступні команди: ${commands}.`,
+    `Онови файл ${entryFile}, додавши ${readable} за цією специфікацією:`,
+    spec,
+    'Додай обробники натискань та дружні українські повідомлення.',
+    'Використовуй aiogram v3.'
+  ];
+  if (variant.notes) lines.push(`Примітка: ${variant.notes}`);
+  if (mode === 'chatgpt') {
+    lines.push(`Поверни повний оновлений код файла ${entryFile} одним блоком без скорочень.`);
+  } else {
+    lines.push(`Опиши, які частини ${entryFile} треба змінити, і додай оновлені фрагменти коду.`);
+  }
+  return lines.join('\n');
+}
+
+function generatePresetUiDiscoveryPrompt(section, type) {
+  const entryFile = getEntryFile();
+  const mode = state.choices.mode;
+  const commands = state.commands.length ? state.commands.join(', ') : '/start, /help';
+  const readable = section === 'reply' ? 'reply-меню' : 'inline-кнопки';
+  const format = section === 'reply'
+    ? '{"text": "...", "purpose": "..."}'
+    : '{"text": "...", "purpose": "...", "callback": "..."}';
+  const lines = [
+    `Тип бота: ${type.title}.`,
+    `Опис: ${type.description}.`,
+    `Команди: ${commands}.`,
+    `Запропонуй кілька варіантів ${readable} у форматі масиву об’єктів ${format}.`,
+    `Після узгодження додай ${readable} до файла ${entryFile} (aiogram v3).`,
+    'Використовуй українські тексти кнопок.'
+  ];
+  if (mode === 'chatgpt') {
+    lines.push(`Поверни повний оновлений код файла ${entryFile} одним блоком.`);
+  } else {
+    lines.push(`Опиши зміни у ${entryFile} та додай оновлені фрагменти коду.`);
+  }
+  return lines.join('\n');
+}
+
+function generatePresetUiCustomPrompt(section, rawSpec, type) {
+  const spec = rawSpec.trim();
+  if (!spec) return '';
+  const entryFile = getEntryFile();
+  const mode = state.choices.mode;
+  const readable = section === 'reply' ? 'reply-меню' : 'inline-кнопки';
+  const lines = [
+    `Тип бота: ${type.title}.`,
+    `Опис: ${type.description}.`,
+    `Необхідно додати ${readable} до файла ${entryFile} за наступним описом (формат "Назва — призначення — callback/URL"):`,
+    spec,
+    'Збудуй колбеки, онови хендлери та відповіді українською.',
+    'Використовуй aiogram v3.'
+  ];
+  if (mode === 'chatgpt') {
+    lines.push(`Поверни повний оновлений код файла ${entryFile} одним блоком без скорочень.`);
+  } else {
+    lines.push(`Опиши зміни у ${entryFile} та додай оновлені фрагменти коду.`);
   }
   return lines.join('\n');
 }
@@ -943,9 +1410,10 @@ function buildSteps(currentState) {
     result.push(createStep('design-reply', 'IV. Дизайн', 'Головне меню (Reply-кнопки)', renderCustomReplyStep));
     result.push(createStep('design-inline', 'IV. Дизайн', 'Inline-кнопки', renderCustomInlineStep));
   } else {
-    DESIGN_STEPS.forEach((item, index) => {
-      result.push(createStep(`design-${index}`, 'IV. Дизайн', item.title, (c) => renderInfo(c, item.items)));
-    });
+    result.push(createStep('design-overview', 'IV. Дизайн', DESIGN_STEPS[0].title, (c) => renderInfo(c, DESIGN_STEPS[0].items)));
+    result.push(createStep('design-reply', 'IV. Дизайн', 'Головне меню (Reply-кнопки)', renderPresetReplyStep));
+    result.push(createStep('design-inline', 'IV. Дизайн', 'Inline-кнопки', renderPresetInlineStep));
+    result.push(createStep('design-copy', 'IV. Дизайн', DESIGN_STEPS[3].title, (c) => renderInfo(c, DESIGN_STEPS[3].items)));
   }
 
   // V. Статистика
@@ -1064,6 +1532,7 @@ function renderBotTypeStep(container) {
       const previous = state.choices.botType;
       const value = event.target.value;
       state.choices.botType = value;
+      state.ui = structuredClone(defaultUiState);
       const type = BOT_TYPES.find((item) => item.id === state.choices.botType);
       if (type) state.commands = [...type.commands];
       if (value === 'custom' && previous !== 'custom') {
@@ -1125,60 +1594,123 @@ function renderEnvironmentStep(container) {
 }
 
 function renderToolsStep(container) {
-  renderInfo(container, [
-    '• Python 3.10+ — встанови останню версію із офіційного сайту.',
-    '• IDE — VS Code або Cursor з розширеннями Python, Pylance, Copilot.',
-    '• GitHub — авторизуйся або створи акаунт.'
-  ].concat(state.choices.mode === 'codex' ? ['• Copilot — увімкни GitHub Copilot у VS Code.'] : []));
+  const isCodespaces = state.choices.environment === 'codespaces';
+  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+
+  if (isCodespaces) {
+    const infoLines = [
+      '• Увійди у свій акаунт GitHub — Codespaces працює через нього.',
+      '• У репозиторії натисни «<> Code» → вкладку «Codespaces» → «Create codespace on main».',
+      '• Дочекайся запуску середовища: Python, git і редактор уже встановлені, локальні інсталяції не потрібні.',
+      '• Відкрий термінал у браузері (Terminal → New Terminal) та запускай команди прямо в Codespaces.',
+      '• Використовуй вкладку Ports, щоб відкрити прокинуті веб-порти у новому вікні.'
+    ];
+    if (state.choices.mode === 'codex') {
+      infoLines.push('• Для автодоповнення відкрий View → Extensions, встанови GitHub Copilot і авторизуйся всередині Codespaces.');
+    }
+    renderInfo(container, infoLines);
+  } else {
+    renderInfo(container, [
+      '• Python 3.10+ — встанови останню версію із офіційного сайту.',
+      '• IDE — VS Code або Cursor з розширеннями Python, Pylance, Copilot.',
+      '• GitHub — авторизуйся або створи акаунт.'
+    ].concat(state.choices.mode === 'codex' ? ['• Copilot — увімкни GitHub Copilot у VS Code.'] : []));
+  }
 
   const grid = document.createElement('div');
   grid.className = 'card-grid';
 
-  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
-
-  grid.appendChild(createToolCard({
-    title: 'Python 3.12',
-    description: 'Офіційний інсталятор для Windows / macOS / Linux.',
-    link: 'https://www.python.org/downloads/',
-    prompt: 'Поясни, як встановити Python 3.12 на мою систему. Додай кроки для перевірки python --version.',
-    ai: aiTarget
-  }));
-
-  grid.appendChild(createToolCard({
-    title: 'VS Code',
-    description: 'Редактор із потрібними плагінами: Python, Pylance, Copilot.',
-    link: 'https://code.visualstudio.com/',
-    prompt: 'Поясни, як встановити VS Code та додати розширення Python, Pylance і GitHub Copilot.',
-    ai: aiTarget
-  }));
-
-  grid.appendChild(createToolCard({
-    title: 'GitHub',
-    description: 'Створи або увійди у свій акаунт.',
-    link: 'https://github.com/',
-    prompt: 'Поясни, як зареєструватися на GitHub, увімкнути 2FA та налаштувати git config.',
-    ai: aiTarget
-  }));
-
-  if (state.choices.mode === 'codex') {
+  if (isCodespaces) {
     grid.appendChild(createToolCard({
-      title: 'Copilot',
-      description: 'Активуй Copilot у VS Code, щоб працювати з Codex.',
-      link: 'https://github.com/features/copilot',
-      prompt: 'Поясни, як увімкнути GitHub Copilot у VS Code та авторизуватися.',
+      title: 'GitHub акаунт',
+      description: 'Потрібен для доступу до Codespaces і збереження коду.',
+      link: 'https://github.com/',
+      prompt: 'Поясни, як зареєструватися на GitHub, увімкнути двофакторну автентифікацію та налаштувати профіль.',
       ai: aiTarget
     }));
+
+    grid.appendChild(createToolCard({
+      title: 'Quickstart з Codespaces',
+      description: 'Створи робоче середовище в браузері за кілька хвилин.',
+      link: 'https://docs.github.com/en/codespaces/getting-started/quickstart',
+      prompt: 'Розкажи, як у репозиторії відкрити вкладку Codespaces і створити новий codespace на гілці main. Додай кроки запуску терміналу.',
+      ai: aiTarget
+    }));
+
+    grid.appendChild(createToolCard({
+      title: 'Робота всередині Codespaces',
+      description: 'Термінал, порти, секрети та зупинка середовища.',
+      link: 'https://docs.github.com/en/codespaces/troubleshooting/troubleshooting-codespaces',
+      prompt: 'Опиши, як у Codespaces відкривати новий термінал, прокидати порт і зупиняти середовище після роботи.',
+      ai: aiTarget
+    }));
+
+    if (state.choices.mode === 'codex') {
+      grid.appendChild(createToolCard({
+        title: 'Copilot у Codespaces',
+        description: 'Увімкни розширення GitHub Copilot прямо в браузерному VS Code.',
+        link: 'https://docs.github.com/en/copilot/getting-started-with-github-copilot/github-copilot-in-github-codespaces',
+        prompt: 'Поясни, як у Codespaces встановити розширення GitHub Copilot, увійти та активувати автодоповнення.',
+        ai: aiTarget
+      }));
+    }
+  } else {
+    grid.appendChild(createToolCard({
+      title: 'Python 3.12',
+      description: 'Офіційний інсталятор для Windows / macOS / Linux.',
+      link: 'https://www.python.org/downloads/',
+      prompt: 'Поясни, як встановити Python 3.12 на мою систему. Додай кроки для перевірки python --version.',
+      ai: aiTarget
+    }));
+
+    grid.appendChild(createToolCard({
+      title: 'VS Code',
+      description: 'Редактор із потрібними плагінами: Python, Pylance, Copilot.',
+      link: 'https://code.visualstudio.com/',
+      prompt: 'Поясни, як встановити VS Code та додати розширення Python, Pylance і GitHub Copilot.',
+      ai: aiTarget
+    }));
+
+    grid.appendChild(createToolCard({
+      title: 'GitHub',
+      description: 'Створи або увійди у свій акаунт.',
+      link: 'https://github.com/',
+      prompt: 'Поясни, як зареєструватися на GitHub, увімкнути 2FA та налаштувати git config.',
+      ai: aiTarget
+    }));
+
+    if (state.choices.mode === 'codex') {
+      grid.appendChild(createToolCard({
+        title: 'Copilot',
+        description: 'Активуй Copilot у VS Code, щоб працювати з Codex.',
+        link: 'https://github.com/features/copilot',
+        prompt: 'Поясни, як увімкнути GitHub Copilot у VS Code та авторизуватися.',
+        ai: aiTarget
+      }));
+    }
   }
 
   container.appendChild(grid);
 
   const checklist = document.createElement('div');
   checklist.className = 'checklist';
-  TOOL_CHECKLIST.forEach((tool) => {
+
+  const checklistItems = isCodespaces ? CODESPACES_TOOL_CHECKLIST : TOOL_CHECKLIST;
+
+  if (isCodespaces) {
+    state.tools.python = false;
+    state.tools.editor = false;
+  } else {
+    state.tools.codespace = false;
+    state.tools.browser = false;
+  }
+
+  checklistItems.forEach((tool) => {
     if (tool.optional && state.choices.mode !== 'codex') {
       state.tools[tool.id] = false;
       return;
     }
+    if (state.tools[tool.id] === undefined) state.tools[tool.id] = false;
     const row = document.createElement('div');
     row.className = 'check-item';
     const label = document.createElement('label');
@@ -1193,6 +1725,7 @@ function renderToolsStep(container) {
     row.appendChild(label);
     checklist.appendChild(row);
   });
+
   container.appendChild(checklist);
 }
 
@@ -1439,6 +1972,7 @@ function renderDevBriefStep(container) {
     (value) => {
       const previous = state.choices.botType;
       state.choices.botType = value;
+      state.ui = structuredClone(defaultUiState);
       const type = BOT_TYPES.find((item) => item.id === value);
       if (type) state.commands = [...type.commands];
       if (value === 'custom' && previous !== 'custom') {
@@ -1668,45 +2202,60 @@ function renderCustomFilesStep(container) {
     header.textContent = file.path;
     card.appendChild(header);
 
-    if (file.purpose) {
-      const desc = document.createElement('p');
-      desc.className = 'file-card-description';
-      desc.textContent = file.purpose;
-      card.appendChild(desc);
-    }
-
     const statusRow = document.createElement('label');
     statusRow.className = 'form-label';
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = !!file.done;
-    checkbox.addEventListener('change', (event) => {
-      file.done = event.target.checked;
-      saveState();
-    });
     const span = document.createElement('span');
     span.textContent = 'Файл готовий';
     statusRow.append(checkbox, span);
     card.appendChild(statusRow);
 
+    const body = document.createElement('div');
+    body.className = 'file-card-body';
+
+    if (file.purpose) {
+      const desc = document.createElement('p');
+      desc.className = 'file-card-description';
+      desc.textContent = file.purpose;
+      body.appendChild(desc);
+    }
+
     if (file.isSimple) {
       const note = document.createElement('p');
       note.className = 'file-card-note';
       note.textContent = file.instructions;
-      card.appendChild(note);
+      body.appendChild(note);
     } else if (file.prompt) {
       const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
-      card.appendChild(createPromptBlock(file.prompt, {
+      const promptBlock = createPromptBlock(file.prompt, {
         copyLabel: `Промпт для ${file.path}`,
         ai: aiTarget,
         openLabel: getAiLabel(aiTarget),
         collapsible: true
-      }));
+      });
+      body.appendChild(promptBlock);
       const tip = document.createElement('p');
       tip.className = 'file-card-note';
       tip.textContent = 'Згенеруй код, встав у файл і познач, що він готовий.';
-      card.appendChild(tip);
+      body.appendChild(tip);
     }
+
+    card.appendChild(body);
+
+    const applyCollapsedState = (done) => {
+      card.classList.toggle('collapsed', done);
+      body.hidden = !!done;
+    };
+
+    applyCollapsedState(file.done);
+
+    checkbox.addEventListener('change', (event) => {
+      file.done = event.target.checked;
+      saveState();
+      applyCollapsedState(file.done);
+    });
 
     stack.appendChild(card);
   });
@@ -1825,6 +2374,242 @@ function renderCustomDiagnosticsStep(container) {
       openLabel: getAiLabel(aiTarget)
     }));
     renderInfo(container, ['Після виправлень повернись до кроку з командами та протестуй знову.']);
+  }
+}
+
+function renderPresetReplyStep(container) {
+  const spec = getPresetUiSpec('reply');
+  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+  if (!spec || !spec.type) {
+    renderInfo(container, ['• Спочатку обери тип бота, щоб побачити рекомендоване меню.']);
+    return;
+  }
+  const uiState = ensureUiState();
+  if (!spec.needed) {
+    const lines = ['• Для цього сценарію reply-меню не є обов’язковим. Можеш пропустити крок або запросити варіант через промпт.'];
+    if (spec.discoveryHint) lines.push(`• Підказка: ${spec.discoveryHint}`);
+    renderInfo(container, lines);
+    const prompt = generatePresetUiDiscoveryPrompt('reply', spec.type);
+    container.appendChild(createPromptBlock(prompt, {
+      copyLabel: 'Запросити меню',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true
+    }));
+    return;
+  }
+
+  const variants = spec.variants;
+  if (!variants.length) {
+    renderInfo(container, ['• Для цього бота немає готових кнопок. Використай промпт нижче, щоб згенерувати свої.']);
+    const prompt = generatePresetUiDiscoveryPrompt('reply', spec.type);
+    container.appendChild(createPromptBlock(prompt, {
+      copyLabel: 'Запросити меню',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true
+    }));
+    return;
+  }
+
+  let current = variants.find((variant) => variant.id === uiState.replyVariant);
+  if (!current) {
+    current = variants[0];
+    uiState.replyVariant = current.id;
+    saveState();
+  }
+
+  if (variants.length > 1) {
+    const select = document.createElement('select');
+    variants.forEach((variant) => {
+      const option = document.createElement('option');
+      option.value = variant.id;
+      option.textContent = variant.title;
+      if (variant.id === current.id) option.selected = true;
+      select.appendChild(option);
+    });
+    select.addEventListener('change', (event) => {
+      uiState.replyVariant = event.target.value;
+      saveState();
+      draw(false);
+    });
+    container.appendChild(makeRow('Варіант меню', wrapControl(select)));
+  }
+
+  const introLines = [`• Обраний варіант: ${current.title}.`];
+  if (current.description) introLines.push(`• ${current.description}`);
+  if (spec.notes) introLines.push(`• ${spec.notes}`);
+  if (spec.discoveryHint) introLines.push(`• Якщо хочеш інший набір: ${spec.discoveryHint}`);
+  renderInfo(container, introLines);
+
+  const buttonLines = current.buttons.map((button) => {
+    const details = [];
+    if (button.purpose) details.push(button.purpose);
+    if (button.callback) details.push(`callback: ${button.callback}`);
+    if (button.url) details.push(`URL: ${button.url}`);
+    if (button.note) details.push(button.note);
+    return `• ${button.text}${details.length ? ' — ' + details.join('; ') : ''}`;
+  });
+  renderInfo(container, buttonLines, 'Додай кнопки у хендлер /start і протестуй меню.');
+
+  const prompt = generatePresetUiCodePrompt('reply', current, spec.type);
+  container.appendChild(createPromptBlock(prompt, {
+    copyLabel: 'Оновити код для меню',
+    ai: aiTarget,
+    openLabel: getAiLabel(aiTarget),
+    collapsible: true
+  }));
+
+  const discoveryPrompt = generatePresetUiDiscoveryPrompt('reply', spec.type);
+  container.appendChild(createPromptBlock(discoveryPrompt, {
+    copyLabel: 'Запросити інший варіант',
+    ai: aiTarget,
+    openLabel: getAiLabel(aiTarget),
+    collapsible: true
+  }));
+
+  const customNote = [
+    '• Можеш перелічити власні кнопки (формат: Назва — призначення — callback/URL).',
+    '• Скопіюй промпт нижче, щоб ШІ згенерував код саме для твого набору.'
+  ];
+  renderInfo(container, customNote);
+
+  const textarea = document.createElement('textarea');
+  textarea.value = uiState.replyCustomSpec;
+  textarea.placeholder = '📋 Клієнти — показати список активних клієнтів\n➕ Новий клієнт — відкрити форму додавання\n...';
+  textarea.rows = 4;
+  textarea.addEventListener('input', (event) => {
+    uiState.replyCustomSpec = event.target.value;
+    saveState();
+  });
+  container.appendChild(makeRow('Власний набір кнопок', wrapControl(textarea)));
+
+  const customPrompt = generatePresetUiCustomPrompt('reply', uiState.replyCustomSpec, spec.type);
+  if (customPrompt) {
+    container.appendChild(createPromptBlock(customPrompt, {
+      copyLabel: 'Оновити код за власним меню',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true
+    }));
+  }
+}
+
+function renderPresetInlineStep(container) {
+  const spec = getPresetUiSpec('inline');
+  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+  if (!spec || !spec.type) {
+    renderInfo(container, ['• Обери тип бота, щоб налаштувати inline-кнопки.']);
+    return;
+  }
+  const uiState = ensureUiState();
+  if (!spec.needed) {
+    const lines = ['• У брифі для цього сценарію inline-кнопки не обов’язкові. Можеш пропустити крок або додати їх за потреби.'];
+    if (spec.discoveryHint) lines.push(`• Підказка: ${spec.discoveryHint}`);
+    renderInfo(container, lines);
+    const prompt = generatePresetUiDiscoveryPrompt('inline', spec.type);
+    container.appendChild(createPromptBlock(prompt, {
+      copyLabel: 'Запросити inline-кнопки',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true
+    }));
+    return;
+  }
+
+  const variants = spec.variants;
+  if (!variants.length) {
+    renderInfo(container, ['• Готових inline-кнопок немає. Використай промпт нижче, щоб згенерувати свої.']);
+    const prompt = generatePresetUiDiscoveryPrompt('inline', spec.type);
+    container.appendChild(createPromptBlock(prompt, {
+      copyLabel: 'Запросити inline-кнопки',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true
+    }));
+    return;
+  }
+
+  let current = variants.find((variant) => variant.id === uiState.inlineVariant);
+  if (!current) {
+    current = variants[0];
+    uiState.inlineVariant = current.id;
+    saveState();
+  }
+
+  if (variants.length > 1) {
+    const select = document.createElement('select');
+    variants.forEach((variant) => {
+      const option = document.createElement('option');
+      option.value = variant.id;
+      option.textContent = variant.title;
+      if (variant.id === current.id) option.selected = true;
+      select.appendChild(option);
+    });
+    select.addEventListener('change', (event) => {
+      uiState.inlineVariant = event.target.value;
+      saveState();
+      draw(false);
+    });
+    container.appendChild(makeRow('Варіант кнопок', wrapControl(select)));
+  }
+
+  const introLines = [`• Обраний набір: ${current.title}.`];
+  if (current.description) introLines.push(`• ${current.description}`);
+  if (spec.notes) introLines.push(`• ${spec.notes}`);
+  if (spec.discoveryHint) introLines.push(`• Якщо потрібно інше рішення: ${spec.discoveryHint}`);
+  renderInfo(container, introLines);
+
+  const buttonLines = current.buttons.map((button) => {
+    const details = [];
+    if (button.purpose) details.push(button.purpose);
+    if (button.callback) details.push(`callback: ${button.callback}`);
+    if (button.url) details.push(`URL: ${button.url}`);
+    if (button.note) details.push(button.note);
+    return `• ${button.text}${details.length ? ' — ' + details.join('; ') : ''}`;
+  });
+  renderInfo(container, buttonLines, 'Додай кнопки у відповідні повідомлення і протестуй сценарій.');
+
+  const prompt = generatePresetUiCodePrompt('inline', current, spec.type);
+  container.appendChild(createPromptBlock(prompt, {
+    copyLabel: 'Оновити код для inline-кнопок',
+    ai: aiTarget,
+    openLabel: getAiLabel(aiTarget),
+    collapsible: true
+  }));
+
+  const discoveryPrompt = generatePresetUiDiscoveryPrompt('inline', spec.type);
+  container.appendChild(createPromptBlock(discoveryPrompt, {
+    copyLabel: 'Запросити інший варіант',
+    ai: aiTarget,
+    openLabel: getAiLabel(aiTarget),
+    collapsible: true
+  }));
+
+  const customNote = [
+    '• Перерахуйте власні inline-кнопки (формат: Назва — призначення — callback/URL).',
+    '• За потреби додайте, який хендлер викликати.'
+  ];
+  renderInfo(container, customNote);
+
+  const textarea = document.createElement('textarea');
+  textarea.value = uiState.inlineCustomSpec;
+  textarea.placeholder = '✅ Готово — закрити завдання — callback task_done\n❌ Пропустити — пропустити завдання — callback task_skip\n...';
+  textarea.rows = 4;
+  textarea.addEventListener('input', (event) => {
+    uiState.inlineCustomSpec = event.target.value;
+    saveState();
+  });
+  container.appendChild(makeRow('Власні inline-кнопки', wrapControl(textarea)));
+
+  const customPrompt = generatePresetUiCustomPrompt('inline', uiState.inlineCustomSpec, spec.type);
+  if (customPrompt) {
+    container.appendChild(createPromptBlock(customPrompt, {
+      copyLabel: 'Оновити код за власними кнопками',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true
+    }));
   }
 }
 
@@ -2410,7 +3195,11 @@ function validateStep(step) {
     case 'environment':
       return state.choices.environment ? ok() : fail('Оберіть середовище.');
     case 'tools': {
-      const required = TOOL_CHECKLIST.filter((tool) => !tool.optional || state.choices.mode === 'codex');
+      const checklist = state.choices.environment === 'codespaces' ? CODESPACES_TOOL_CHECKLIST : TOOL_CHECKLIST;
+      const required = checklist.filter((tool) => !tool.optional || state.choices.mode === 'codex');
+      required.forEach((tool) => {
+        if (state.tools[tool.id] === undefined) state.tools[tool.id] = false;
+      });
       const ready = required.every((tool) => state.tools[tool.id]);
       return ready ? ok() : fail('Постав галочки у чек-листі.');
     }
@@ -2506,10 +3295,17 @@ function loadState() {
     merged.tools = Object.assign({}, defaultState.tools, merged.tools);
     if (merged.tools.requirements === undefined) merged.tools.requirements = false;
     if (merged.tools.env === undefined) merged.tools.env = false;
+    if (merged.tools.codespace === undefined) merged.tools.codespace = false;
+    if (merged.tools.browser === undefined) merged.tools.browser = false;
     merged.custom = Object.assign(structuredClone(defaultCustomState), merged.custom || {});
     if (!Array.isArray(merged.custom.files)) merged.custom.files = [];
     if (!merged.custom.diag) merged.custom.diag = { description: '', logs: '', prompt: '' };
     if (!merged.choices.entryFile) merged.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
+    merged.ui = Object.assign(structuredClone(defaultUiState), merged.ui || {});
+    if (!merged.ui.replyVariant) merged.ui.replyVariant = 'default';
+    if (!merged.ui.inlineVariant) merged.ui.inlineVariant = 'default';
+    if (typeof merged.ui.replyCustomSpec !== 'string') merged.ui.replyCustomSpec = '';
+    if (typeof merged.ui.inlineCustomSpec !== 'string') merged.ui.inlineCustomSpec = '';
     return merged;
   } catch (error) {
     console.error('Не вдалося завантажити стан', error);
