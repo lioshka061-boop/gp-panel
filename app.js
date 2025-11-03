@@ -392,34 +392,32 @@ function isCustomBot(currentState = state) {
 function generateCustomBriefPrompt() {
   const custom = ensureCustomState();
   const requirements = custom.requirements?.trim() || 'Опис ще не додано.';
-  return [
-    `ТЗ: ${requirements}.`,
-    'Зроби бриф для розробки бота. Відповідай JSON:',
-    '{',
-    '  "commands": [...],',
-    '  "files": [',
-    '    {"path": "...", "purpose": "...", "isSimple": true|false}',
-    '  ],',
-    '  "backend": {"language": "...", "framework": "...", "notes": "..."},',
-    '  "storage": {"type": "...", "details": "...", "reason": "..."},',
-    '  "ui": {',
-    '    "reply": {',
-    '      "needed": true|false,',
-    '      "buttons": [',
-    '        {"text": "...", "purpose": "..."}',
-    '      ],',
-    '      "notes": "..."',
-    '    },',
-    '    "inline": {',
-    '      "needed": true|false,',
-    '      "buttons": [',
-    '        {"text": "...", "purpose": "...", "callback": "..."}',
-    '      ],',
-    '      "notes": "..."',
-    '    }',
-    '  }',
-    '}'
-  ].join('\n');
+  return `ТЗ: ${requirements}.
+Зроби бриф для розробки бота. Відповідай строго валідним JSON без коментарів і зайвого тексту:
+{
+  "commands": [...],
+  "files": [
+    {"path": "...", "purpose": "...", "isSimple": true|false}
+  ],
+  "backend": {"language": "...", "framework": "...", "notes": "..."},
+  "storage": {"type": "...", "details": "...", "reason": "..."},
+  "ui": {
+    "reply": {
+      "needed": true|false,
+      "buttons": [
+        {"text": "...", "purpose": "..."}
+      ],
+      "notes": "..."
+    },
+    "inline": {
+      "needed": true|false,
+      "buttons": [
+        {"text": "...", "purpose": "...", "callback": "..."}
+      ],
+      "notes": "..."
+    }
+  }
+}`;
 }
 
 function generateManualFilePromptForSpec(brief, fileSpec) {
@@ -550,34 +548,6 @@ function customBriefHasReminder() {
   );
 }
 
-function extractBriefList(brief, candidates) {
-  if (!brief) return [];
-  for (const path of candidates) {
-    const parts = path.split('.');
-    let current = brief;
-    for (const part of parts) {
-      if (current && typeof current === 'object' && part in current) {
-        current = current[part];
-      } else {
-        current = undefined;
-        break;
-      }
-    }
-    if (Array.isArray(current) && current.length) {
-      return current;
-    }
-  }
-  return [];
-}
-
-function formatBriefItem(item) {
-  if (typeof item === 'string') return item;
-  if (item && typeof item === 'object') {
-    return item.title || item.text || item.label || JSON.stringify(item);
-  }
-  return String(item);
-}
-
 function generateCommandFixPrompt(customState) {
   const briefText = customState.brief ? JSON.stringify(customState.brief, null, 2) : 'Бриф ще не збережено.';
   const commands = (state.commands || []).map((cmd) => normalizeCommand(cmd)).filter(Boolean).join(', ');
@@ -649,6 +619,16 @@ function generateUiDiscoveryPrompt(section) {
     lines.push(`Поясни, які зміни треба внести у ${entryFile}, та додай оновлений код для відповідних частин.`);
   }
   return lines.join('\n');
+}
+
+function parseCustomBrief(rawText) {
+  if (!rawText) throw new Error('Бриф порожній.');
+  let normalized = rawText.trim();
+  if (normalized.startsWith('```')) {
+    const fenceEnd = normalized.lastIndexOf('```');
+    normalized = normalized.slice(normalized.indexOf('\n') + 1, fenceEnd).trim();
+  }
+  return JSON.parse(normalized);
 }
 
 const elements = {
@@ -1610,7 +1590,7 @@ function renderCustomBriefInputStep(container) {
   saveBtn.textContent = 'Зберегти бриф';
   saveBtn.addEventListener('click', () => {
     try {
-      const parsed = JSON.parse(custom.briefText);
+      const parsed = parseCustomBrief(custom.briefText);
       custom.brief = parsed;
       updateCustomFilePlan(parsed);
       if (Array.isArray(parsed.commands) && parsed.commands.length) {
@@ -1629,7 +1609,7 @@ function renderCustomBriefInputStep(container) {
       showToast('Бриф збережено.');
     } catch (error) {
       console.error('Не вдалося розпарсити бриф', error);
-      showToast('Помилка JSON. Перевір синтаксис.');
+      showToast('Помилка JSON. Перевір синтаксис. Якщо ChatGPT повернув відповідь у ```json``` — скопіюй лише вміст без кодових блоків.');
     }
   });
   actions.appendChild(saveBtn);
@@ -1828,31 +1808,47 @@ function renderCustomReplyStep(container) {
     renderInfo(container, ['• Спочатку збережи бриф, щоб побачити рекомендоване меню.']);
     return;
   }
-  const replyList = extractBriefList(custom.brief, [
-    'replyMenu',
-    'reply_menu',
-    'replyButtons',
-    'reply_buttons',
-    'ui.reply',
-    'ui.replyMenu'
-  ]);
-  if (replyList.length) {
-    const items = replyList.map((item) => `• ${formatBriefItem(item)}`);
-    renderInfo(container, items, 'Додай кнопки у бота та протестуй /start.');
-  } else {
-    renderInfo(container, ['• У брифі немає даних про reply-меню. Попроси ШІ запропонувати структуру.']);
-    const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
-    const prompt = [
-      `Контекст бота: ${JSON.stringify(custom.brief, null, 2)}.`,
-      'Запропонуй набір reply-кнопок (текст і призначення) українською.'
-    ].join('\n');
+  const section = getUiSection('reply');
+  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+
+  if (section && section.needed === false) {
+    renderInfo(container, ['У брифі зазначено, що reply-меню не потрібне. Пропусти цей крок або, за бажанням, згенеруй меню через промпт.']);
+    const prompt = generateUiDiscoveryPrompt('reply');
     container.appendChild(createPromptBlock(prompt, {
-      copyLabel: 'Запросити варіанти меню',
+      copyLabel: 'Все ж згенерувати меню',
       ai: aiTarget,
       openLabel: getAiLabel(aiTarget),
       collapsible: true
     }));
+    return;
   }
+
+  if (section && section.buttons.length) {
+    const items = section.buttons.map((button) => {
+      const text = button.text || button.label || button.title || 'Кнопка';
+      const details = [button.purpose, button.target, button.note].filter(Boolean).join('; ');
+      return details ? `• ${text} — ${details}` : `• ${text}`;
+    });
+    if (section.notes) items.push(`Примітка брифу: ${section.notes}`);
+    renderInfo(container, items, 'Додай кнопки у бота та протестуй `/start`.');
+    const prompt = generateUiCodePrompt('reply', section.buttons);
+    container.appendChild(createPromptBlock(prompt, {
+      copyLabel: 'Оновити код для меню',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true
+    }));
+    return;
+  }
+
+  renderInfo(container, ['У брифі немає готового reply-меню. Використай промпт, щоб згенерувати його.']);
+  const prompt = generateUiDiscoveryPrompt('reply');
+  container.appendChild(createPromptBlock(prompt, {
+    copyLabel: 'Запросити варіанти меню',
+    ai: aiTarget,
+    openLabel: getAiLabel(aiTarget),
+    collapsible: true
+  }));
 }
 
 function renderCustomInlineStep(container) {
@@ -1861,29 +1857,47 @@ function renderCustomInlineStep(container) {
     renderInfo(container, ['• Спочатку збережи бриф, щоб побачити inline-кнопки.']);
     return;
   }
-  const inlineList = extractBriefList(custom.brief, [
-    'inlineButtons',
-    'inline_buttons',
-    'ui.inline',
-    'ui.inlineButtons'
-  ]);
-  if (inlineList.length) {
-    const items = inlineList.map((item) => `• ${formatBriefItem(item)}`);
-    renderInfo(container, items, 'Налаштуй callback-и й протестуй сценарії.' );
-  } else {
-    renderInfo(container, ['• Бриф не містить inline-кнопок. Використай промпт нижче, щоб отримати рекомендації.']);
-    const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
-    const prompt = [
-      `Контекст бота: ${JSON.stringify(custom.brief, null, 2)}.`,
-      'Склади варіанти inline-кнопок (текст, callback/URL) для ключових сценаріїв.'
-    ].join('\n');
+  const section = getUiSection('inline');
+  const aiTarget = state.choices.mode === 'codex' ? 'codex' : 'chatgpt';
+
+  if (section && section.needed === false) {
+    renderInfo(container, ['У брифі вказано, що inline-кнопки не потрібні. Пропусти цей крок або створи власні за промптом.']);
+    const prompt = generateUiDiscoveryPrompt('inline');
     container.appendChild(createPromptBlock(prompt, {
-      copyLabel: 'Попросити inline-кнопки',
+      copyLabel: 'Все ж додати inline-кнопки',
       ai: aiTarget,
       openLabel: getAiLabel(aiTarget),
       collapsible: true
     }));
+    return;
   }
+
+  if (section && section.buttons.length) {
+    const items = section.buttons.map((button) => {
+      const text = button.text || button.label || button.title || 'Кнопка';
+      const parts = [button.purpose, button.callback, button.url, button.note].filter(Boolean);
+      return parts.length ? `• ${text} — ${parts.join('; ')}` : `• ${text}`;
+    });
+    if (section.notes) items.push(`Примітка брифу: ${section.notes}`);
+    renderInfo(container, items, 'Налаштуй callback-и та протестуй сценарії.');
+    const prompt = generateUiCodePrompt('inline', section.buttons);
+    container.appendChild(createPromptBlock(prompt, {
+      copyLabel: 'Оновити код для inline-кнопок',
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true
+    }));
+    return;
+  }
+
+  renderInfo(container, ['У брифі немає даних про inline-кнопки. Використай промпт, щоб згенерувати їх.']);
+  const prompt = generateUiDiscoveryPrompt('inline');
+  container.appendChild(createPromptBlock(prompt, {
+    copyLabel: 'Попросити inline-кнопки',
+    ai: aiTarget,
+    openLabel: getAiLabel(aiTarget),
+    collapsible: true
+  }));
 }
 
 function renderEnvStep(container) {
