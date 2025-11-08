@@ -634,7 +634,7 @@ const MODE_OPTIONS = [
   },
   {
     id: "codex",
-    title: "ChatGPT + Codex (Copilot)",
+    title: "ChatGPT + Codex",
     description: "Потрібна підписка. Швидше та чистіше.",
   },
 ];
@@ -659,11 +659,11 @@ const ENTRY_FILE_OPTIONS = [
 
 const TOOL_CHECKLIST = [
   { id: "python", label: "Python 3.10+ встановлено" },
-  { id: "editor", label: "Редактор відкривається (VS Code / Cursor)" },
+  { id: "editor", label: "Редактор відкривається (VS Code)" },
   { id: "github", label: "Є обліковий запис GitHub" },
   {
-    id: "copilot",
-    label: "Copilot увімкнений (для режиму Codex)",
+    id: "Codex",
+    label: "Codex увімкнений",
     optional: true,
   },
 ];
@@ -679,8 +679,8 @@ const CODESPACES_TOOL_CHECKLIST = [
     label: "Відкрив термінал у Codespaces та запустив тестову команду",
   },
   {
-    id: "copilot",
-    label: "Copilot увімкнений (для режиму Codex)",
+    id: "Codex",
+    label: "Codex увімкнений",
     optional: true,
   },
 ];
@@ -910,7 +910,7 @@ const LAUNCH_STEPS = [
     title: "Створення бота у BotFather",
     items: [
       "Перейди у `@BotFather` → команда `/newbot`.",
-      "Скопіюй токен та додай у `.env` як `TOKEN=...`.",
+      "Скопіюй токен та додай у `.env` як `BOT_TOKEN=тут_твій_токен`.",
     ],
   },
   {
@@ -979,7 +979,7 @@ const defaultState = {
 
 const AI_LINKS = {
   chatgpt: "https://chat.openai.com/",
-  codex: "https://cursor.com/",
+  codex: "https://chatgpt.com/codex/",
 };
 
 function getEntryFile(currentState = state) {
@@ -1727,19 +1727,45 @@ function buildSteps(currentState) {
     createStep("tools", "I. Старт", "Перевірка інструментів", renderToolsStep)
   );
 
-  // II. Підготовка проєкту
-  result.push(
-    createStep("folder", "II. Підготовка проєкту", "Створення папки", (c) =>
-      renderInfo(
-        c,
-        [
-          "• Створи папку `mybot`.",
-          "• Відкрий її у редакторі (VS Code / Cursor).",
-        ],
-        "Мета: мати чисте місце для файлів бота."
-      )
-    )
-  );
+// II. Підготовка проєкту
+result.push(
+  createStep(
+    "folder",
+    "II. Підготовка проєкту",
+    "Створення робочого середовища",
+    (container) => {
+      const env = state.choices.environment; // 'local' або 'codespaces'
+
+      if (env === "codespaces") {
+        // ТІЛЬКИ текст, без копі-кнопок
+        renderInfo(
+          container,
+          [
+            "1. Зайди на свій репозиторій на GitHub.",
+            "2. Натисни кнопку `Code`.",
+            "3. Перейди на вкладку `Codespaces`.",
+            "4. Натисни `Create codespace on main`.",
+            "5. Дочекайся, поки відкриється веб-VS Code — це і є твій Codespace."
+          ],
+          "Мета: відкрити репозиторій у Codespaces і працювати там з файлами бота (main.py, requirements.txt, .env тощо)."
+        );
+      } else {
+        // LOCAL як було
+        renderInfo(
+          container,
+          [
+            "• Створи папку `mybot` у себе на компʼютері.",
+            "• Відкрий її у редакторі (VS Code)."
+          ],
+          "Мета: мати чисте місце для файлів бота."
+        );
+      }
+    }
+  )
+);
+
+
+
   if (customBot) {
     result.push(
       createStep(
@@ -2188,7 +2214,7 @@ function renderToolsStep(container) {
     ];
     if (state.choices.mode === "codex") {
       infoLines.push(
-        "• Для автодоповнення відкрий View → Extensions, встанови GitHub Copilot і авторизуйся всередині Codespaces."
+        "• Для автодоповнення відкрий View → Extensions, встанови Codex і авторизуйся всередині Codespaces."
       );
     }
     renderInfo(container, infoLines);
@@ -2197,11 +2223,11 @@ function renderToolsStep(container) {
       container,
       [
         "• Python 3.10+ — встанови останню версію із офіційного сайту.",
-        "• IDE — VS Code або Cursor з розширеннями Python, Pylance, Copilot.",
+        "• IDE — VS Code з розширеннями Python, Pylance.",
         "• GitHub — авторизуйся або створи акаунт.",
       ].concat(
         state.choices.mode === "codex"
-          ? ["• Copilot — увімкни GitHub Copilot у VS Code."]
+          ? ["• Codex — увімкни Codex у VS Code."]
           : []
       )
     );
@@ -2247,12 +2273,12 @@ function renderToolsStep(container) {
     if (state.choices.mode === "codex") {
       grid.appendChild(
         createToolCard({
-          title: "Copilot у Codespaces",
+          title: "Codex у Codespaces",
           description:
-            "Увімкни розширення GitHub Copilot прямо в браузерному VS Code.",
-          link: "https://docs.github.com/en/copilot/getting-started-with-github-copilot/github-copilot-in-github-codespaces",
+            "Увімкни розширення Codex прямо в браузерному VS Code.",
+          link: "https://marketplace.visualstudio.com/items?itemName=openai.chatgpt",
           prompt:
-            "Поясни, як у Codespaces встановити розширення GitHub Copilot, увійти та активувати автодоповнення.",
+            "Поясни, як у Codespaces встановити розширення GitHub Codex, увійти та активувати автодоповнення.",
           ai: aiTarget,
         })
       );
@@ -2273,10 +2299,10 @@ function renderToolsStep(container) {
       createToolCard({
         title: "VS Code",
         description:
-          "Редактор із потрібними плагінами: Python, Pylance, Copilot.",
+          "Редактор із потрібними плагінами: Python, Pylance, Codex.",
         link: "https://code.visualstudio.com/",
         prompt:
-          "Поясни, як встановити VS Code та додати розширення Python, Pylance і GitHub Copilot.",
+          "Поясни, як встановити VS Code та додати розширення Python, Pylance і Codex.",
         ai: aiTarget,
       })
     );
@@ -2295,11 +2321,11 @@ function renderToolsStep(container) {
     if (state.choices.mode === "codex") {
       grid.appendChild(
         createToolCard({
-          title: "Copilot",
-          description: "Активуй Copilot у VS Code, щоб працювати з Codex.",
-          link: "https://github.com/features/copilot",
+          title: "Codex",
+          description: "Активуй Codex у VS Code, щоб працювати.",
+          link: "https://marketplace.visualstudio.com/items?itemName=openai.chatgpt",
           prompt:
-            "Поясни, як увімкнути GitHub Copilot у VS Code та авторизуватися.",
+            "Поясни, як увімкнути GitHub Codex у VS Code та авторизуватися.",
           ai: aiTarget,
         })
       );
@@ -2636,7 +2662,7 @@ function renderDevBriefStep(container) {
         state.choices.mode,
         (value) => {
           state.choices.mode = value;
-          if (value !== "codex") state.tools.copilot = false;
+          if (value !== "codex") state.tools.сodex = false;
           saveState();
           draw(false);
         }
@@ -3495,7 +3521,7 @@ function renderCustomInlineStep(container) {
 function renderEnvStep(container) {
   const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
   const promptBlock = createPromptBlock(
-    `Створи файл .env і додай рядок:\n\nTOKEN=сюди_вставиш_токен`,
+    `Створи файл .env і додай рядок:\n\nBOT_TOKEN=тут_твій_токен`,
     {
       copyLabel: "Скопіювати інструкцію",
       ai: aiTarget,
@@ -3536,8 +3562,8 @@ function renderEnvStep(container) {
     carousel.appendChild(
       createCarouselSlide({
         title: "Крок 2. Додай токен",
-        body: "Встав рядок TOKEN=сюди_вставиш_токен, заміни значення на реальний токен.",
-        code: "TOKEN=сюди_вставиш_токен",
+        body: "Встав рядок BOT_TOKEN=тут_твій_токен, заміни значення на реальний токен.",
+        code: "BOT_TOKEN=тут_твій_токен",
       })
     );
 
