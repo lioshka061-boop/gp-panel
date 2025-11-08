@@ -638,6 +638,107 @@ body.nav-open {
   display: none;
 }
 
+.step-details {
+  margin-top: 8px;
+  display: grid;
+  gap: 12px;
+}
+
+.details-toggle {
+  justify-self: flex-start;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.step-details-body {
+  display: grid;
+  gap: 12px;
+}
+
+.step-details-card {
+  background: rgba(18, 26, 48, 0.9);
+  border: 1px solid rgba(110, 138, 255, 0.22);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.step-details-card header {
+  font-weight: 600;
+  font-size: 15px;
+  color: #f4f7ff;
+}
+
+.step-details-card img {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(110, 138, 255, 0.18);
+  box-shadow: 0 12px 40px -26px rgba(70, 110, 255, 0.4);
+}
+
+.step-details-card p {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(227, 238, 255, 0.78);
+}
+
+.module-section {
+  background: rgba(13, 22, 42, 0.92);
+  border: 1px solid rgba(102, 136, 255, 0.22);
+  border-radius: 20px;
+  padding: 18px 22px;
+  display: grid;
+  gap: 14px;
+  box-shadow: 0 18px 60px -44px rgba(60, 90, 190, 0.45);
+}
+
+.module-section + .module-section {
+  margin-top: 12px;
+}
+
+.module-section h4 {
+  margin: 0;
+  font-size: 18px;
+  color: #f4f7ff;
+}
+
+.module-section-desc {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(227, 238, 255, 0.75);
+}
+
+.module-section .form-row {
+  grid-template-columns: 180px 1fr;
+}
+
+.module-section .prompt-area {
+  margin-top: 4px;
+}
+
+.module-card {
+  position: relative;
+  padding-right: 48px;
+}
+
+.module-card input[type="checkbox"] {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: #6fa7ff;
+  background: rgba(9, 14, 28, 0.8);
+  border-radius: 6px;
+}
+
+.module-card input[type="checkbox"]:focus-visible {
+  outline: 2px solid rgba(130, 170, 255, 0.9);
+  outline-offset: 2px;
+}
+
 .file-structure-selector {
   display: flex;
   flex-wrap: wrap;
@@ -830,7 +931,11 @@ body.nav-open {
 }
 
 .form-control select,
-.form-control textarea {
+.form-control textarea,
+.form-control input[type="text"],
+.form-control input[type="number"],
+.form-control input[type="url"],
+.form-control input[type="email"] {
   width: 100%;
   background: rgba(12, 20, 40, 0.95);
   border: 1px solid rgba(120, 150, 255, 0.3);
@@ -848,13 +953,21 @@ body.nav-open {
 }
 
 .form-control select:focus,
-.form-control textarea:focus {
+.form-control textarea:focus,
+.form-control input[type="text"]:focus,
+.form-control input[type="number"]:focus,
+.form-control input[type="url"]:focus,
+.form-control input[type="email"]:focus {
   border-color: rgba(150, 180, 255, 0.9);
   box-shadow: 0 16px 36px -26px rgba(120, 160, 255, 0.65);
 }
 
 .form-control select:hover,
-.form-control textarea:hover {
+.form-control textarea:hover,
+.form-control input[type="text"]:hover,
+.form-control input[type="number"]:hover,
+.form-control input[type="url"]:hover,
+.form-control input[type="email"]:hover {
   border-color: rgba(140, 170, 255, 0.6);
 }
 

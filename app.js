@@ -905,6 +905,37 @@ const PAYMENT_INTRO = [
   "API-ключ — секрет. Не ділись ним у репозиторії.",
 ];
 
+const STEP_DETAILS = {
+  requirements: [
+    {
+      title: "Створення файла",
+      description:
+        "У VS Code натисни `File → New File`, назви його `requirements.txt` та збережи поруч із основним файлом бота.",
+      gif: "assets/details/requirements-create.gif",
+    },
+    {
+      title: "Додавання залежностей",
+      description:
+        "Скопіюй рядки з кроку та встав у файл. Збережи, щоб pip міг встановити бібліотеки.",
+      gif: "assets/details/requirements-fill.gif",
+    },
+  ],
+  "env-file": [
+    {
+      title: "Створення .env",
+      description:
+        "У корені проєкту створи файл `.env`. У ньому будемо тримати секретні змінні.",
+      gif: "assets/details/env-create.gif",
+    },
+    {
+      title: "Додавання BOT_TOKEN",
+      description:
+        "Скопіюй токен із BotFather та встав рядок `BOT_TOKEN=тут_твій_токен`. Файл повинен бути в .gitignore.",
+      gif: "assets/details/env-fill.gif",
+    },
+  ],
+};
+
 const LAUNCH_STEPS = [
   {
     title: "Створення бота у BotFather",
@@ -933,23 +964,66 @@ const LAUNCH_STEPS = [
   },
 ];
 
-const GROWTH_STEPS = [
+const EXTRA_MODULE_OPTIONS = [
   {
-    title: "Додаткові модулі",
-    items: [
-      "🔁 автозбереження",
-      "🌍 багатомовність (uk/en)",
-      "🧩 адмін-панель",
-    ],
+    id: "autosave",
+    title: "Автозбереження",
+    description: "Зберігає та відновлює стан користувачів у наявному сховищі.",
+    icon: "🔁",
   },
   {
-    title: "Фініш",
-    items: [
-      "Повідомлення: «Готово! Ти створив свого Telegram-бота.»",
-      "Кнопки: 🔄 «Створити нового бота», 🚀 «Покращити поточного».",
-    ],
+    id: "adminPanel",
+    title: "Адмін-панель",
+    description: "Окремий режим із меню, статистикою та керуванням заявками.",
+    icon: "🧩",
+  },
+  {
+    id: "i18n",
+    title: "Багатомовність",
+    description: "Словники мов + перемикач мови для користувача (UA/PL/EN).",
+    icon: "🌍",
   },
 ];
+
+const defaultExtraModulesState = {
+  autosave: false,
+  adminPanel: false,
+  i18n: false,
+};
+
+const defaultExtraModuleData = {
+  autosave: {
+    storage: { file: "storage.py", code: "" },
+    hooks: { file: "main.py", code: "" },
+    restore: { file: "main.py", code: "" },
+  },
+  adminPanel: {
+    config: { file: "config.py", code: "" },
+    envSnippet: "",
+    handlers: { file: "handlers_admin.py", code: "" },
+    leads: { file: "handlers_admin.py", code: "" },
+    security: { file: "handlers_admin.py", code: "" },
+  },
+  i18n: {
+    helper: { file: "i18n.py", code: "" },
+    locales: {
+      ua: { file: "locales/ua.json", code: "" },
+      pl: { file: "locales/pl.json", code: "" },
+      en: { file: "locales/en.json", code: "" },
+    },
+    storage: { file: "storage.py", code: "" },
+    language: { file: "main.py", code: "" },
+    usage: { file: "main.py", code: "" },
+  },
+};
+
+const FINISH_STEP = {
+  title: "Фініш",
+  items: [
+    "Повідомлення: «Готово! Ти створив свого Telegram-бота.»",
+    "Кнопки: 🔄 «Створити нового бота», 🚀 «Покращити поточного».",
+  ],
+};
 
 const defaultTools = TOOL_CHECKLIST.reduce(
   (acc, tool) => {
@@ -975,6 +1049,8 @@ const defaultState = {
   commands: ["/start", "/help"],
   ui: structuredClone(defaultUiState),
   custom: structuredClone(defaultCustomState),
+  extraModules: structuredClone(defaultExtraModulesState),
+  extraModuleData: structuredClone(defaultExtraModuleData),
 };
 
 const AI_LINKS = {
@@ -1011,6 +1087,62 @@ function ensureUiState(targetState = state) {
       targetState.ui.inlineCustomSpec = "";
   }
   return targetState.ui;
+}
+
+function ensureExtraModules(targetState = state) {
+  if (!targetState.extraModules) {
+    targetState.extraModules = structuredClone(defaultExtraModulesState);
+  } else {
+    targetState.extraModules = Object.assign(
+      {},
+      defaultExtraModulesState,
+      targetState.extraModules
+    );
+  }
+  return targetState.extraModules;
+}
+
+function ensureExtraModuleData(targetState = state) {
+  if (!targetState.extraModuleData) {
+    targetState.extraModuleData = structuredClone(defaultExtraModuleData);
+  } else {
+    const base = structuredClone(defaultExtraModuleData);
+    mergePlainObject(base, targetState.extraModuleData);
+    targetState.extraModuleData = base;
+  }
+  const data = targetState.extraModuleData;
+  const entryFile = getEntryFile(targetState);
+
+  if (!data.autosave.hooks.file) data.autosave.hooks.file = entryFile;
+  if (!data.autosave.restore.file) data.autosave.restore.file = entryFile;
+  if (!data.adminPanel.handlers.file) data.adminPanel.handlers.file = entryFile;
+  if (!data.adminPanel.leads.file) data.adminPanel.leads.file =
+    data.adminPanel.handlers.file || entryFile;
+  if (!data.adminPanel.security.file) data.adminPanel.security.file =
+    data.adminPanel.handlers.file || entryFile;
+  if (!data.i18n.language.file) data.i18n.language.file = entryFile;
+  if (!data.i18n.usage.file) data.i18n.usage.file = entryFile;
+
+  return data;
+}
+
+function mergePlainObject(target, source) {
+  if (!source || typeof source !== "object" || Array.isArray(source)) return;
+  Object.keys(source).forEach((key) => {
+    const value = source[key];
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      typeof target[key] === "object" &&
+      target[key] !== null &&
+      !Array.isArray(target[key])
+    ) {
+      mergePlainObject(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  });
 }
 
 function isCustomBot(currentState = state) {
@@ -1624,6 +1756,7 @@ function draw(rebuild) {
   elements.stepTitle.textContent = step.title;
   elements.stepBody.innerHTML = "";
   step.render(elements.stepBody);
+  renderStepDetails(elements.stepBody, step.id);
 
   const progress = ((state.currentStep + 1) / steps.length) * 100;
   elements.progressInner.style.width = `${progress}%`;
@@ -1702,6 +1835,8 @@ function buildSteps(currentState) {
   const entryFile = getEntryFile(currentState);
   const customBot = isCustomBot(currentState);
   if (customBot) ensureCustomState(currentState);
+  const extraModules = ensureExtraModules(currentState);
+  ensureExtraModuleData(currentState);
 
   // I. Старт
   result.push(
@@ -2043,12 +2178,33 @@ result.push(
   });
 
   // VIII. Розвиток
-  GROWTH_STEPS.forEach((item, index) => {
-    result.push(
-      createStep(`growth-${index}`, "VIII. Розвиток", item.title, (c) =>
-        renderInfo(c, item.items)
-      )
-    );
+  result.push(
+    createStep(
+      "extra-modules",
+      "VIII. Розвиток",
+      "Додаткові модулі",
+      renderExtraModulesStep
+    )
+  );
+
+  EXTRA_MODULE_OPTIONS.forEach((option) => {
+    if (!extraModules[option.id]) return;
+    const moduleSteps = getExtraModuleStepDefinitions(option.id);
+    moduleSteps.forEach((step) => {
+      result.push(
+        createStep(step.id, "VIII. Розвиток", step.title, step.render)
+      );
+    });
+  });
+
+  result.push(
+    createStep("finish", "VIII. Розвиток", FINISH_STEP.title, (c) =>
+      renderInfo(c, FINISH_STEP.items)
+    )
+  );
+
+  result.forEach((step, index) => {
+    step.number = index + 1;
   });
 
   return result;
@@ -2202,7 +2358,7 @@ function renderEnvironmentStep(container) {
 
 function renderToolsStep(container) {
   const isCodespaces = state.choices.environment === "codespaces";
-  const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+  const aiTarget = getPromptAiTarget("instructions");
 
   if (isCodespaces) {
     const infoLines = [
@@ -2496,7 +2652,7 @@ function renderFileStructureStep(container) {
     wrapper.appendChild(desc);
 
     const prompt = generateManualFilePrompt(fileName);
-    const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+    const aiTarget = getPromptAiTarget("code");
     wrapper.appendChild(
       createPromptBlock(prompt, {
         copyLabel: "Скопіювати промпт для ШІ",
@@ -2605,7 +2761,7 @@ function renderFileStructureStep(container) {
     }
 
     if (item.type === "ai" && item.prompt) {
-      const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+      const aiTarget = getPromptAiTarget("code");
       card.appendChild(
         createPromptBlock(item.prompt, {
           copyLabel: "Скопіювати промпт",
@@ -2718,18 +2874,18 @@ function renderDevBriefStep(container) {
 function renderCodePromptStep(container) {
   const prompt = generateCodePrompt();
   renderInfo(container, ["Використай промпт нижче, щоб отримати код."]);
+  const aiTarget = getPromptAiTarget("code");
   const block = createPromptBlock(prompt, {
     copyLabel: "Скопіювати промпт",
-    ai: state.choices.mode === "codex" ? "codex" : "chatgpt",
-    openLabel:
-      state.choices.mode === "codex" ? "Відкрити Codex" : "Відкрити ChatGPT",
+    ai: aiTarget,
+    openLabel: getAiLabel(aiTarget),
   });
   container.appendChild(block);
 }
 
 function renderRequirementsStep(container) {
   const entryFile = getEntryFile();
-  const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+  const aiTarget = getPromptAiTarget("instructions");
   const promptBlock = createPromptBlock(
     `Створи файл requirements.txt і додай рядки:\n\naiogram==3.*\npython-dotenv`,
     {
@@ -2818,7 +2974,7 @@ function renderCustomBriefPromptStep(container) {
     "Скопіюй промпт і встав у ChatGPT / Codex, щоб отримати JSON-бриф.",
   ]);
   const prompt = generateCustomBriefPrompt();
-  const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+  const aiTarget = getPromptAiTarget("instructions");
   container.appendChild(
     createPromptBlock(prompt, {
       copyLabel: "Скопіювати промпт для брифу",
@@ -2940,7 +3096,7 @@ function renderCustomFilesStep(container) {
       note.textContent = file.instructions;
       body.appendChild(note);
     } else if (file.prompt) {
-      const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+      const aiTarget = getPromptAiTarget("code");
       const promptBlock = createPromptBlock(file.prompt, {
         copyLabel: `Промпт для ${file.path}`,
         ai: aiTarget,
@@ -3083,7 +3239,7 @@ function renderCustomDiagnosticsStep(container) {
   container.appendChild(actions);
 
   if (custom.diag.prompt) {
-    const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+    const aiTarget = getPromptAiTarget("instructions");
     container.appendChild(
       createPromptBlock(custom.diag.prompt, {
         copyLabel: "Скопіювати промпт",
@@ -3099,7 +3255,7 @@ function renderCustomDiagnosticsStep(container) {
 
 function renderPresetReplyStep(container) {
   const spec = getPresetUiSpec("reply");
-  const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+  const aiTarget = getPromptAiTarget("code");
   if (!spec || !spec.type) {
     renderInfo(container, [
       "• Спочатку обери тип бота, щоб побачити рекомендоване меню.",
@@ -3245,7 +3401,7 @@ function renderPresetReplyStep(container) {
 
 function renderPresetInlineStep(container) {
   const spec = getPresetUiSpec("inline");
-  const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+  const aiTarget = getPromptAiTarget("code");
   if (!spec || !spec.type) {
     renderInfo(container, ["• Обери тип бота, щоб налаштувати inline-кнопки."]);
     return;
@@ -3398,7 +3554,7 @@ function renderCustomReplyStep(container) {
     return;
   }
   const section = getUiSection("reply");
-  const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+  const aiTarget = getPromptAiTarget("code");
 
   if (section && section.needed === false) {
     renderInfo(container, [
@@ -3461,7 +3617,7 @@ function renderCustomInlineStep(container) {
     return;
   }
   const section = getUiSection("inline");
-  const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+  const aiTarget = getPromptAiTarget("code");
 
   if (section && section.needed === false) {
     renderInfo(container, [
@@ -3519,7 +3675,7 @@ function renderCustomInlineStep(container) {
 }
 
 function renderEnvStep(container) {
-  const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+  const aiTarget = getPromptAiTarget("instructions");
   const promptBlock = createPromptBlock(
     `Створи файл .env і додай рядок:\n\nBOT_TOKEN=тут_твій_токен`,
     {
@@ -3579,9 +3735,29 @@ function renderEnvStep(container) {
 }
 
 function renderBackendChoiceStep(container) {
+  const infoLines = [
+    "• JSON файл — обери для швидких прототипів і соло-проєктів без складних звітів.",
+    "• SQLite — коли записів уже сотні, потрібні фільтри й прості запити без сервера.",
+    "• Google Sheets — якщо команді треба бачити дані у таблиці через браузер.",
+    "• Postgres (Docker) — для продакшн-ботів із кількома розробниками та серйозним навантаженням.",
+  ];
+  const recommendedId = isCustomBot() ? getRecommendedBackendId() : null;
+  const recommendedOption = BACKEND_OPTIONS.find(
+    (item) => item.id === recommendedId
+  );
+  if (recommendedOption) {
+    infoLines.unshift(
+      `• Для твого сценарію найчастіше підходить ${recommendedOption.title}. Обери його, якщо сумніваєшся.`
+    );
+  }
+  renderInfo(
+    container,
+    infoLines,
+    "Завжди можна повернутися та змінити вибір до того, як виконаєш кроки."
+  );
+
   const cards = document.createElement("div");
   cards.className = "card-grid";
-  const recommendedId = isCustomBot() ? getRecommendedBackendId() : null;
   BACKEND_OPTIONS.forEach((option) => {
     const card = document.createElement("div");
     card.className = "card";
@@ -3622,7 +3798,7 @@ function renderBackendConfirmStep(container) {
 function renderBackendStep(container, backendTitle, step) {
   renderInfo(container, [`${backendTitle}: ${step.text}`]);
   if (step.prompt) {
-    const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+    const aiTarget = getPromptAiTarget("code");
     const block = createPromptBlock(step.prompt, {
       copyLabel: "Скопіювати промпт",
       ai: aiTarget,
@@ -3679,7 +3855,7 @@ function renderPaymentPrepStep(container) {
 function renderPaymentStep(container, title, step) {
   renderInfo(container, [`• ${title}: ${step.text}`]);
   if (step.prompt) {
-    const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+    const aiTarget = getPromptAiTarget("code");
     const block = createPromptBlock(step.prompt, {
       copyLabel: "Скопіювати промпт",
       ai: aiTarget,
@@ -3709,7 +3885,7 @@ function renderLaunchStep(container, step) {
       renderInfo(container, [
         "Якщо якась команда не працює, скористайся промптом нижче для виправлення.",
       ]);
-      const aiTarget = state.choices.mode === "codex" ? "codex" : "chatgpt";
+      const aiTarget = getPromptAiTarget("code");
       const prompt = generateCommandFixPrompt(ensureCustomState());
       container.appendChild(
         createPromptBlock(prompt, {
@@ -3723,6 +3899,565 @@ function renderLaunchStep(container, step) {
     return;
   }
   renderInfo(container, step.items || []);
+}
+
+function renderStepDetails(container, stepId) {
+  const details = STEP_DETAILS[stepId];
+  if (!details || !details.length) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "step-details";
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "ghost details-toggle";
+  toggle.textContent = "Детальніше";
+  wrapper.appendChild(toggle);
+
+  const body = document.createElement("div");
+  body.className = "step-details-body";
+  body.hidden = true;
+
+  details.forEach((item, index) => {
+    const card = document.createElement("article");
+    card.className = "step-details-card";
+
+    const header = document.createElement("header");
+    header.textContent = item.title || `Крок ${index + 1}`;
+    card.appendChild(header);
+
+    if (item.gif) {
+      const img = document.createElement("img");
+      img.src = item.gif;
+      img.alt = item.title || "Детальний приклад";
+      img.loading = "lazy";
+      card.appendChild(img);
+    }
+
+    if (item.description) {
+      const p = document.createElement("p");
+      p.textContent = item.description;
+      card.appendChild(p);
+    }
+
+    body.appendChild(card);
+  });
+
+  toggle.addEventListener("click", () => {
+    body.hidden = !body.hidden;
+    toggle.textContent = body.hidden ? "Детальніше" : "Згорнути деталі";
+  });
+
+  wrapper.appendChild(body);
+  container.appendChild(wrapper);
+}
+
+function renderExtraModulesStep(container) {
+  const modules = ensureExtraModules();
+  ensureExtraModuleData();
+  const selected = EXTRA_MODULE_OPTIONS.filter(
+    (option) => modules[option.id]
+  );
+
+  const infoLines = [
+    "• Обери додаткові модулі. Для кожного з них зʼявиться власна серія кроків.",
+    "• Якщо модуль не потрібен — достатньо залишити чекбокс вимкненим, і після цього кроку одразу буде «Фініш».",
+  ];
+  if (selected.length) {
+    infoLines.push(
+      `• Активовано: ${selected.map((item) => item.title).join(", ")}.`
+    );
+  } else {
+    infoLines.push("• Нині модулі не обрані — після цього кроку буде фінал.");
+  }
+  renderInfo(container, infoLines);
+
+  const grid = document.createElement("div");
+  grid.className = "card-grid";
+
+  EXTRA_MODULE_OPTIONS.forEach((option) => {
+    const card = document.createElement("label");
+    card.className = "card module-card";
+    if (modules[option.id]) card.classList.add("active");
+    card.tabIndex = 0;
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = !!modules[option.id];
+    checkbox.addEventListener("change", (event) => {
+      modules[option.id] = event.target.checked;
+      saveState();
+      draw(true);
+    });
+
+    const title = document.createElement("h3");
+    title.textContent = `${option.icon || ""} ${option.title}`.trim();
+
+    const desc = document.createElement("p");
+    desc.textContent = option.description;
+
+    card.appendChild(checkbox);
+    card.appendChild(title);
+    card.appendChild(desc);
+    grid.appendChild(card);
+  });
+
+  container.appendChild(grid);
+
+  const hint = document.createElement("p");
+  hint.className = "note-block";
+  hint.textContent =
+    "Повернутися до цього кроку можна у будь-який момент — вибір миттєво перебудує подальші кроки.";
+  container.appendChild(hint);
+}
+
+function renderAutosaveStorageStep(container) {
+  const data = ensureExtraModuleData().autosave;
+  const backendTitle = getBackendTitle();
+  renderInfo(container, [
+    `• Поточний тип зберігання: ${backendTitle}. Працюй поверх нього — змінювати на інший тип не можна.`,
+    "• Додай у файл сховища функції save_user_state(user_id, state_dict) та load_user_state(user_id).",
+    "• Якщо потрібен окремий запис/таблиця для стану — створи її без ламання існуючої структури.",
+  ]);
+
+  renderCodePromptSection(container, {
+    title: "Файл зі сховищем користувача",
+    dataRef: data.storage,
+    fileLabel: "Шлях до файла",
+    composePrompt: () =>
+      composeAutosaveStoragePrompt(data.storage, backendTitle),
+    copyLabel: "Скопіювати промпт для сховища",
+  });
+}
+
+function renderAutosaveHooksStep(container) {
+  const data = ensureExtraModuleData().autosave;
+  const storageFile = data.storage.file || "storage.py";
+  renderInfo(container, [
+    "• Усі місця, де змінюється стан користувача (списки задач, статуси, прогрес), мають викликати функцію save_user_state.",
+    "• Використай існуючий механізм user_id / state — нічого не вигадуй заново, просто додай виклики збереження.",
+    `• Імпортуй save_user_state з файла ${storageFile}.`,
+  ]);
+
+  renderCodePromptSection(container, {
+    title: "Хендлери з логікою бота",
+    dataRef: data.hooks,
+    fileLabel: "Файл з хендлерами",
+    composePrompt: () => composeAutosaveHooksPrompt(data, storageFile),
+    copyLabel: "Скопіювати промпт для автозбереження",
+  });
+}
+
+function renderAutosaveRestoreStep(container) {
+  const data = ensureExtraModuleData().autosave;
+  const storageFile = data.storage.file || "storage.py";
+  renderInfo(container, [
+    "• При першій взаємодії користувача потрібно підтягнути попередній стан, якщо він є.",
+    "• Стартовий сценарій /start має лишитися знайомим: просто додай відновлення перед відправкою повідомлень та кнопок.",
+    `• Використай load_user_state з файла ${storageFile}.`,
+  ]);
+
+  renderCodePromptSection(container, {
+    title: "Відновлення стану у стартовому хендлері",
+    dataRef: data.restore,
+    fileLabel: "Файл із командою /start",
+    composePrompt: () => composeAutosaveRestorePrompt(data, storageFile),
+    copyLabel: "Скопіювати промпт для відновлення",
+  });
+}
+
+function composeAutosaveStoragePrompt(storageData, backendTitle) {
+  if (!storageData) return "";
+  return buildFullFilePrompt({
+    file: storageData.file || "storage.py",
+    code: storageData.code,
+    instructions: [
+      "Додай у файл функції save_user_state(user_id, state_dict) та load_user_state(user_id), які працюють поверх поточного бекенду.",
+      `Використовуй існуючий тип зберігання (${backendTitle}) — не переходь на інший формат.`,
+      "Не ламаючи наявні таблиці/структури, додай усе необхідне для збереження стану (можна створити нову таблицю чи JSON-розділ).",
+    ],
+  });
+}
+
+function composeAutosaveHooksPrompt(data, storageFile) {
+  if (!data?.hooks) return "";
+  return buildFullFilePrompt({
+    file: data.hooks.file || getEntryFile(),
+    code: data.hooks.code,
+    instructions: [
+      `Імпортуй save_user_state (та load_user_state за потреби) з файла ${storageFile}.`,
+      "Знайди всі місця, де оновлюється стан користувача (цілі, задачі, прогрес, статуси) та після кожної зміни викликай save_user_state(user_id, актуальний_стан).",
+      "Не змінюй бізнес-логіку та повідомлення — лише додай акуратні виклики збереження.",
+    ],
+  });
+}
+
+function composeAutosaveRestorePrompt(data, storageFile) {
+  if (!data?.restore) return "";
+  return buildFullFilePrompt({
+    file: data.restore.file || getEntryFile(),
+    code: data.restore.code,
+    instructions: [
+      `У стартовому хендлері (/start або еквівалент) виклич load_user_state(user_id) із файла ${storageFile}.`,
+      "Якщо стан знайдено — підстав його у використовуваний механізм (FSM, власний state-об’єкт тощо) перед відправкою повідомлень.",
+      "Якщо стану немає — залиш існуючу логіку без змін.",
+    ],
+  });
+}
+
+function renderAdminConfigStep(container) {
+  const data = ensureExtraModuleData().adminPanel;
+  renderInfo(container, [
+    "• ADMIN_ID зберігається у `.env`. Достатньо один раз додати рядок і не комітити його у репозиторій.",
+    "• У `config.py` (або відповідному файлі) потрібно читати BOT_TOKEN та ADMIN_ID і надавати функцію is_admin(user_id).",
+  ]);
+
+  const envRow = createTextareaRow("Фрагмент .env (опційно)", {
+    value: data.envSnippet,
+    placeholder: "ADMIN_ID=123456789",
+    rows: 2,
+    onInput: (value) => {
+      data.envSnippet = value;
+      saveState();
+    },
+  });
+  container.appendChild(envRow);
+
+  renderCodePromptSection(container, {
+    title: "config.py",
+    dataRef: data.config,
+    fileLabel: "Файл конфігурації",
+    composePrompt: () => composeAdminConfigPrompt(data),
+    copyLabel: "Скопіювати промпт для config.py",
+  });
+}
+
+function renderAdminMenuStep(container) {
+  const data = ensureExtraModuleData().adminPanel;
+  renderInfo(container, [
+    "• Команда /admin має працювати лише для адміністратора.",
+    "• Для адміністратора покажи клавіатуру з опціями: «Заявки», «Статистика», «Налаштування», «Вийти з адмін-режиму».",
+    "• Для інших користувачів — коротке повідомлення «Доступ заборонено».",
+  ]);
+
+  renderCodePromptSection(container, {
+    title: "Хендлери адмін-панелі",
+    dataRef: data.handlers,
+    fileLabel: "Файл з командами",
+    composePrompt: () => composeAdminMenuPrompt(data),
+    copyLabel: "Скопіювати промпт для команди /admin",
+  });
+}
+
+function renderAdminLeadsStep(container) {
+  const data = ensureExtraModuleData().adminPanel;
+  const backendTitle = getBackendTitle();
+  renderInfo(container, [
+    "• Кнопка «Заявки» має показувати останні звернення користувачів (або ключову статистику по ним).",
+    `• Використай поточне сховище (${backendTitle}) та його функції. Нічого не дублюй.`,
+  ]);
+
+  renderCodePromptSection(container, {
+    title: "Обробка кнопки «Заявки»",
+    dataRef: data.leads,
+    fileLabel: "Файл з адмін-хендлерами",
+    composePrompt: () => composeAdminLeadsPrompt(data, backendTitle),
+    copyLabel: "Скопіювати промпт для розділу «Заявки»",
+  });
+}
+
+function renderAdminSecurityStep(container) {
+  const data = ensureExtraModuleData().adminPanel;
+  renderInfo(container, [
+    "• Кожен адмін-хендлер перевіряє is_admin перед виконанням.",
+    "• Кнопка «Вийти з адмін-режиму» повертає користувача до стандартного меню та очищає адмінський стан.",
+    "• Стандартні сценарії для звичайних користувачів не повинні змінитися.",
+  ]);
+
+  renderCodePromptSection(container, {
+    title: "Перевірки безпеки та вихід",
+    dataRef: data.security,
+    fileLabel: "Файл із адмін-хендлерами",
+    composePrompt: () => composeAdminSecurityPrompt(data),
+    copyLabel: "Скопіювати промпт для безпеки",
+  });
+}
+
+function composeAdminConfigPrompt(data) {
+  const snippet = data?.envSnippet?.trim();
+  const instructions = [
+    snippet
+      ? `У файлі .env потрібно мати рядок(и): ${snippet.replace(/\s+/g, " ")}`
+      : "Додай у .env змінну ADMIN_ID та не коміть її у репозиторій.",
+    "Прочитай BOT_TOKEN і ADMIN_ID з .env тим самим способом, який вже використовується у проєкті (load_dotenv / environs тощо).",
+    "Експортуй ADMIN_ID та функцію is_admin(user_id: int) -> bool.",
+    "Не змінюй інші налаштування у конфігурації – просто доповни файл потрібними структурами.",
+  ];
+  return buildFullFilePrompt({
+    file: data?.config?.file || "config.py",
+    code: data?.config?.code,
+    instructions,
+  });
+}
+
+function composeAdminMenuPrompt(data) {
+  if (!data?.handlers) return "";
+  return buildFullFilePrompt({
+    file: data.handlers.file || getEntryFile(),
+    code: data.handlers.code,
+    instructions: [
+      "Імпортуй is_admin з config.py.",
+      "Додай команду /admin (та/або кнопку), яка перевіряє користувача та показує меню адмін-панелі.",
+      "Для адміністратора виведи клавіатуру з пунктами: «Заявки», «Статистика», «Налаштування», «Вийти з адмін-режиму».",
+      "Для звичайних користувачів поверни повідомлення «Доступ заборонено» (без змін інших сценаріїв).",
+    ],
+  });
+}
+
+function composeAdminLeadsPrompt(data, backendTitle) {
+  if (!data?.leads) return "";
+  return buildFullFilePrompt({
+    file: data.leads.file || data.handlers.file || getEntryFile(),
+    code: data.leads.code,
+    instructions: [
+      "Додай обробку кнопки/команди «Заявки» всередині адмін-панелі.",
+      `Отримай дані через поточне сховище (${backendTitle}) — використовуй існуючі репозиторії чи функції.`,
+      "Покажи останні 5-10 записів у зрозумілому форматі (коротке резюме кожної заявки).",
+    ],
+  });
+}
+
+function composeAdminSecurityPrompt(data) {
+  if (!data?.security) return "";
+  return buildFullFilePrompt({
+    file: data.security.file || data.handlers.file || getEntryFile(),
+    code: data.security.code,
+    instructions: [
+      "Переконайся, що всі адмін-хендлери перевіряють is_admin(user_id) на початку.",
+      "Додай кнопку/команду «Вийти з адмін-режиму», яка прибирає адмінську клавіатуру та повертає стандартне меню.",
+      "Не змінюй поведінку для звичайних користувачів.",
+    ],
+  });
+}
+
+function renderI18nDictionariesStep(container) {
+  const data = ensureExtraModuleData().i18n;
+  renderInfo(container, [
+    "• Винеси тексти у словники для мов: українська, польська, англійська.",
+    "• У helper-модулі створи функцію t(lang, key) з кешуванням та fallback на 'ua'.",
+    "• Структура: `locales/<lang>.json` + модуль `i18n.py` для читання словників.",
+  ]);
+
+  renderCodePromptSection(container, {
+    title: "i18n.py — функція t(lang, key)",
+    dataRef: data.helper,
+    fileLabel: "Файл i18n.py",
+    composePrompt: () => composeI18nHelperPrompt(data),
+    copyLabel: "Скопіювати промпт для i18n.py",
+  });
+
+  const localeLabels = {
+    ua: "Українська",
+    pl: "Polski",
+    en: "English",
+  };
+
+  ["ua", "pl", "en"].forEach((locale) => {
+    renderCodePromptSection(container, {
+      title: `Словник ${localeLabels[locale]}`,
+      dataRef: data.locales[locale],
+      fileLabel: "Файл словника",
+      composePrompt: () => composeLocalePrompt(locale, data.locales[locale]),
+      copyLabel: `Промпт для ${localeLabels[locale]}`,
+      codeRows: 8,
+      codePlaceholder:
+        '{"start_welcome": "...", "main_menu_title": "...", "admin_locked": "..."}',
+    });
+  });
+}
+
+function renderI18nStorageStep(container) {
+  const data = ensureExtraModuleData().i18n;
+  const backendTitle = getBackendTitle();
+  renderInfo(container, [
+    "• Кожен користувач має поле language (ua/pl/en) з дефолтом ua.",
+    `• Працюй поверх існуючого сховища (${backendTitle}) — нічого не перезаписуй.`,
+    "• Потрібні функції get_user_language(user_id) та set_user_language(user_id, lang).",
+  ]);
+
+  renderCodePromptSection(container, {
+    title: "Сховище мови користувача",
+    dataRef: data.storage,
+    fileLabel: "Файл сховища",
+    composePrompt: () => composeI18nStoragePrompt(data, backendTitle),
+    copyLabel: "Промпт для збереження мови",
+  });
+}
+
+function renderI18nLanguageStep(container) {
+  const data = ensureExtraModuleData().i18n;
+  renderInfo(container, [
+    "• Додай команду /language (або розшир /start), щоб показати кнопки вибору мови.",
+    "• При натисканні викликай set_user_language і відправляй підтвердження користувачу.",
+  ]);
+
+  renderCodePromptSection(container, {
+    title: "Вибір мови",
+    dataRef: data.language,
+    fileLabel: "Файл із хендлером /start або /language",
+    composePrompt: () => composeI18nLanguagePrompt(data),
+    copyLabel: "Промпт для вибору мови",
+  });
+}
+
+function renderI18nUsageStep(container) {
+  const data = ensureExtraModuleData().i18n;
+  renderInfo(container, [
+    "• Усі повідомлення повинні брати тексти через t(lang, key).",
+    "• Визначай user_lang через get_user_language(user_id) з дефолтом 'ua'.",
+    "• Не змінюй бізнес-логіку та порядок викликів — лише заміни тексти.",
+  ]);
+
+  renderCodePromptSection(container, {
+    title: "Використання словників у боті",
+    dataRef: data.usage,
+    fileLabel: "Основний файл бота",
+    composePrompt: () => composeI18nUsagePrompt(data),
+    copyLabel: "Промпт для заміни текстів",
+  });
+}
+
+function composeI18nHelperPrompt(data) {
+  return buildFullFilePrompt({
+    file: data?.helper?.file || "i18n.py",
+    code: data?.helper?.code,
+    instructions: [
+      "Додай функцію t(lang: str, key: str, **kwargs), яка читає JSON-словники з каталогу locales/ та повертає переклад.",
+      "Зроби кешування словників у памʼяті та fallback на мову 'ua', якщо ключ або файл відсутній.",
+      "Передбач заміну плейсхолдерів (kwargs) у рядках.",
+    ],
+  });
+}
+
+function composeLocalePrompt(locale, localeData) {
+  const labels = { ua: "Українська", pl: "Polski", en: "English" };
+  return buildFullFilePrompt({
+    file: localeData?.file || `locales/${locale}.json`,
+    code: localeData?.code,
+    language: "json",
+    instructions: [
+      `Заповни словник для мови ${labels[locale] || locale} (start_welcome, main_menu_title, admin_locked, language_prompt, language_confirm, інші тексти з бота).`,
+      "Використай фактичні тексти, які зараз надсилає бот, переклавши їх відповідною мовою.",
+      "JSON має бути валідним та впорядкованим.",
+    ],
+  });
+}
+
+function composeI18nStoragePrompt(data, backendTitle) {
+  return buildFullFilePrompt({
+    file: data?.storage?.file || "storage.py",
+    code: data?.storage?.code,
+    instructions: [
+      "Додай поле language (str, дефолт 'ua') для сутності користувача.",
+      "Додай функції get_user_language(user_id) -> str та set_user_language(user_id, lang).",
+      `Працюй поверх існуючого бекенду (${backendTitle}) без зміни типу зберігання.`,
+    ],
+  });
+}
+
+function composeI18nLanguagePrompt(data) {
+  return buildFullFilePrompt({
+    file: data?.language?.file || getEntryFile(),
+    code: data?.language?.code,
+    instructions: [
+      "Додай команду /language (або розшир /start), яка показує кнопки «Українська», «Polski», «English».",
+      "При виборі викликай set_user_language(user_id, lang) і відправляй користувачу підтвердження з актуальним меню.",
+      "Після вибору одразу підтягуй t(lang, key), щоб показати фрази у новій мові.",
+    ],
+  });
+}
+
+function composeI18nUsagePrompt(data) {
+  return buildFullFilePrompt({
+    file: data?.usage?.file || getEntryFile(),
+    code: data?.usage?.code,
+    instructions: [
+      "У кожному хендлері діставай user_lang = get_user_language(user_id) або 'ua' за замовчуванням.",
+      "Заміні всі хардкодні тексти на виклики t(user_lang, \"key\") з відповідними ключами.",
+      "Не змінюй бізнес-логіку, лише отримання текстів.",
+    ],
+  });
+}
+
+function getExtraModuleStepDefinitions(moduleId) {
+  switch (moduleId) {
+    case "autosave":
+      return [
+        {
+          id: "autosave-storage",
+          title: "Автозбереження: структура сховища",
+          render: renderAutosaveStorageStep,
+        },
+        {
+          id: "autosave-hooks",
+          title: "Автозбереження: виклики у хендлерах",
+          render: renderAutosaveHooksStep,
+        },
+        {
+          id: "autosave-restore",
+          title: "Автозбереження: відновлення при старті",
+          render: renderAutosaveRestoreStep,
+        },
+      ];
+    case "adminPanel":
+      return [
+        {
+          id: "admin-config",
+          title: "Адмін-панель: ADMIN_ID і конфіг",
+          render: renderAdminConfigStep,
+        },
+        {
+          id: "admin-menu",
+          title: "Адмін-панель: команда /admin",
+          render: renderAdminMenuStep,
+        },
+        {
+          id: "admin-leads",
+          title: "Адмін-панель: перегляд заявок",
+          render: renderAdminLeadsStep,
+        },
+        {
+          id: "admin-security",
+          title: "Адмін-панель: безпека і вихід",
+          render: renderAdminSecurityStep,
+        },
+      ];
+    case "i18n":
+      return [
+        {
+          id: "i18n-dictionaries",
+          title: "Багатомовність: словники",
+          render: renderI18nDictionariesStep,
+        },
+        {
+          id: "i18n-storage",
+          title: "Багатомовність: зберігання мови",
+          render: renderI18nStorageStep,
+        },
+        {
+          id: "i18n-language",
+          title: "Багатомовність: вибір мови",
+          render: renderI18nLanguageStep,
+        },
+        {
+          id: "i18n-usage",
+          title: "Багатомовність: тексти через t(lang, key)",
+          render: renderI18nUsageStep,
+        },
+      ];
+    default:
+      return [];
+  }
 }
 
 function renderInfo(container, lines, footer) {
@@ -3744,7 +4479,7 @@ function renderInfo(container, lines, footer) {
         block.appendChild(label);
 
         const promptText = extractAiPrompt(parsed);
-        const target = state.choices.mode === "codex" ? "codex" : "chatgpt";
+        const target = getPromptAiTarget("code");
         const promptBlock = createPromptBlock(promptText, {
           copyLabel: "Скопіювати завдання",
           ai: target,
@@ -3803,6 +4538,28 @@ function wrapControl(control) {
   return wrapper;
 }
 
+function createTextInputRow(labelText, { value, placeholder, onInput }) {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = value || "";
+  if (placeholder) input.placeholder = placeholder;
+  input.addEventListener("input", (event) => {
+    onInput(event.target.value);
+  });
+  return makeRow(labelText, wrapControl(input));
+}
+
+function createTextareaRow(labelText, { value, placeholder, rows = 10, onInput }) {
+  const textarea = document.createElement("textarea");
+  textarea.value = value || "";
+  if (placeholder) textarea.placeholder = placeholder;
+  textarea.rows = rows;
+  textarea.addEventListener("input", (event) => {
+    onInput(event.target.value);
+  });
+  return makeRow(labelText, wrapControl(textarea));
+}
+
 function createPromptBlock(text, options = {}) {
   const block = document.createElement("div");
   block.className = "prompt-area";
@@ -3855,6 +4612,170 @@ function createPromptBlock(text, options = {}) {
 
   block.appendChild(actions);
   return block;
+}
+
+function createLivePromptBlock(getText, options = {}) {
+  const block = document.createElement("div");
+  block.className = "prompt-area live-prompt";
+
+  const content = document.createElement("pre");
+  content.className = "prompt-text";
+  block.appendChild(content);
+
+  const actions = document.createElement("div");
+  actions.className = "prompt-actions";
+
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "ghost copy-btn";
+  copyBtn.textContent = options.copyLabel || "Скопіювати промпт";
+  copyBtn.addEventListener("click", () => {
+    const text = getText();
+    if (!text?.trim()) {
+      showToast("Спочатку заповни поля для промпту.");
+      return;
+    }
+    copyText(text);
+  });
+  actions.appendChild(copyBtn);
+
+  if (options.ai) {
+    const aiBtn = document.createElement("button");
+    aiBtn.type = "button";
+    aiBtn.className = "primary prompt-open";
+    aiBtn.textContent = options.openLabel || getAiLabel(options.ai);
+    aiBtn.addEventListener("click", () => openAi(options.ai));
+    actions.appendChild(aiBtn);
+  }
+
+  block.appendChild(actions);
+
+  const placeholder =
+    options.placeholder || "Додай код вище, щоб сформувати промпт.";
+
+  function update() {
+    const text = getText();
+    if (text?.trim()) {
+      content.textContent = text;
+      copyBtn.disabled = false;
+    } else {
+      content.textContent = placeholder;
+      copyBtn.disabled = true;
+    }
+  }
+
+  block.updatePrompt = update;
+  update();
+
+  return block;
+}
+
+function renderCodePromptSection(container, config) {
+  const {
+    title,
+    description,
+    dataRef,
+    fileLabel = "Файл",
+    filePlaceholder,
+    codeLabel = "Поточний код",
+    codePlaceholder,
+    codeRows = 12,
+    composePrompt,
+    copyLabel,
+    promptPlaceholder,
+  } = config;
+
+  const section = document.createElement("section");
+  section.className = "module-section";
+
+  if (title) {
+    const h4 = document.createElement("h4");
+    h4.textContent = title;
+    section.appendChild(h4);
+  }
+
+  if (description) {
+    const p = document.createElement("p");
+    p.className = "module-section-desc";
+    p.textContent = description;
+    section.appendChild(p);
+  }
+
+  const aiTarget = getPromptAiTarget();
+
+  const updatePrompt = () => {
+    saveState();
+    promptBlock.updatePrompt();
+  };
+
+  const fileRow = createTextInputRow(fileLabel, {
+    value: dataRef.file,
+    placeholder: filePlaceholder,
+    onInput: (value) => {
+      dataRef.file = value;
+      updatePrompt();
+    },
+  });
+  section.appendChild(fileRow);
+
+  const codeRow = createTextareaRow(codeLabel, {
+    value: dataRef.code,
+    placeholder:
+      codePlaceholder ||
+      "Встав сюди повний код файла перед тим, як просити ШІ про оновлення.",
+    rows: codeRows,
+    onInput: (value) => {
+      dataRef.code = value;
+      updatePrompt();
+    },
+  });
+  section.appendChild(codeRow);
+
+  const promptBlock = createLivePromptBlock(
+    () => composePrompt(dataRef),
+    {
+      copyLabel,
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      placeholder: promptPlaceholder,
+    }
+  );
+  section.appendChild(promptBlock);
+
+  container.appendChild(section);
+  promptBlock.updatePrompt();
+}
+
+function buildFullFilePrompt({
+  file,
+  code,
+  instructions,
+  language = "python",
+}) {
+  const content = typeof code === "string" ? code : "";
+  const normalizedInstructions = Array.isArray(instructions)
+    ? instructions.filter(Boolean)
+    : [];
+  if (!content.trim()) return "";
+  const lines = [
+    `Файл: ${file || "main.py"}.`,
+    "",
+    "Поточний повний код:",
+    `\`\`\`${language}`,
+    content,
+    "```",
+  ];
+  if (normalizedInstructions.length) {
+    lines.push("", "Що потрібно зробити:");
+    normalizedInstructions.forEach((item, index) => {
+      lines.push(`${index + 1}. ${item}`);
+    });
+  }
+  lines.push(
+    "",
+    "Перепиши повністю файл, зберігаючи всю існуючу логіку бота. Додай тільки описані зміни. Відповідай лише повним оновленим кодом файлу без пояснень."
+  );
+  return lines.join("\n");
 }
 
 function createToolCard({ title, description, link, prompt, ai }) {
@@ -3937,6 +4858,11 @@ function getAiLabel(target) {
     default:
       return "Відкрити ChatGPT";
   }
+}
+
+function getPromptAiTarget(kind = "code") {
+  if (state.choices.mode !== "codex") return "chatgpt";
+  return kind === "code" ? "codex" : "chatgpt";
 }
 
 function openAi(target) {
@@ -4157,6 +5083,13 @@ function generateManualFilePrompt(entryFile, currentState = state) {
   ].join("\n");
 }
 
+function getBackendTitle(currentState = state) {
+  const backend = BACKEND_OPTIONS.find(
+    (item) => item.id === currentState?.choices?.backend
+  );
+  return backend ? backend.title : "JSON файл (за замовчуванням)";
+}
+
 function generateCodePrompt() {
   const entryFile = getEntryFile();
   const manualPrompt = generateManualFilePrompt(entryFile);
@@ -4198,6 +5131,8 @@ function loadState() {
       merged.ui.replyCustomSpec = "";
     if (typeof merged.ui.inlineCustomSpec !== "string")
       merged.ui.inlineCustomSpec = "";
+    ensureExtraModules(merged);
+    ensureExtraModuleData(merged);
     return merged;
   } catch (error) {
     console.error("Не вдалося завантажити стан", error);
