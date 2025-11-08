@@ -1,3 +1,677 @@
+const API_URL = "http://localhost:4000";
+
+async function api(path, options = {}) {
+  const res = await fetch(API_URL + path, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    console.error("API error", res.status, data);
+    throw new Error(data?.message || "API error");
+  }
+  return data;
+}
+
+const appState = {
+  user: null,
+  bots: [],
+  admin: {
+    bots: [],
+    settings: {},
+    users: [],
+    selectedUserId: null,
+    userPurchases: [],
+  },
+};
+
+let backendBots = [];
+let mergedBots = [];
+
+const uiState = {
+  loginScreen: document.getElementById("login-screen"),
+  appShell: document.getElementById("app"),
+};
+
+function setAuthMode(mode) {
+  const loginForm = document.getElementById("login-form");
+  const registerForm = document.getElementById("register-form");
+  const tabs = document.querySelectorAll(".auth-tab");
+
+  tabs.forEach((btn) => {
+    btn.classList.toggle("auth-tab--active", (btn.dataset.mode || "login") === mode);
+  });
+
+  if (loginForm) loginForm.hidden = mode !== "login";
+  if (registerForm) registerForm.hidden = mode !== "register";
+}
+
+document.querySelectorAll(".auth-tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    setAuthMode(btn.dataset.mode || "login");
+  });
+});
+setAuthMode("login");
+
+function initApp() {
+  if (!appState.user) return;
+  if (uiState.loginScreen) uiState.loginScreen.hidden = true;
+  if (uiState.appShell) uiState.appShell.hidden = false;
+  if (appState.user.role === "admin") {
+    ensureAdminControls();
+  } else {
+    const panel = document.getElementById("admin-panel");
+    if (panel) panel.hidden = true;
+    const btn = document.getElementById("admin-toggle");
+    if (btn) btn.remove();
+  }
+}
+
+async function handleLoginSubmit(event) {
+  event.preventDefault();
+  const emailInput = document.querySelector("#login-email");
+  const passwordInput = document.querySelector("#login-password");
+  const email = emailInput?.value.trim();
+  const password = passwordInput?.value.trim();
+
+  if (!email || !password) {
+    alert("Введіть email та пароль.");
+    return;
+  }
+
+  try {
+    const result = await api("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    appState.user = result.user;
+    initApp();
+    await loadBots();
+  } catch (error) {
+    console.error("Login failed", error);
+    alert("Помилка входу");
+  }
+}
+
+const loginForm = document.querySelector("#login-form");
+if (loginForm) {
+  loginForm.addEventListener("submit", handleLoginSubmit);
+} else {
+  if (uiState.appShell) uiState.appShell.hidden = false;
+}
+
+async function handleRegisterSubmit(event) {
+  event.preventDefault();
+
+  const firstName = document.getElementById("reg-first-name")?.value.trim();
+  const lastName = document.getElementById("reg-last-name")?.value.trim();
+  const patronymic = document.getElementById("reg-patronymic")?.value.trim();
+  const phoneCode = document.getElementById("reg-phone-code")?.value || "";
+  const phoneNumber = document
+    .getElementById("reg-phone-number")
+    ?.value.replace(/\s+/g, "");
+  const email = document.getElementById("reg-email")?.value.trim();
+  const password = document.getElementById("reg-password")?.value.trim();
+
+  if (!firstName || !lastName || !phoneNumber || !email || !password) {
+    alert("Заповни всі обовʼязкові поля.");
+    return;
+  }
+
+  const full_name = [lastName, firstName, patronymic].filter(Boolean).join(" ");
+  const phone = `${phoneCode}${phoneNumber}`;
+
+  try {
+    const result = await api("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        full_name,
+        phone,
+        email,
+        password,
+      }),
+    });
+
+    appState.user = result.user;
+    initApp();
+    await loadBots();
+  } catch (error) {
+    console.error("Register failed", error);
+    alert("Помилка реєстрації");
+  }
+}
+
+const registerForm = document.querySelector("#register-form");
+if (registerForm) {
+  registerForm.addEventListener("submit", handleRegisterSubmit);
+}
+
+async function handleLogout() {
+  try {
+    await api("/auth/logout", { method: "POST" });
+  } catch (error) {
+    console.error("Logout error", error);
+  }
+  if (typeof appState !== "undefined") {
+    appState.user = null;
+  }
+  window.location.reload();
+}
+
+const logoutButton = document.getElementById("logout-button");
+if (logoutButton) {
+  logoutButton.addEventListener("click", () => {
+    handleLogout();
+  });
+}
+
+async function loadBots() {
+  try {
+    const data = await api("/bots", { method: "GET" });
+    const botsFromApi = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.bots)
+      ? data.bots
+      : [];
+    backendBots = botsFromApi;
+    mergedBots = backendBots.map((bot) => {
+      const meta = BOT_TYPES.find((item) => item.id === bot.code) || null;
+      return {
+        backendId: bot.id,
+        code: bot.code,
+        price: bot.price,
+        currency: bot.currency,
+        isFree: bot.is_free,
+        totalSteps: bot.total_steps,
+        title: meta?.title || bot.name,
+        description: meta?.description || bot.description || "",
+        commands: meta?.commands || [],
+        tips: meta?.tips || [],
+        ui: meta?.ui || null,
+      };
+    });
+    console.log("mergedBots", mergedBots);
+    if (typeof state !== "undefined" && state.currentStep === 2) {
+      draw(true);
+    }
+  } catch (error) {
+    console.error("Failed to load bots", error);
+  }
+}
+
+function ensureAdminControls() {
+  const navGroup = document.querySelector(".nav-group");
+  if (!navGroup || document.getElementById("admin-toggle")) return;
+  const button = document.createElement("button");
+  button.id = "admin-toggle";
+  button.type = "button";
+  button.className = "nav-admin";
+  button.textContent = "Адмінка";
+  button.addEventListener("click", () => {
+    const panel = document.getElementById("admin-panel");
+    if (!panel) return;
+    if (panel.hidden) {
+      panel.hidden = false;
+      loadAdminData();
+    } else {
+      panel.hidden = true;
+    }
+  });
+  navGroup.appendChild(button);
+}
+
+async function ensureAccessForStep(targetStep) {
+  if (!appState.user || appState.user.role === "admin") return true;
+  if (targetStep <= 2) return true;
+
+  const code = state.choices.botType;
+  if (!code) {
+    alert("Спочатку обери тип бота");
+    return false;
+  }
+
+  const bot = Array.isArray(mergedBots)
+    ? mergedBots.find((b) => b.code === code)
+    : null;
+  if (!bot || !bot.backendId) {
+    console.warn("No backend bot for code", code, bot);
+    alert("Цей тип бота ще не підʼєднаний до бекенду.");
+    return false;
+  }
+
+  try {
+    const access = await api(`/bots/${bot.backendId}/access`, { method: "GET" });
+    if (!access?.hasAccess) {
+      alert("Спочатку оплати цього бота, щоб рухатися далі.");
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Failed to check bot access", error);
+    alert("Не вдалось перевірити доступ до бота. Спробуй ще раз.");
+    return false;
+  }
+}
+
+async function handleNextClick() {
+  if (!steps.length) return;
+  const step = steps[state.currentStep];
+  const validation = validateStep(step);
+  if (!validation.allow) {
+    showToast(validation.message);
+    return;
+  }
+  if (state.currentStep >= steps.length - 1) {
+    showToast("Готово! Можеш переглядати попередні кроки.");
+    return;
+  }
+  const targetStep = state.currentStep + 1;
+  const ok = await ensureAccessForStep(targetStep);
+  if (!ok) return;
+  state.currentStep = targetStep;
+  saveState();
+  draw(true);
+}
+
+async function loadAdminData() {
+  if (!appState.user || appState.user.role !== "admin") return;
+  try {
+    const [botsResponse, settingsResponse, usersResponse] = await Promise.all([
+      api("/admin/bots", { method: "GET" }),
+      api("/admin/settings", { method: "GET" }),
+      api("/admin/users", { method: "GET" }),
+    ]);
+    appState.admin.bots = Array.isArray(botsResponse?.bots)
+      ? botsResponse.bots
+      : Array.isArray(botsResponse)
+      ? botsResponse
+      : [];
+    appState.admin.settings =
+      settingsResponse?.settings || settingsResponse || {};
+    appState.admin.users = Array.isArray(usersResponse?.users)
+      ? usersResponse.users
+      : Array.isArray(usersResponse)
+      ? usersResponse
+      : [];
+    if (
+      !appState.admin.selectedUserId &&
+      appState.admin.users &&
+      appState.admin.users.length
+    ) {
+      appState.admin.selectedUserId = appState.admin.users[0].id;
+      await loadAdminUserPurchases(appState.admin.selectedUserId);
+      return;
+    }
+    renderAdminPanel();
+  } catch (error) {
+    console.error("Failed to load admin data", error);
+    alert("Не вдалося завантажити адмін-дані");
+  }
+}
+
+async function loadAdminUserPurchases(userId) {
+  if (!userId) return;
+  try {
+    const purchasesResponse = await api(`/admin/users/${userId}/purchases`, {
+      method: "GET",
+    });
+    appState.admin.selectedUserId = userId;
+    appState.admin.userPurchases = Array.isArray(
+      purchasesResponse?.purchases
+    )
+      ? purchasesResponse.purchases
+      : Array.isArray(purchasesResponse)
+      ? purchasesResponse
+      : [];
+    renderAdminPanel();
+  } catch (error) {
+    console.error("Failed to load user purchases", error);
+    alert("Не вдалося завантажити покупки користувача");
+  }
+}
+
+function renderAdminPanel() {
+  const panel = document.getElementById("admin-panel");
+  if (!panel) return;
+  if (!appState.user || appState.user.role !== "admin") {
+    panel.hidden = true;
+    panel.innerHTML = "";
+    return;
+  }
+
+  panel.hidden = false;
+
+  const bots = Array.isArray(appState.admin.bots) ? appState.admin.bots : [];
+  const users = Array.isArray(appState.admin.users) ? appState.admin.users : [];
+  const purchases = Array.isArray(appState.admin.userPurchases)
+    ? appState.admin.userPurchases
+    : [];
+  const paymentsEnabled =
+    appState.admin.settings?.payments_enabled === "true" ||
+    appState.admin.settings?.payments_enabled === true;
+
+  panel.innerHTML = `
+    <h2>Адмін-панель</h2>
+    <div class="admin-settings">
+      <label>
+        <input type="checkbox" id="payments-enabled-toggle" ${
+          paymentsEnabled ? "checked" : ""
+        } />
+        Payments enabled
+      </label>
+    </div>
+    <h3>Боти</h3>
+    <table class="admin-bots-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Price</th>
+          <th>Currency</th>
+          <th>Free</th>
+          <th>Active</th>
+          <th>Total steps</th>
+          <th>Зберегти</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${bots
+          .map(
+            (bot) => `
+          <tr data-bot-id="${bot.id}">
+            <td>${bot.id}</td>
+            <td>${bot.code}</td>
+            <td>${bot.name}</td>
+            <td><input type="number" step="0.01" class="bot-price" value="${bot.price}" /></td>
+            <td><input type="text" class="bot-currency" value="${bot.currency}" /></td>
+            <td><input type="checkbox" class="bot-free" ${
+              bot.is_free ? "checked" : ""
+            } /></td>
+            <td><input type="checkbox" class="bot-active" ${
+              bot.is_active ? "checked" : ""
+            } /></td>
+            <td><input type="number" class="bot-steps" value="${
+              bot.total_steps || 0
+            }" /></td>
+            <td><button type="button" class="bot-save">Зберегти</button></td>
+          </tr>
+        `
+          )
+          .join("")}
+      </tbody>
+    </table>
+    <h3>Користувачі</h3>
+    <table class="admin-users-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>ПІБ</th>
+          <th>Email</th>
+          <th>Роль</th>
+          <th>Створено</th>
+          <th>Дії</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${users
+          .map(
+            (user) => `
+          <tr>
+            <td>${user.id}</td>
+            <td>${user.full_name || ""}</td>
+            <td>${user.email || ""}</td>
+            <td>${user.role}</td>
+            <td>${user.created_at || ""}</td>
+            <td>
+              <button type="button" class="user-view-purchases" data-user-id="${
+                user.id
+              }">
+                Переглянути покупки
+              </button>
+            </td>
+          </tr>
+        `
+          )
+          .join("")}
+      </tbody>
+    </table>
+    <h3>Покупки користувача</h3>
+    ${
+      appState.admin.selectedUserId
+        ? `
+      <div class="admin-purchases-wrap">
+        <table class="admin-purchases-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Bot ID</th>
+              <th>Amount</th>
+              <th>Currency</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Paid</th>
+              <th>Дії</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${purchases
+              .map(
+                (purchase) => `
+              <tr>
+                <td>${purchase.id}</td>
+                <td>${purchase.bot_id}</td>
+                <td>${purchase.amount}</td>
+                <td>${purchase.currency}</td>
+                <td>${purchase.status}</td>
+                <td>${purchase.created_at || ""}</td>
+                <td>${purchase.paid_at || ""}</td>
+                <td>
+                  ${
+                    purchase.status !== "paid"
+                      ? `<button type="button" class="purchase-mark-paid" data-purchase-id="${purchase.id}">Mark paid</button>`
+                      : ""
+                  }
+                </td>
+              </tr>
+            `
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+      <div class="admin-reset-progress">
+        <label>
+          Bot ID:
+          <input type="number" id="reset-bot-id" />
+        </label>
+        <button type="button" id="reset-progress-btn">Скинути прогрес</button>
+      </div>
+    `
+        : "<p>Оберіть користувача, щоб побачити покупки.</p>"
+    }
+  `;
+
+  const toggle = panel.querySelector("#payments-enabled-toggle");
+  if (toggle) {
+    toggle.addEventListener("change", async (event) => {
+      const value = event.target.checked ? "true" : "false";
+      try {
+        await api("/admin/settings", {
+          method: "POST",
+          body: JSON.stringify({ key: "payments_enabled", value }),
+        });
+        appState.admin.settings.payments_enabled = value;
+      } catch (error) {
+        console.error("Failed to update payments_enabled", error);
+        alert("Помилка збереження налаштувань");
+        event.target.checked = !event.target.checked;
+      }
+    });
+  }
+
+  panel.querySelectorAll(".bot-save").forEach((btn) => {
+    btn.addEventListener("click", async (event) => {
+      const row = event.target.closest("tr");
+      const botId = Number(row.dataset.botId);
+      const price = parseFloat(row.querySelector(".bot-price").value || "0");
+      const currency =
+        row.querySelector(".bot-currency").value.trim() || "USD";
+      const is_free = row.querySelector(".bot-free").checked;
+      const is_active = row.querySelector(".bot-active").checked;
+      const total_steps = parseInt(
+        row.querySelector(".bot-steps").value || "0",
+        10
+      );
+
+      try {
+        await api(`/admin/bots/${botId}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            price,
+            currency,
+            is_free,
+            is_active,
+            total_steps,
+          }),
+        });
+        await loadBots();
+        await loadAdminData();
+      } catch (error) {
+        console.error("Failed to update bot", error);
+        alert("Помилка збереження бота");
+      }
+    });
+  });
+
+  panel.querySelectorAll(".user-view-purchases").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      const userId = Number(event.target.dataset.userId);
+      loadAdminUserPurchases(userId);
+    });
+  });
+
+  panel.querySelectorAll(".purchase-mark-paid").forEach((btn) => {
+    btn.addEventListener("click", async (event) => {
+      const purchaseId = Number(event.target.dataset.purchaseId);
+      try {
+        await api(`/admin/purchases/${purchaseId}/mark-paid`, {
+          method: "POST",
+        });
+        if (appState.admin.selectedUserId) {
+          await loadAdminUserPurchases(appState.admin.selectedUserId);
+        }
+      } catch (error) {
+        console.error("Failed to mark purchase paid", error);
+        alert("Помилка при mark-paid");
+      }
+    });
+  });
+
+  const resetBtn = panel.querySelector("#reset-progress-btn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", async () => {
+      const botIdValue = panel.querySelector("#reset-bot-id")?.value.trim();
+      const botId = Number(botIdValue || "0");
+      const userId = appState.admin.selectedUserId;
+      if (!userId || !botId) {
+        alert("Вкажіть Bot ID та оберіть користувача");
+        return;
+      }
+      try {
+        await api(`/admin/users/${userId}/reset-progress`, {
+          method: "POST",
+          body: JSON.stringify({ botId }),
+        });
+        alert("Прогрес скинуто");
+      } catch (error) {
+        console.error("Failed to reset progress", error);
+        alert("Помилка при скиданні прогресу");
+      }
+    });
+  }
+}
+window.handlePay = async function handlePay(backendId) {
+  console.log("handlePay click", backendId);
+
+  const botEntry =
+    Array.isArray(mergedBots)
+      ? mergedBots.find((b) => b.backendId === backendId) || null
+      : null;
+
+  try {
+    const res = await api("/payments/create", {
+      method: "POST",
+      body: JSON.stringify({ botId: backendId }),
+    });
+
+    console.log("payments/create response", res);
+
+    if (res.status === "free" || res.status === "test_mode") {
+      await loadBots();
+
+      if (botEntry && typeof state !== "undefined") {
+        state.choices.botType = botEntry.code;
+        state.currentStep = 2;
+        state.ui = structuredClone(defaultUiState);
+
+        const type = BOT_TYPES.find(
+          (item) => item.id === state.choices.botType
+        );
+        if (type) {
+          state.commands = [...type.commands];
+        }
+
+        saveState();
+        draw(true);
+        alert("Оплата пройшла. Можна починати.");
+      }
+
+      return;
+    }
+
+    if (res.status === "pending" && res.redirectUrl) {
+      window.location.href = res.redirectUrl;
+      return;
+    }
+
+    if (res.status === "pending" && !res.redirectUrl) {
+      console.warn("Pending без redirectUrl, працюємо як test_mode (dev)");
+
+      await loadBots();
+
+      if (botEntry && typeof state !== "undefined") {
+        state.choices.botType = botEntry.code;
+        state.currentStep = 2;
+        state.ui = structuredClone(defaultUiState);
+
+        const type = BOT_TYPES.find(
+          (item) => item.id === state.choices.botType
+        );
+        if (type) {
+          state.commands = [...type.commands];
+        }
+
+        saveState();
+        draw(true);
+        alert("Оплата створена. Можна починати.");
+      }
+
+      return;
+    }
+
+    console.warn("Unexpected payment response", res);
+  } catch (error) {
+    console.error("Payment error", error);
+    alert("Помилка при створенні платежу");
+  }
+};
+
 const STORAGE_KEY = "ztb_v4_state";
 
 // --- Довідкові дані ---
@@ -1593,21 +2267,11 @@ elements.prev.addEventListener("click", () => {
   draw(false);
 });
 
-elements.next.addEventListener("click", () => {
-  const step = steps[state.currentStep];
-  const validation = validateStep(step);
-  if (!validation.allow) {
-    showToast(validation.message);
-    return;
-  }
-  if (state.currentStep < steps.length - 1) {
-    state.currentStep += 1;
-    saveState();
-    draw(false);
-  } else {
-    showToast("Готово! Можеш переглядати попередні кроки.");
-  }
-});
+if (elements.next) {
+  elements.next.addEventListener("click", () => {
+    handleNextClick();
+  });
+}
 
 if (elements.reset) {
   elements.reset.addEventListener("click", () => {
@@ -1629,10 +2293,10 @@ if (elements.jumpButton) {
 }
 
 if (elements.jumpSelect) {
-  elements.jumpSelect.addEventListener("keydown", (event) => {
+  elements.jumpSelect.addEventListener("keydown", async (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      jumpToSelectedStep();
+      await jumpToSelectedStep();
     }
   });
 }
@@ -1668,15 +2332,17 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-function jumpToSelectedStep() {
+async function jumpToSelectedStep() {
   if (!elements.jumpSelect) return;
   const value = elements.jumpSelect.value;
   if (!value) return;
   const index = steps.findIndex((step) => step.id === value);
   if (index === -1) return;
+  const targetStepNumber = steps[index]?.number || index + 1;
+  if (!(await ensureAccessForStep(targetStepNumber))) return;
   state.currentStep = index;
   saveState();
-  draw(false);
+  draw(true);
 }
 
 function openDocs() {
@@ -1765,8 +2431,15 @@ function draw(rebuild) {
   }`;
 
   elements.prev.disabled = state.currentStep === 0;
-  elements.next.textContent =
-    state.currentStep === steps.length - 1 ? "Завершити" : "Далі ➡️";
+  if (elements.next) {
+    const isAdmin = appState.user?.role === "admin";
+    const hideNextOnThisStep = state.currentStep === 1 && !isAdmin;
+    elements.next.hidden = hideNextOnThisStep;
+    if (!hideNextOnThisStep) {
+      elements.next.textContent =
+        state.currentStep === steps.length - 1 ? "Завершити" : "Далі ➡️";
+    }
+  }
   elements.footer.style.display = step.hideNav ? "none" : "";
 }
 
@@ -1810,7 +2483,11 @@ function updateJumpControls() {
   placeholder.selected = true;
   select.appendChild(placeholder);
 
+  const isAdmin = appState.user?.role === "admin";
+  const hideEarlyOptions = !isAdmin && state.currentStep >= 3;
+
   steps.forEach((step) => {
+    if (hideEarlyOptions && step.number <= 2) return;
     const option = document.createElement("option");
     option.value = step.id;
     option.textContent = `Крок ${step.number}. ${step.title}`;
@@ -2256,6 +2933,31 @@ function renderStartStep(container) {
 }
 
 function renderBotTypeStep(container) {
+  const backendCodeByTypeId = {
+    task: "task_manager",
+    crm: "crm_bot",
+    habit: "fitness_bot",
+    faq: "faq_bot",
+    shop: "shop_bot",
+    booking: "booking_bot",
+    custom: "custom_bot",
+  };
+
+  const sources = BOT_TYPES.map((type) => {
+    const backendCode = backendCodeByTypeId[type.id] || type.id;
+    const backend =
+      Array.isArray(mergedBots)
+        ? mergedBots.find((bot) => bot.code === backendCode) || null
+        : null;
+    return {
+      botId: type.id,
+      title: type.title,
+      description: type.description,
+      commands: type.commands,
+      backend,
+    };
+  });
+
   const tableWrap = document.createElement("div");
   tableWrap.className = "table-wrapper";
   const table = document.createElement("table");
@@ -2265,25 +2967,51 @@ function renderBotTypeStep(container) {
         <th>Тип</th>
         <th>Опис</th>
         <th>Рекомендовані команди</th>
+        <th>Ціна / Оплата</th>
       </tr>
     </thead>
     <tbody>
-      ${BOT_TYPES.map(
-        (type) => `
+      ${sources
+        .map((row) => {
+          const backend = row.backend;
+          let priceText;
+          let buttonHtml = "";
+          if (mergedBots.length === 0) {
+            priceText = "Завантаження...";
+          } else if (backend) {
+            priceText = backend.isFree
+              ? "FREE"
+              : `Ціна: ${backend.price} ${backend.currency}`;
+            buttonHtml = `<button type="button" class="${
+              backend.isFree ? "ghost" : "primary"
+            }" onclick="window.handlePay(${backend.backendId})">${
+              backend.isFree
+                ? "Почати (FREE)"
+                : `Оплатити (${backend.price} ${backend.currency})`
+            }</button>`;
+          } else {
+            priceText = "Немає даних";
+          }
+          return `
         <tr>
           <td>
             <label>
-              <input type="radio" name="bot-type" value="${type.id}" ${
-          state.choices.botType === type.id ? "checked" : ""
-        } />
-              <span>${type.title}</span>
+              <input type="radio" name="bot-type" value="${row.botId}" ${
+            state.choices.botType === row.botId ? "checked" : ""
+          } />
+              <span>${row.title}</span>
             </label>
           </td>
-          <td>${type.description}</td>
-          <td>${type.commands.join(", ")}</td>
+          <td>${row.description}</td>
+          <td>${row.commands.join(", ")}</td>
+          <td class="bot-payment">
+            <div>${priceText}</div>
+            ${buttonHtml}
+          </td>
         </tr>
-      `
-      ).join("")}
+      `;
+        })
+        .join("")}
     </tbody>
   `;
   table.addEventListener("change", (event) => {
