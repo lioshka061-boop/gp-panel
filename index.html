@@ -46,14 +46,30 @@
         <label>
           Код країни
           <select id="reg-phone-code">
-            <option value="+380">+380 (UA)</option>
-            <option value="+48">+48 (PL)</option>
-            <option value="+1">+1 (US)</option>
+            <option value="+380" selected>+380 (Україна)</option>
+            <option value="+48">+48 (Польща)</option>
+            <option value="+49">+49 (Німеччина)</option>
+            <option value="+44">+44 (Велика Британія)</option>
+            <option value="+1">+1 (США / Канада)</option>
+            <option value="+34">+34 (Іспанія)</option>
+            <option value="+39">+39 (Італія)</option>
+            <option value="+33">+33 (Франція)</option>
+            <option value="+420">+420 (Чехія)</option>
+            <option value="+371">+371 (Латвія)</option>
+            <option value="+370">+370 (Литва)</option>
+            <option value="+372">+372 (Естонія)</option>
+            <option value="+7">+7 (Казахстан)</option>
+            <option value="+90">+90 (Туреччина)</option>
+            <option value="+971">+971 (ОАЕ)</option>
+            <option value="+61">+61 (Австралія)</option>
+            <option value="+81">+81 (Японія)</option>
+            <option value="+86">+86 (Китай)</option>
+            <option value="+82">+82 (Південна Корея)</option>
           </select>
         </label>
         <label>
           Номер телефону
-          <input id="reg-phone-number" type="tel" required />
+          <input id="reg-phone-number" type="tel" placeholder="ХХХ ХХХ ХХХ" required />
         </label>
       </div>
       <label>
@@ -68,30 +84,53 @@
     </form>
   </div>
 
-  <div id="app" hidden>
-    <nav class="top-nav">
-      <button id="nav-toggle" class="nav-toggle" aria-label="Меню" aria-expanded="false" aria-controls="nav-menu">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
-      <div class="nav-inner" id="nav-menu">
-      <div class="nav-group">
-        <button id="reset-btn" class="nav-reset">Скинути</button>
-        <button id="docs-btn" class="nav-docs">Документація</button>
-        <button type="button" id="logout-button" class="nav-logout">Вийти</button>
+  <header class="topbar" id="topbar" hidden>
+    <div class="topbar-inner">
+      <div class="topbar-left">
+        <span class="topbar-logo"></span>
+        <span class="topbar-title">No-Code AI System</span>
       </div>
-        <div class="nav-summary" id="nav-summary" aria-live="polite">
-          Тип: — | Середовище: — | ШІ: —
-        </div>
-        <div class="jump-actions">
-          <select id="jump-select" required aria-label="Повернутися до кроку"></select>
-          <button id="jump-btn" class="ghost">Перейти</button>
-        </div>
+      <nav class="topbar-nav">
+        <button type="button" id="nav-reset">Скинути</button>
+        <button type="button" id="nav-docs">Документація</button>
+        <button type="button" id="nav-env">Середовища</button>
+        <button type="button" id="nav-logout">Вийти</button>
+      </nav>
+      <div class="topbar-summary" id="nav-summary" aria-live="polite">
+        Тип: — | Середовище: — | ШІ: —
       </div>
-    </nav>
-    <div id="nav-backdrop" class="nav-backdrop" hidden></div>
 
+      <button type="button" class="topbar-burger" id="nav-burger">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+
+  </header>
+  <div class="topbar-overlay" id="nav-overlay" hidden>
+    <div class="topbar-menu" id="nav-popup">
+      <button type="button" class="topbar-close" id="nav-close">✕</button>
+      <button type="button" data-action="reset">Скинути</button>
+      <button type="button" data-action="docs">Документація</button>
+      <button type="button" data-action="env">Середовища</button>
+      <button type="button" data-action="logout">Вийти</button>
+    </div>
+  </div>
+
+  <div id="app" hidden>
+    <section id="env-screen" class="env-screen" hidden>
+      <div class="env-screen-inner">
+        <div class="env-screen-header">
+          <div class="env-title-main">Середовища</div>
+          <div class="env-actions">
+            <button type="button" id="env-create-btn" class="btn-env btn-env-primary">Створити середовище</button>
+            <button type="button" id="env-back-btn" class="btn-env btn-env-secondary">Назад до майстра</button>
+          </div>
+        </div>
+        <div id="env-list" class="env-list"></div>
+      </div>
+    </section>
+
+    <div id="wizard-root">
     <section id="admin-panel" hidden></section>
 
     <div class="app-shell">
@@ -112,6 +151,10 @@
             <span id="progress-label" class="progress-label"></span>
           </div>
         </header>
+        <div class="jump-actions">
+          <select id="jump-select" required aria-label="Повернутися до кроку"></select>
+          <button id="jump-btn" class="ghost">Перейти</button>
+        </div>
 
         <main>
           <div class="step-headline">
@@ -121,14 +164,17 @@
           <div id="step-body" class="step-body"></div>
         </main>
 
-        <footer class="controls">
-          <button id="prev-btn" class="ghost">⬅️ Назад</button>
-          <button id="next-btn" class="primary">Далі ➡️</button>
-        </footer>
+        <div class="step-actions">
+          <button type="button" class="ghost step-back" id="prev-btn">⬅️ Назад</button>
+          <div id="step-details-mount"></div>
+          <button type="button" class="primary step-next" id="next-btn">Далі ➡️</button>
+        </div>
       </div>
     </div>
 
-    <div id="toast" class="toast"></div>
+    <div id="toast" class="toast-root" hidden>
+      <div class="toast-body"></div>
+    </div>
     <div id="docs-backdrop" class="docs-backdrop" hidden>
       <div class="docs-modal">
         <header class="docs-header">
@@ -200,6 +246,16 @@
         </div>
       </div>
     </div>
+    <div id="details-overlay" class="details-overlay" hidden>
+      <div class="details-modal">
+        <header class="details-header">
+          <h3>Інструкції до кроку</h3>
+          <button id="details-close" class="ghost details-close">✕</button>
+        </header>
+        <div class="details-body" id="details-body"></div>
+      </div>
+    </div>
+  </div> <!-- wizard-root -->
   </div>
 
   <script src="app.js"></script>

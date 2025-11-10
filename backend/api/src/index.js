@@ -3,14 +3,21 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const config = require('./config/env');
-const { attachUser } = require('./middleware/auth');
+const { attachUser, requireAuth } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const botRoutes = require('./routes/bots');
 const paymentRoutes = require('./routes/payments');
+const environmentRoutes = require('./routes/environments');
+const envRoutes = require('./routes/envs');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
-app.use(cors({ origin: config.corsOrigin, credentials: true }));
+app.use(
+  cors({
+    origin: ['http://localhost:5500', 'http://127.0.0.1:5500'],
+    credentials: true,
+  })
+);
 app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
@@ -20,6 +27,8 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/auth', authRoutes);
 app.use('/bots', botRoutes);
 app.use('/payments', paymentRoutes);
+app.use('/environments', requireAuth, environmentRoutes);
+app.use('/envs', requireAuth, envRoutes);
 app.use('/admin', adminRoutes);
 
 app.use((err, req, res, next) => {

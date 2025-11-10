@@ -18,9 +18,70 @@ async function api(path, options = {}) {
   return data;
 }
 
+const ENV_STATE_STORAGE_PREFIX = "gp_env_state_";
+const ENV_ID_STORAGE_KEY = "gp_active_env_id";
+const CUSTOM_BRIEF_STEP_ID = "custom-brief-import";
+const BACKEND_CODE_BY_TYPE_ID = {
+  task: "task_manager",
+  crm: "crm_bot",
+  habit: "fitness_bot",
+  faq: "faq_bot",
+  shop: "shop_bot",
+  booking: "booking_bot",
+  custom: "custom_bot",
+};
+
+function getBackendCodeForType(typeId) {
+  return BACKEND_CODE_BY_TYPE_ID[typeId] || typeId;
+}
+
+function getFrontendBotConfigs() {
+  return BOT_TYPES.map((bot) => ({
+    ...bot,
+    code: bot.id,
+    frontendCode: bot.id,
+    backendCode: getBackendCodeForType(bot.id),
+    backendId: null,
+    price: bot.price ?? null,
+    currency: bot.currency ?? "UAH",
+    isFree: bot.isFree ?? false,
+    isActive: bot.isActive ?? true,
+    totalSteps: bot.totalSteps ?? 30,
+  }));
+}
+
+function getBotMetaByCode(code) {
+  if (!code) return null;
+  return (
+    BOT_TYPES.find((item) => item.id === code) ||
+    (appState.bots || mergedBots || []).find(
+      (bot) => (bot.frontendCode || bot.code) === code
+    ) ||
+    null
+  );
+}
+
+function applyCommandsForBotType(typeId, targetState = state) {
+  if (!targetState || !typeId || typeId === "custom") return;
+  const meta = getBotMetaByCode(typeId);
+  if (meta && Array.isArray(meta.commands) && meta.commands.length) {
+    targetState.commands = [...meta.commands];
+  }
+}
+
+function getActiveEnvStorageKey() {
+  const id =
+    (appState && appState.activeEnvironmentId != null
+      ? appState.activeEnvironmentId
+      : "default");
+  return ENV_STATE_STORAGE_PREFIX + String(id);
+}
+
 const appState = {
   user: null,
   bots: [],
+  environments: [],
+  activeEnvironmentId: null,
   admin: {
     bots: [],
     settings: {},
@@ -30,13 +91,69 @@ const appState = {
   },
 };
 
+function getActiveEnvironment() {
+  if (!Array.isArray(appState.environments)) return null;
+  if (!appState.activeEnvironmentId) return null;
+  return (
+    appState.environments.find(
+      (env) => env.id === appState.activeEnvironmentId
+    ) || null
+  );
+}
+
+function updateEnvironmentInState(envId, patch) {
+  if (!envId || !patch || typeof patch !== "object") return;
+  if (!Array.isArray(appState.environments)) return;
+  const idx = appState.environments.findIndex((env) => env.id === envId);
+  if (idx === -1) return;
+  appState.environments[idx] = {
+    ...appState.environments[idx],
+    ...patch,
+  };
+}
+
+function isActiveEnvironmentBriefLocked() {
+  const env = getActiveEnvironment();
+  if (!env) return false;
+  return Boolean(env.brief_locked ?? env.briefLocked);
+}
+
+function scheduleBriefLock(stepNumber) {
+  if (!appState.activeEnvironmentId) return;
+  const normalized = Number(stepNumber);
+  if (!Number.isInteger(normalized) || normalized < 1) return;
+  pendingBriefLock = {
+    envId: appState.activeEnvironmentId,
+    briefStep: normalized,
+  };
+}
+
+try {
+  const rawEnvId = localStorage.getItem(ENV_ID_STORAGE_KEY);
+  if (rawEnvId) {
+    const parsed = Number(rawEnvId);
+    appState.activeEnvironmentId = Number.isNaN(parsed) ? null : parsed;
+  }
+} catch (error) {
+  console.warn("Cannot read activeEnvironmentId from storage", error);
+}
+
 let backendBots = [];
 let mergedBots = [];
 
 const uiState = {
   loginScreen: document.getElementById("login-screen"),
   appShell: document.getElementById("app"),
+  topbar: document.getElementById("topbar"),
 };
+
+const topbarOverlay = document.getElementById("nav-overlay");
+const topbarMenu = document.getElementById("nav-popup");
+const topbarBurger = document.getElementById("nav-burger");
+const topbarClose = document.getElementById("nav-close");
+const detailsOverlay = document.getElementById("details-overlay");
+const detailsBody = document.getElementById("details-body");
+const detailsClose = document.getElementById("details-close");
 
 function setAuthMode(mode) {
   const loginForm = document.getElementById("login-form");
@@ -58,10 +175,17 @@ document.querySelectorAll(".auth-tab").forEach((btn) => {
 });
 setAuthMode("login");
 
-function initApp() {
+async function initApp() {
   if (!appState.user) return;
   if (uiState.loginScreen) uiState.loginScreen.hidden = true;
   if (uiState.appShell) uiState.appShell.hidden = false;
+  if (uiState.topbar) uiState.topbar.hidden = false;
+  try {
+    await loadEnvironments();
+  } catch (error) {
+    console.error("Failed to load environments", error);
+  }
+  showEnvScreen();
   if (appState.user.role === "admin") {
     ensureAdminControls();
   } else {
@@ -69,6 +193,10 @@ function initApp() {
     if (panel) panel.hidden = true;
     const btn = document.getElementById("admin-toggle");
     if (btn) btn.remove();
+    const mobileAdminBtn = document.querySelector(
+      '#nav-popup button[data-action="admin"]'
+    );
+    if (mobileAdminBtn) mobileAdminBtn.remove();
   }
 }
 
@@ -80,7 +208,7 @@ async function handleLoginSubmit(event) {
   const password = passwordInput?.value.trim();
 
   if (!email || !password) {
-    alert("Введіть email та пароль.");
+    showToast("Введіть email та пароль.", "error");
     return;
   }
 
@@ -90,11 +218,11 @@ async function handleLoginSubmit(event) {
       body: JSON.stringify({ email, password }),
     });
     appState.user = result.user;
-    initApp();
+    await initApp();
     await loadBots();
   } catch (error) {
     console.error("Login failed", error);
-    alert("Помилка входу");
+    showToast("Помилка входу", "error");
   }
 }
 
@@ -112,19 +240,25 @@ async function handleRegisterSubmit(event) {
   const lastName = document.getElementById("reg-last-name")?.value.trim();
   const patronymic = document.getElementById("reg-patronymic")?.value.trim();
   const phoneCode = document.getElementById("reg-phone-code")?.value || "";
-  const phoneNumber = document
+  const phoneNumberRaw = document
     .getElementById("reg-phone-number")
-    ?.value.replace(/\s+/g, "");
+    ?.value || "";
+  const phoneDigits = phoneNumberRaw.replace(/\D/g, "");
   const email = document.getElementById("reg-email")?.value.trim();
   const password = document.getElementById("reg-password")?.value.trim();
 
-  if (!firstName || !lastName || !phoneNumber || !email || !password) {
-    alert("Заповни всі обовʼязкові поля.");
+  if (!firstName || !lastName || !phoneDigits || !email || !password) {
+    showToast("Заповни всі обовʼязкові поля.", "error");
+    return;
+  }
+
+  if (phoneDigits.length < 7 || phoneDigits.length > 12) {
+    showToast("Перевір довжину номера телефону (7-12 цифр).", "error");
     return;
   }
 
   const full_name = [lastName, firstName, patronymic].filter(Boolean).join(" ");
-  const phone = `${phoneCode}${phoneNumber}`;
+  const phone = `${phoneCode}${phoneDigits}`;
 
   try {
     const result = await api("/auth/register", {
@@ -138,11 +272,11 @@ async function handleRegisterSubmit(event) {
     });
 
     appState.user = result.user;
-    initApp();
+    await initApp();
     await loadBots();
   } catch (error) {
     console.error("Register failed", error);
-    alert("Помилка реєстрації");
+    showToast("Помилка реєстрації", "error");
   }
 }
 
@@ -163,11 +297,191 @@ async function handleLogout() {
   window.location.reload();
 }
 
-const logoutButton = document.getElementById("logout-button");
-if (logoutButton) {
-  logoutButton.addEventListener("click", () => {
-    handleLogout();
-  });
+function renderEnvScreen() {
+  const screen = document.getElementById("env-screen");
+  if (!screen) return;
+  const list = document.getElementById("env-list");
+  if (!list) return;
+  list.innerHTML = "";
+  const envs = Array.isArray(appState.environments)
+    ? appState.environments
+    : [];
+  if (!envs.length) {
+    const empty = document.createElement("div");
+    empty.className = "env-card env-empty";
+    empty.textContent = "Поки що немає середовищ.";
+    list.appendChild(empty);
+  } else {
+    const getBotMeta = (env) => {
+      const botId = env.bot_id || env.botId || null;
+      const botCode = env.bot_code || env.botCode || null;
+      let botMatch = null;
+      if (botId && Array.isArray(mergedBots)) {
+        botMatch = mergedBots.find((item) => item.backendId === botId) || null;
+      }
+      if (!botMatch && botCode && Array.isArray(mergedBots)) {
+        botMatch = mergedBots.find((item) => item.code === botCode) || null;
+      }
+      const type = botCode
+        ? BOT_TYPES.find((item) => item.id === botCode)
+        : null;
+      return {
+        title: botMatch?.title || type?.title || null,
+        totalSteps:
+          botMatch?.totalSteps ||
+          type?.totalSteps ||
+          env.total_steps ||
+          env.totalSteps ||
+          null,
+      };
+    };
+
+    envs.forEach((env) => {
+      const card = document.createElement("div");
+      card.className = "env-card";
+      const currentStep =
+        Number(env.current_step ?? env.currentStep ?? 1) || 1;
+      const botMeta = getBotMeta(env);
+      const totalSteps = Number(botMeta.totalSteps ?? 30) || 30;
+      const isBriefLocked = Boolean(env.brief_locked ?? env.briefLocked);
+      const progress = Math.min(
+        100,
+        Math.max(0, (currentStep / totalSteps) * 100)
+      );
+
+      const header = document.createElement("div");
+      header.className = "env-card-header";
+      const titleEl = document.createElement("div");
+      titleEl.className = "env-card-title";
+      titleEl.textContent = env.title || "Без назви";
+      const stepEl = document.createElement("div");
+      stepEl.className = "env-card-step";
+      stepEl.textContent = `Крок ${currentStep} із ${totalSteps}`;
+      header.appendChild(titleEl);
+      header.appendChild(stepEl);
+      card.appendChild(header);
+
+      const metaItems = [];
+      if (botMeta.title) metaItems.push(`Тип: ${botMeta.title}`);
+      const updatedValue = env.updated_at || env.updatedAt;
+      if (updatedValue) {
+        const updatedDate = new Date(updatedValue);
+        if (!Number.isNaN(updatedDate.getTime())) {
+          metaItems.push(
+            `Оновлено: ${updatedDate.toLocaleString("uk-UA", {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}`
+          );
+        }
+      }
+      if (metaItems.length) {
+        const meta = document.createElement("div");
+        meta.className = "env-card-meta";
+        meta.textContent = metaItems.join(" • ");
+        card.appendChild(meta);
+      }
+      if (isBriefLocked) {
+        const lockBadge = document.createElement("div");
+        lockBadge.className = "env-card-lock";
+        lockBadge.textContent = "🔒 Бриф зафіксовано";
+        card.appendChild(lockBadge);
+      }
+
+      const progressWrap = document.createElement("div");
+      progressWrap.className = "env-card-progress";
+      const bar = document.createElement("div");
+      bar.className = "env-card-progress-bar";
+      bar.style.width = `${progress}%`;
+      progressWrap.appendChild(bar);
+      card.appendChild(progressWrap);
+
+      card.addEventListener("click", () => {
+        console.log("Environment selected", env.id);
+        selectEnvironment(env);
+      });
+      list.appendChild(card);
+    });
+  }
+  const createBtn = document.getElementById("env-create-btn");
+  if (createBtn && !createBtn.dataset.bound) {
+    createBtn.addEventListener("click", () => createEnvironment());
+    createBtn.dataset.bound = "1";
+  }
+  const backBtn = document.getElementById("env-back-btn");
+  if (backBtn && !backBtn.dataset.bound) {
+    backBtn.addEventListener("click", () => hideEnvScreen());
+    backBtn.dataset.bound = "1";
+  }
+}
+
+function selectEnvironment(env) {
+  if (!env || !env.id) return;
+  appState.activeEnvironmentId = env.id;
+  pendingBriefLock = null;
+  try {
+    localStorage.setItem(ENV_ID_STORAGE_KEY, String(env.id));
+  } catch (error) {
+    console.warn("Cannot persist activeEnvironmentId", error);
+  }
+
+  const envScreen = document.getElementById("env-screen");
+  if (envScreen) envScreen.hidden = true;
+
+  const wizardRoot = document.getElementById("wizard-root");
+  if (wizardRoot) wizardRoot.hidden = false;
+  if (uiState.appShell) uiState.appShell.hidden = false;
+
+  loadStateForActiveEnvironment();
+
+  if (typeof saveState === "function") {
+    saveState();
+  }
+  if (typeof draw === "function") {
+    draw(true);
+  }
+
+  console.log("Environment selected", env.id);
+}
+
+function showEnvScreen() {
+  const screen = document.getElementById("env-screen");
+  if (screen) screen.hidden = false;
+  const wizard = document.getElementById("wizard-root") || uiState.appShell;
+  if (wizard) wizard.hidden = true;
+  renderEnvScreen();
+}
+
+function hideEnvScreen() {
+  const screen = document.getElementById("env-screen");
+  if (screen) screen.hidden = true;
+  const wizard = document.getElementById("wizard-root") || uiState.appShell;
+  if (wizard) wizard.hidden = false;
+}
+
+function openTopbarMenu() {
+  if (topbarOverlay) topbarOverlay.hidden = false;
+  if (topbarMenu) topbarMenu.classList.add("open");
+  document.body.classList.add("menu-open");
+}
+
+function closeTopbarMenu() {
+  if (topbarOverlay) topbarOverlay.hidden = true;
+  if (topbarMenu) topbarMenu.classList.remove("open");
+  document.body.classList.remove("menu-open");
+}
+
+async function openEnvScreen() {
+  await loadEnvironments();
+  showEnvScreen();
+}
+
+function handleReset() {
+  if (!confirm("Скинути всі кроки та повернутися до початку?")) return;
+  closeDocs();
+  closeTopbarMenu();
+  resetCurrentEnvironmentState();
+  showToast("Майстер скинуто.");
 }
 
 async function loadBots() {
@@ -179,23 +493,43 @@ async function loadBots() {
       ? data.bots
       : [];
     backendBots = botsFromApi;
-    mergedBots = backendBots.map((bot) => {
-      const meta = BOT_TYPES.find((item) => item.id === bot.code) || null;
+    const frontendBots = getFrontendBotConfigs();
+
+    const frontendByBackendCode = {};
+    frontendBots.forEach((f) => {
+      frontendByBackendCode[f.backendCode] = f;
+    });
+
+    const frontendByCode = {};
+    frontendBots.forEach((f) => {
+      frontendByCode[f.code] = f;
+    });
+
+    mergedBots = backendBots.map((b) => {
+      const fb = frontendByBackendCode[b.code] || frontendByCode[b.code] || {};
       return {
-        backendId: bot.id,
-        code: bot.code,
-        price: bot.price,
-        currency: bot.currency,
-        isFree: bot.is_free,
-        totalSteps: bot.total_steps,
-        title: meta?.title || bot.name,
-        description: meta?.description || bot.description || "",
-        commands: meta?.commands || [],
-        tips: meta?.tips || [],
-        ui: meta?.ui || null,
+        ...fb,
+        code: fb.code || b.code,
+        frontendCode: fb.code || null,
+        backendCode: b.code ?? fb.backendCode ?? null,
+        backendId: b.id,
+        price: b.price,
+        currency: b.currency,
+        isFree: b.is_free,
+        isActive: b.is_active,
+        totalSteps: b.total_steps,
       };
     });
+    frontendBots.forEach((fb) => {
+      const exists = mergedBots.some(
+        (bot) => (bot.frontendCode || bot.code) === fb.code
+      );
+      if (!exists) {
+        mergedBots.push({ ...fb });
+      }
+    });
     console.log("mergedBots", mergedBots);
+    appState.bots = mergedBots;
     if (typeof state !== "undefined" && state.currentStep === 2) {
       draw(true);
     }
@@ -204,25 +538,131 @@ async function loadBots() {
   }
 }
 
-function ensureAdminControls() {
-  const navGroup = document.querySelector(".nav-group");
-  if (!navGroup || document.getElementById("admin-toggle")) return;
-  const button = document.createElement("button");
-  button.id = "admin-toggle";
-  button.type = "button";
-  button.className = "nav-admin";
-  button.textContent = "Адмінка";
-  button.addEventListener("click", () => {
-    const panel = document.getElementById("admin-panel");
-    if (!panel) return;
-    if (panel.hidden) {
-      panel.hidden = false;
-      loadAdminData();
-    } else {
-      panel.hidden = true;
+async function loadEnvironments() {
+  try {
+    const res = await api("/envs", { method: "GET" });
+    const envs = Array.isArray(res?.envs)
+      ? res.envs
+      : Array.isArray(res)
+      ? res
+      : [];
+    appState.environments = envs;
+    renderEnvScreen();
+  } catch (error) {
+    console.error("Failed to load environments", error);
+  }
+}
+
+async function createEnvironment() {
+  const title = prompt("Назва середовища:", "Мій бот");
+  if (!title) return;
+  try {
+    const res = await api("/envs", {
+      method: "POST",
+      body: JSON.stringify({ title, notes: "" }),
+    });
+    if (res?.env) {
+      if (!Array.isArray(appState.environments)) {
+        appState.environments = [];
+      }
+      appState.environments.push(res.env);
+      renderEnvScreen();
     }
-  });
-  navGroup.appendChild(button);
+  } catch (error) {
+    console.error("Failed to create environment", error);
+    showToast("Не вдалося створити середовище", "error");
+  }
+}
+
+async function syncEnvironmentStep() {
+  if (!appState.activeEnvironmentId) return;
+  if (typeof state?.currentStep !== "number") return;
+  const step = Math.max(1, Number(state.currentStep) + 1);
+  if (lastSyncedStep === step) return;
+
+  const shouldLockBrief =
+    pendingBriefLock &&
+    pendingBriefLock.envId === appState.activeEnvironmentId &&
+    Number.isInteger(pendingBriefLock.briefStep) &&
+    pendingBriefLock.briefStep > 0;
+
+  try {
+    const payload = { currentStep: step };
+    if (shouldLockBrief) {
+      payload.lockBrief = true;
+      payload.briefStep = pendingBriefLock.briefStep;
+    }
+
+    const response = await api(`/envs/${appState.activeEnvironmentId}/step`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+    lastSyncedStep = step;
+    if (shouldLockBrief) {
+      pendingBriefLock = null;
+    }
+    if (Array.isArray(appState.environments)) {
+      const patch = {
+        current_step: response?.current_step ?? step,
+      };
+      if (response?.brief_locked !== undefined) {
+        patch.brief_locked = response.brief_locked;
+      }
+      if (response?.brief_step !== undefined) {
+        patch.brief_step = response.brief_step;
+      }
+      updateEnvironmentInState(appState.activeEnvironmentId, patch);
+    }
+    const envScreen = document.getElementById("env-screen");
+    if (envScreen && !envScreen.hidden) {
+      renderEnvScreen();
+    }
+  } catch (error) {
+    console.warn("Failed to sync environment step", error);
+  }
+}
+
+function toggleAdminPanel() {
+  const panel = document.getElementById("admin-panel");
+  if (!panel) return;
+  closeTopbarMenu();
+  if (panel.hidden) {
+    panel.hidden = false;
+    loadAdminData();
+  } else {
+    panel.hidden = true;
+  }
+}
+
+function ensureAdminControls() {
+  const navContainer = document.querySelector(".topbar-nav");
+  if (navContainer && !document.getElementById("admin-toggle")) {
+    const button = document.createElement("button");
+    button.id = "admin-toggle";
+    button.type = "button";
+    button.textContent = "Адмінка";
+    button.addEventListener("click", () => toggleAdminPanel());
+    const logoutBtn = document.getElementById("nav-logout");
+    if (logoutBtn && logoutBtn.parentElement === navContainer) {
+      navContainer.insertBefore(button, logoutBtn);
+    } else {
+      navContainer.appendChild(button);
+    }
+  }
+
+  const popup = document.getElementById("nav-popup");
+  if (popup && !popup.querySelector('button[data-action="admin"]')) {
+    const mobileButton = document.createElement("button");
+    mobileButton.type = "button";
+    mobileButton.dataset.action = "admin";
+    mobileButton.textContent = "Адмінка";
+    const logoutAction = popup.querySelector('button[data-action="logout"]');
+    if (logoutAction) {
+      popup.insertBefore(mobileButton, logoutAction);
+    } else {
+      popup.appendChild(mobileButton);
+    }
+  }
 }
 
 async function ensureAccessForStep(targetStep) {
@@ -231,7 +671,7 @@ async function ensureAccessForStep(targetStep) {
 
   const code = state.choices.botType;
   if (!code) {
-    alert("Спочатку обери тип бота");
+    showToast("Спочатку обери тип бота", "error");
     return false;
   }
 
@@ -240,20 +680,20 @@ async function ensureAccessForStep(targetStep) {
     : null;
   if (!bot || !bot.backendId) {
     console.warn("No backend bot for code", code, bot);
-    alert("Цей тип бота ще не підʼєднаний до бекенду.");
+    showToast("Цей тип бота ще не підʼєднаний до бекенду.", "error");
     return false;
   }
 
   try {
     const access = await api(`/bots/${bot.backendId}/access`, { method: "GET" });
     if (!access?.hasAccess) {
-      alert("Спочатку оплати цього бота, щоб рухатися далі.");
+      showToast("Спочатку оплати цього бота, щоб рухатися далі.", "error");
       return false;
     }
     return true;
   } catch (error) {
     console.error("Failed to check bot access", error);
-    alert("Не вдалось перевірити доступ до бота. Спробуй ще раз.");
+    showToast("Не вдалось перевірити доступ до бота. Спробуй ще раз.", "error");
     return false;
   }
 }
@@ -263,7 +703,7 @@ async function handleNextClick() {
   const step = steps[state.currentStep];
   const validation = validateStep(step);
   if (!validation.allow) {
-    showToast(validation.message);
+    showToast(validation.message, "error");
     return;
   }
   if (state.currentStep >= steps.length - 1) {
@@ -273,7 +713,15 @@ async function handleNextClick() {
   const targetStep = state.currentStep + 1;
   const ok = await ensureAccessForStep(targetStep);
   if (!ok) return;
+  const shouldLockBrief =
+    isCustomBot() &&
+    step?.id === CUSTOM_BRIEF_STEP_ID &&
+    !isActiveEnvironmentBriefLocked();
+  const briefStepNumber = step?.number || state.currentStep + 1;
   state.currentStep = targetStep;
+  if (shouldLockBrief) {
+    scheduleBriefLock(briefStepNumber);
+  }
   saveState();
   draw(true);
 }
@@ -310,7 +758,7 @@ async function loadAdminData() {
     renderAdminPanel();
   } catch (error) {
     console.error("Failed to load admin data", error);
-    alert("Не вдалося завантажити адмін-дані");
+    showToast("Не вдалося завантажити адмін-дані", "error");
   }
 }
 
@@ -331,7 +779,7 @@ async function loadAdminUserPurchases(userId) {
     renderAdminPanel();
   } catch (error) {
     console.error("Failed to load user purchases", error);
-    alert("Не вдалося завантажити покупки користувача");
+    showToast("Не вдалося завантажити покупки користувача", "error");
   }
 }
 
@@ -413,6 +861,7 @@ function renderAdminPanel() {
           <th>ID</th>
           <th>ПІБ</th>
           <th>Email</th>
+          <th>Телефон</th>
           <th>Роль</th>
           <th>Створено</th>
           <th>Дії</th>
@@ -426,6 +875,7 @@ function renderAdminPanel() {
             <td>${user.id}</td>
             <td>${user.full_name || ""}</td>
             <td>${user.email || ""}</td>
+            <td>${user.phone || ""}</td>
             <td>${user.role}</td>
             <td>${user.created_at || ""}</td>
             <td>
@@ -509,7 +959,7 @@ function renderAdminPanel() {
         appState.admin.settings.payments_enabled = value;
       } catch (error) {
         console.error("Failed to update payments_enabled", error);
-        alert("Помилка збереження налаштувань");
+        showToast("Помилка збереження налаштувань", "error");
         event.target.checked = !event.target.checked;
       }
     });
@@ -544,7 +994,7 @@ function renderAdminPanel() {
         await loadAdminData();
       } catch (error) {
         console.error("Failed to update bot", error);
-        alert("Помилка збереження бота");
+        showToast("Помилка збереження бота", "error");
       }
     });
   });
@@ -568,7 +1018,7 @@ function renderAdminPanel() {
         }
       } catch (error) {
         console.error("Failed to mark purchase paid", error);
-        alert("Помилка при mark-paid");
+        showToast("Помилка при mark-paid", "error");
       }
     });
   });
@@ -580,7 +1030,7 @@ function renderAdminPanel() {
       const botId = Number(botIdValue || "0");
       const userId = appState.admin.selectedUserId;
       if (!userId || !botId) {
-        alert("Вкажіть Bot ID та оберіть користувача");
+        showToast("Вкажіть Bot ID та оберіть користувача", "error");
         return;
       }
       try {
@@ -588,22 +1038,16 @@ function renderAdminPanel() {
           method: "POST",
           body: JSON.stringify({ botId }),
         });
-        alert("Прогрес скинуто");
+        showToast("Прогрес скинуто", "success");
       } catch (error) {
         console.error("Failed to reset progress", error);
-        alert("Помилка при скиданні прогресу");
+        showToast("Помилка при скиданні прогресу", "error");
       }
     });
   }
 }
 window.handlePay = async function handlePay(backendId) {
-  console.log("handlePay click", backendId);
-
-  const botEntry =
-    Array.isArray(mergedBots)
-      ? mergedBots.find((b) => b.backendId === backendId) || null
-      : null;
-
+  console.log("handlePay click", backendId, mergedBots);
   try {
     const res = await api("/payments/create", {
       method: "POST",
@@ -612,56 +1056,60 @@ window.handlePay = async function handlePay(backendId) {
 
     console.log("payments/create response", res);
 
-    if (res.status === "free" || res.status === "test_mode") {
-      await loadBots();
-
-      if (botEntry && typeof state !== "undefined") {
-        state.choices.botType = botEntry.code;
-        state.currentStep = 2;
-        state.ui = structuredClone(defaultUiState);
-
-        const type = BOT_TYPES.find(
-          (item) => item.id === state.choices.botType
-        );
-        if (type) {
-          state.commands = [...type.commands];
-        }
-
-        saveState();
-        draw(true);
-        alert("Оплата пройшла. Можна починати.");
-      }
-
-      return;
-    }
-
+    // 1. Якщо WayForPay дає redirect — йдемо туди і нічого більше не робимо.
     if (res.status === "pending" && res.redirectUrl) {
       window.location.href = res.redirectUrl;
       return;
     }
 
-    if (res.status === "pending" && !res.redirectUrl) {
-      console.warn("Pending без redirectUrl, працюємо як test_mode (dev)");
+    // 2. Дев / free / test_mode без redirect: вважаємо доступ виданим.
+    if (
+      res.status === "free" ||
+      res.status === "test_mode" ||
+      res.status === "pending"
+    ) {
+      const bot = (appState.bots || mergedBots || []).find(
+        (b) =>
+          String(b.backendId) === String(backendId) ||
+          String(b.id) === String(backendId)
+      );
 
-      await loadBots();
-
-      if (botEntry && typeof state !== "undefined") {
-        state.choices.botType = botEntry.code;
-        state.currentStep = 2;
-        state.ui = structuredClone(defaultUiState);
-
-        const type = BOT_TYPES.find(
-          (item) => item.id === state.choices.botType
-        );
-        if (type) {
-          state.commands = [...type.commands];
-        }
-
-        saveState();
-        draw(true);
-        alert("Оплата створена. Можна починати.");
+      if (!bot) {
+        console.warn("Paid bot not found", backendId, mergedBots);
+        alert("Помилка: не вдалося знайти бота після оплати");
+        return;
       }
 
+      const botTypeCode = bot.frontendCode || bot.code;
+
+      // фіксуємо тип бота в майстрі
+      state.choices.botType = botTypeCode;
+      state.lockedBotType = botTypeCode;
+      console.log("botType after payment", state.choices.botType);
+      applyCommandsForBotType(botTypeCode);
+
+      // оновлюємо активне середовище
+      if (appState.activeEnvironmentId) {
+        try {
+          await api(`/envs/${appState.activeEnvironmentId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              bot_id: bot.backendId ?? bot.id,
+              current_step: Math.max(state.currentStep || 1, 3),
+            }),
+          });
+        } catch (e) {
+          console.error("Failed to update env with bot", e);
+        }
+      }
+
+      state.currentStep = 2;
+
+      saveState();
+      await loadEnvironments().catch(console.error);
+      draw(true);
+
+      alert("Оплата створена. Можна починати.");
       return;
     }
 
@@ -671,8 +1119,6 @@ window.handlePay = async function handlePay(backendId) {
     alert("Помилка при створенні платежу");
   }
 };
-
-const STORAGE_KEY = "ztb_v4_state";
 
 // --- Довідкові дані ---
 const BOT_TYPES = [
@@ -1481,6 +1927,7 @@ const defaultCustomState = {
     logs: "",
     prompt: "",
   },
+  briefLocked: false,
 };
 
 const defaultUiState = {
@@ -1608,6 +2055,15 @@ const STEP_DETAILS = {
       gif: "assets/details/env-fill.gif",
     },
   ],
+  folder: [
+    {
+      title: "Створення Codespace",
+      description:
+        "Натисни Code → Codespaces → Create codespace on main, зачекай запуск редактора й відкрий термінал через Terminal → New Terminal.",
+      gif: "assets/details/codespaces-folder.gif",
+      onlyEnv: "codespaces",
+    },
+  ],
 };
 
 const LAUNCH_STEPS = [
@@ -1725,6 +2181,7 @@ const defaultState = {
   custom: structuredClone(defaultCustomState),
   extraModules: structuredClone(defaultExtraModulesState),
   extraModuleData: structuredClone(defaultExtraModuleData),
+  lockedBotType: null,
 };
 
 const AI_LINKS = {
@@ -1745,6 +2202,9 @@ function ensureCustomState(targetState = state) {
     if (targetState.custom.diag === undefined)
       targetState.custom.diag = { description: "", logs: "", prompt: "" };
     if (targetState.custom.files === undefined) targetState.custom.files = [];
+    if (typeof targetState.custom.briefLocked !== "boolean") {
+      targetState.custom.briefLocked = false;
+    }
   }
   return targetState.custom;
 }
@@ -2242,22 +2702,22 @@ const elements = {
   stepBody: document.getElementById("step-body"),
   prev: document.getElementById("prev-btn"),
   next: document.getElementById("next-btn"),
-  reset: document.getElementById("reset-btn"),
-  navToggle: document.getElementById("nav-toggle"),
-  navMenu: document.getElementById("nav-menu"),
-  navBackdrop: document.getElementById("nav-backdrop"),
-  topNav: document.querySelector(".top-nav"),
-  navSummary: document.getElementById("nav-summary"),
-  docsBtn: document.getElementById("docs-btn"),
+  reset: document.getElementById("nav-reset"),
+  docsBtn: document.getElementById("nav-docs"),
+  envBtn: document.getElementById("nav-env"),
+  logoutBtn: document.getElementById("nav-logout"),
   docsBackdrop: document.getElementById("docs-backdrop"),
   docsClose: document.getElementById("docs-close"),
   jumpSelect: document.getElementById("jump-select"),
   jumpButton: document.getElementById("jump-btn"),
-  footer: document.querySelector("footer.controls"),
+  footer: document.querySelector(".step-actions"),
   toast: document.getElementById("toast"),
 };
 
-let state = loadState();
+let state = structuredClone(defaultState);
+let lastSyncedStep = null;
+let pendingBriefLock = null;
+loadStateForActiveEnvironment();
 let steps = [];
 
 elements.prev.addEventListener("click", () => {
@@ -2275,14 +2735,7 @@ if (elements.next) {
 
 if (elements.reset) {
   elements.reset.addEventListener("click", () => {
-    if (!confirm("Скинути всі кроки та повернутися до початку?")) return;
-    closeDocs();
-    closeNavMenu();
-    state = structuredClone(defaultState);
-    saveState();
-    draw(true);
-    updateNavOnScroll();
-    showToast("Майстер скинуто.");
+    handleReset();
   });
 }
 
@@ -2309,28 +2762,76 @@ if (elements.docsClose) {
   elements.docsClose.addEventListener("click", closeDocs);
 }
 
-if (elements.navToggle) {
-  elements.navToggle.addEventListener("click", () => {
-    if (elements.navMenu?.classList.contains("open")) {
-      closeNavMenu();
-    } else {
-      openNavMenu();
-    }
+if (elements.envBtn) {
+  elements.envBtn.addEventListener("click", () => {
+    openEnvScreen();
   });
 }
 
-if (elements.navBackdrop) {
-  elements.navBackdrop.addEventListener("click", () => {
-    closeNavMenu();
+if (elements.logoutBtn) {
+  elements.logoutBtn.addEventListener("click", () => {
+    handleLogout();
   });
 }
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeDocs();
-    closeNavMenu();
+    closeTopbarMenu();
   }
 });
+
+if (topbarBurger) {
+  topbarBurger.addEventListener("click", () => {
+    if (topbarOverlay && !topbarOverlay.hidden) {
+      closeTopbarMenu();
+    } else {
+      openTopbarMenu();
+    }
+  });
+}
+
+if (topbarClose) {
+  topbarClose.addEventListener("click", () => {
+    closeTopbarMenu();
+  });
+}
+
+if (topbarOverlay) {
+  topbarOverlay.addEventListener("click", (event) => {
+    if (event.target === topbarOverlay) {
+      closeTopbarMenu();
+    }
+  });
+}
+
+if (topbarMenu) {
+  topbarMenu.addEventListener("click", (event) => {
+    const btn = event.target.closest("button[data-action]");
+    if (!btn) return;
+    const action = btn.dataset.action;
+    if (action === "reset") handleReset();
+    if (action === "docs") openDocs();
+    if (action === "env") openEnvScreen();
+    if (action === "logout") handleLogout();
+    if (action === "admin") toggleAdminPanel();
+    closeTopbarMenu();
+  });
+}
+
+if (detailsClose) {
+  detailsClose.addEventListener("click", () => {
+    closeStepDetailsModal();
+  });
+}
+
+if (detailsOverlay) {
+  detailsOverlay.addEventListener("click", (event) => {
+    if (event.target === detailsOverlay) {
+      closeStepDetailsModal();
+    }
+  });
+}
 
 async function jumpToSelectedStep() {
   if (!elements.jumpSelect) return;
@@ -2340,6 +2841,17 @@ async function jumpToSelectedStep() {
   if (index === -1) return;
   const targetStepNumber = steps[index]?.number || index + 1;
   if (!(await ensureAccessForStep(targetStepNumber))) return;
+  const movingForward = index > state.currentStep;
+  const currentStep = steps[state.currentStep];
+  const shouldLockBrief =
+    movingForward &&
+    isCustomBot() &&
+    currentStep?.id === CUSTOM_BRIEF_STEP_ID &&
+    !isActiveEnvironmentBriefLocked();
+  if (shouldLockBrief) {
+    const briefStepNumber = currentStep?.number || state.currentStep + 1;
+    scheduleBriefLock(briefStepNumber);
+  }
   state.currentStep = index;
   saveState();
   draw(true);
@@ -2355,56 +2867,59 @@ function closeDocs() {
   document.body.classList.remove("docs-open");
 }
 
-function openNavMenu() {
-  if (!elements.navMenu || !elements.navToggle) return;
-  elements.navMenu.classList.add("open");
-  elements.navToggle.classList.add("open");
-  elements.navToggle.setAttribute("aria-expanded", "true");
-  elements.topNav?.classList.add("menu-active");
-  elements.topNav?.classList.remove("scrolled");
-  if (elements.navBackdrop) elements.navBackdrop.hidden = false;
-  document.body.classList.add("nav-open");
+function openStepDetailsModal(detailItems) {
+  if (!detailsOverlay || !detailsBody || !Array.isArray(detailItems)) return;
+  detailsBody.innerHTML = "";
+  detailItems.forEach((item, index) => {
+    const card = document.createElement("article");
+    card.className = "step-details-card";
+
+    const header = document.createElement("header");
+    header.textContent = item.title || `Крок ${index + 1}`;
+    card.appendChild(header);
+
+    if (item.gif) {
+      const img = document.createElement("img");
+      img.src = item.gif;
+      img.alt = item.title || "Детальний приклад";
+      img.loading = "lazy";
+      card.appendChild(img);
+    }
+
+    if (item.description) {
+      const p = document.createElement("p");
+      p.textContent = item.description;
+      card.appendChild(p);
+    }
+
+    detailsBody.appendChild(card);
+  });
+  detailsOverlay.hidden = false;
+  document.body.classList.add("details-open");
 }
 
-function closeNavMenu() {
-  if (!elements.navMenu || !elements.navToggle) return;
-  elements.navMenu.classList.remove("open");
-  elements.navToggle.classList.remove("open");
-  elements.navToggle.setAttribute("aria-expanded", "false");
-  if (elements.navBackdrop) elements.navBackdrop.hidden = true;
-  document.body.classList.remove("nav-open");
-  elements.topNav?.classList.remove("menu-active");
-  updateNavOnScroll();
-}
-
-function isMobileNav() {
-  return window.matchMedia("(max-width: 720px)").matches;
-}
-
-window.addEventListener("scroll", updateNavOnScroll, { passive: true });
-updateNavOnScroll();
-
-function updateNavOnScroll() {
-  if (!elements.topNav) return;
-  const scrolled = window.scrollY > 24;
-  elements.topNav.classList.toggle(
-    "scrolled",
-    scrolled && !document.body.classList.contains("nav-open")
-  );
+function closeStepDetailsModal() {
+  if (!detailsOverlay) return;
+  detailsOverlay.hidden = true;
+  document.body.classList.remove("details-open");
+  if (detailsBody) {
+    detailsBody.innerHTML = "";
+  }
 }
 
 function updateNavSummary() {
-  if (!elements.navSummary) return;
-  const type =
-    BOT_TYPES.find((item) => item.id === state.choices.botType)?.title ||
-    "не обрано";
+  const navSummary = document.getElementById("nav-summary");
+  if (!navSummary) return;
+  const botTypeId = state.choices.botType;
+  const botMeta = getBotMetaByCode(botTypeId);
+  const type = botMeta?.title || "не обрано";
   const environment =
     ENVIRONMENTS.find((item) => item.id === state.choices.environment)?.title ||
     "не обрано";
   const mode =
     MODE_OPTIONS.find((item) => item.id === state.choices.mode)?.title ||
     "не обрано";
-  elements.navSummary.innerHTML = `Тип: <span>${type}</span> | Середовище: <span>${environment}</span> | ШІ: <span>${mode}</span>`;
+  navSummary.innerHTML = `Тип: <span>${type}</span> | Середовище: <span>${environment}</span> | ШІ: <span>${mode}</span>`;
 }
 
 draw(true);
@@ -2554,10 +3069,10 @@ result.push(
           container,
           [
             "1. Зайди на свій репозиторій на GitHub.",
-            "2. Натисни кнопку `Code`.",
-            "3. Перейди на вкладку `Codespaces`.",
-            "4. Натисни `Create codespace on main`.",
-            "5. Дочекайся, поки відкриється веб-VS Code — це і є твій Codespace."
+            "2. Натисни кнопку Code.",
+            "3. Перейди на вкладку Codespaces.",
+            "4. Обери Create codespace on main.",
+            "5. Дочекайся, поки відкриється веб-версія VS Code — це і є твій Codespace.",
           ],
           "Мета: відкрити репозиторій у Codespaces і працювати там з файлами бота (main.py, requirements.txt, .env тощо)."
         );
@@ -2933,95 +3448,125 @@ function renderStartStep(container) {
 }
 
 function renderBotTypeStep(container) {
-  const backendCodeByTypeId = {
-    task: "task_manager",
-    crm: "crm_bot",
-    habit: "fitness_bot",
-    faq: "faq_bot",
-    shop: "shop_bot",
-    booking: "booking_bot",
-    custom: "custom_bot",
+  const frontendBots = getFrontendBotConfigs();
+  const baseBots =
+    appState.bots && appState.bots.length
+      ? appState.bots
+      : mergedBots && mergedBots.length
+      ? mergedBots
+      : frontendBots;
+  const lockedBotType = state.lockedBotType || null;
+  const isBotTypeLocked = Boolean(lockedBotType);
+  const bots = Array.isArray(baseBots) ? [...baseBots] : [];
+  if (
+    isBotTypeLocked &&
+    !bots.some(
+      (bot) => (bot?.frontendCode || bot?.code || bot?.id) === lockedBotType
+    )
+  ) {
+    const fallback =
+      frontendBots.find((bot) => bot.code === lockedBotType) || null;
+    if (fallback) {
+      bots.push(fallback);
+    }
+  }
+
+  const renderPriceAndAction = (bot) => {
+    if (!bot?.backendId) {
+      return `
+        <div class="bot-price-cell">
+          <span class="bot-price-empty">Немає даних</span>
+        </div>
+      `;
+    }
+
+    if (bot.isFree) {
+      return `
+        <div class="bot-price-cell">
+          <span class="bot-price-label">FREE</span>
+          <button
+            class="btn btn-primary bot-pay-btn"
+            type="button"
+            onclick="window.handlePay(${bot.backendId})"
+          >
+            Почати (FREE)
+          </button>
+        </div>
+      `;
+    }
+
+    const priceValue = Number(bot.price);
+    const price = Number.isFinite(priceValue)
+      ? priceValue.toFixed(2)
+      : "";
+    const currency = bot.currency || "";
+
+    return `
+      <div class="bot-price-cell">
+        <span class="bot-price-label">Ціна: ${price} ${currency}</span>
+        <button
+          class="btn btn-primary bot-pay-btn"
+          type="button"
+          onclick="window.handlePay(${bot.backendId})"
+        >
+          Оплатити
+        </button>
+      </div>
+    `;
   };
 
-  const sources = BOT_TYPES.map((type) => {
-    const backendCode = backendCodeByTypeId[type.id] || type.id;
-    const backend =
-      Array.isArray(mergedBots)
-        ? mergedBots.find((bot) => bot.code === backendCode) || null
-        : null;
-    return {
-      botId: type.id,
-      title: type.title,
-      description: type.description,
-      commands: type.commands,
-      backend,
-    };
-  });
+  const wrap = document.createElement("div");
+  wrap.className = "bot-type-list";
+  wrap.innerHTML = bots
+    .map((bot) => {
+      const commands = Array.isArray(bot.commands) ? bot.commands : [];
+      const commandsText = commands.length
+        ? commands.join(", ")
+        : "/start, /help";
+      const botCode = bot.frontendCode || bot.code;
+      const checked = state.choices.botType === botCode ? "checked" : "";
+      const disabledAttr =
+        isBotTypeLocked && botCode !== lockedBotType ? "disabled" : "";
+      const priceColHtml = renderPriceAndAction(bot);
 
-  const tableWrap = document.createElement("div");
-  tableWrap.className = "table-wrapper";
-  const table = document.createElement("table");
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th>Тип</th>
-        <th>Опис</th>
-        <th>Рекомендовані команди</th>
-        <th>Ціна / Оплата</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${sources
-        .map((row) => {
-          const backend = row.backend;
-          let priceText;
-          let buttonHtml = "";
-          if (mergedBots.length === 0) {
-            priceText = "Завантаження...";
-          } else if (backend) {
-            priceText = backend.isFree
-              ? "FREE"
-              : `Ціна: ${backend.price} ${backend.currency}`;
-            buttonHtml = `<button type="button" class="${
-              backend.isFree ? "ghost" : "primary"
-            }" onclick="window.handlePay(${backend.backendId})">${
-              backend.isFree
-                ? "Почати (FREE)"
-                : `Оплатити (${backend.price} ${backend.currency})`
-            }</button>`;
-          } else {
-            priceText = "Немає даних";
-          }
-          return `
-        <tr>
-          <td>
-            <label>
-              <input type="radio" name="bot-type" value="${row.botId}" ${
-            state.choices.botType === row.botId ? "checked" : ""
-          } />
-              <span>${row.title}</span>
+      return `
+        <article class="bot-type-card">
+          <div class="bot-type-main">
+            <label class="bot-type-radio">
+              <input type="radio" name="bot-type" value="${botCode}" ${checked} ${disabledAttr} />
+              <span class="bot-type-title">${bot.title || botCode}</span>
             </label>
-          </td>
-          <td>${row.description}</td>
-          <td>${row.commands.join(", ")}</td>
-          <td class="bot-payment">
-            <div>${priceText}</div>
-            ${buttonHtml}
-          </td>
-        </tr>
+            <p class="bot-type-desc">${bot.description || ""}</p>
+            <p class="bot-type-commands">${commandsText}</p>
+          </div>
+          <div class="bot-type-pay">
+            ${priceColHtml}
+          </div>
+        </article>
       `;
-        })
-        .join("")}
-    </tbody>
-  `;
-  table.addEventListener("change", (event) => {
+    })
+    .join("");
+
+  wrap.addEventListener("change", (event) => {
     if (event.target.name === "bot-type") {
       const previous = state.choices.botType;
       const value = event.target.value;
+      if (isBotTypeLocked && value !== lockedBotType) {
+        event.target.checked = false;
+        const lockedInput = wrap.querySelector(
+          `input[name="bot-type"][value="${lockedBotType}"]`
+        );
+        if (lockedInput) lockedInput.checked = true;
+        showToast(
+          "Тип бота вже зафіксований після оплати. Створи нове середовище, щоб обрати інший.",
+          "error"
+        );
+        return;
+      }
       state.choices.botType = value;
       state.ui = structuredClone(defaultUiState);
-      const type = BOT_TYPES.find((item) => item.id === state.choices.botType);
-      if (type) state.commands = [...type.commands];
+      applyCommandsForBotType(value);
+
       if (value === "custom" && previous !== "custom") {
         state.custom = structuredClone(defaultCustomState);
         state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
@@ -3030,16 +3575,23 @@ function renderBotTypeStep(container) {
         state.custom = structuredClone(defaultCustomState);
         state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
       }
+
       saveState();
       draw(true);
     }
   });
-  tableWrap.appendChild(table);
-  container.appendChild(tableWrap);
 
-  renderInfo(container, [
+  container.appendChild(wrap);
+
+  const infoLines = [
     "• Обери сценарій, який найближчий до твого проєкту.",
-  ]);
+  ];
+  if (isBotTypeLocked) {
+    infoLines.push(
+      "• Тип бота зафіксовано після оплати. Для нового типу створи окреме середовище."
+    );
+  }
+  renderInfo(container, infoLines);
 }
 
 function renderModeStep(container) {
@@ -3511,10 +4063,28 @@ function renderDevBriefStep(container) {
   h.textContent = "Огляд виборів та швидке редагування";
   panel.appendChild(h);
 
-  panel.appendChild(
-    makeRow(
-      "Тип бота",
-      makeSelect(
+  const lockedBotType = state.lockedBotType;
+  const typeControl = lockedBotType
+    ? (() => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "form-control form-control--static";
+        const lockedMeta = getBotMetaByCode(lockedBotType);
+        const valueText = lockedMeta
+          ? `${lockedMeta.title} — ${lockedMeta.description}`
+          : lockedBotType;
+        const valueEl = document.createElement("div");
+        valueEl.className = "readonly-value";
+        valueEl.textContent = valueText;
+        wrapper.appendChild(valueEl);
+
+        const hint = document.createElement("p");
+        hint.className = "form-hint warning";
+        hint.textContent =
+          "Тип бота зафіксовано після оплати. Створи нове середовище, щоб обрати інший.";
+        wrapper.appendChild(hint);
+        return wrapper;
+      })()
+    : makeSelect(
         BOT_TYPES.map((t) => [t.id, `${t.title} — ${t.description}`]),
         state.choices.botType,
         (value) => {
@@ -3534,9 +4104,9 @@ function renderDevBriefStep(container) {
           saveState();
           draw(true);
         }
-      )
-    )
-  );
+      );
+
+  panel.appendChild(makeRow("Тип бота", typeControl));
 
   panel.appendChild(
     makeRow(
@@ -3714,18 +4284,41 @@ function renderCustomBriefPromptStep(container) {
 
 function renderCustomBriefInputStep(container) {
   const custom = ensureCustomState();
-  renderInfo(container, [
+  const env = getActiveEnvironment();
+  const envBriefLocked = Boolean(env?.brief_locked ?? env?.briefLocked);
+  const customBriefLocked = Boolean(custom.briefLocked);
+  const briefLocked = envBriefLocked || customBriefLocked;
+  const baseInfo = [
     "Встав JSON із брифом. Після збереження система побудує план файлів.",
-  ]);
+  ];
+  if (briefLocked) {
+    baseInfo.push(
+      "Бриф для цього середовища вже зафіксовано. Щоб описати нового бота, створи нове середовище в розділі «Середовища»."
+    );
+  }
+  renderInfo(container, baseInfo);
+
+  if (briefLocked) {
+    const note = document.createElement("div");
+    note.className = "brief-lock-note";
+    note.textContent = envBriefLocked
+      ? "Редагування вимкнено, бо бриф підтверджено. Створи нове середовище для нового кастомного бота."
+      : "Бриф уже збережено для цього середовища. Створи нове середовище, щоб описати іншого кастомного бота.";
+    container.appendChild(note);
+  }
 
   const textarea = document.createElement("textarea");
   textarea.value = custom.briefText;
   textarea.placeholder = '{\n  "commands": [...],\n  "files": [...],\n  ...\n}';
   textarea.rows = 12;
-  textarea.addEventListener("input", (event) => {
-    custom.briefText = event.target.value;
-    saveState();
-  });
+  textarea.readOnly = briefLocked;
+  textarea.classList.toggle("textarea-readonly", briefLocked);
+  if (!briefLocked) {
+    textarea.addEventListener("input", (event) => {
+      custom.briefText = event.target.value;
+      saveState();
+    });
+  }
   container.appendChild(makeRow("JSON-бриф", wrapControl(textarea)));
 
   const actions = document.createElement("div");
@@ -3733,35 +4326,42 @@ function renderCustomBriefInputStep(container) {
   const saveBtn = document.createElement("button");
   saveBtn.type = "button";
   saveBtn.className = "primary";
-  saveBtn.textContent = "Зберегти бриф";
-  saveBtn.addEventListener("click", () => {
-    try {
-      const parsed = parseCustomBrief(custom.briefText);
-      custom.brief = parsed;
-      updateCustomFilePlan(parsed);
-      if (Array.isArray(parsed.commands) && parsed.commands.length) {
-        state.commands = parsed.commands
-          .map((cmd) => normalizeCommand(cmd))
-          .filter(Boolean);
+  if (briefLocked) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Бриф зафіксований";
+  } else {
+    saveBtn.textContent = "Зберегти бриф";
+    saveBtn.addEventListener("click", () => {
+      try {
+        const parsed = parseCustomBrief(custom.briefText);
+        custom.brief = parsed;
+        updateCustomFilePlan(parsed);
+        if (Array.isArray(parsed.commands) && parsed.commands.length) {
+          state.commands = parsed.commands
+            .map((cmd) => normalizeCommand(cmd))
+            .filter(Boolean);
+        }
+        if (!custom.commandsText?.trim()) {
+          custom.commandsText = deriveDefaultCommands(custom, getEntryFile());
+        }
+        const recommendedBackend = getRecommendedBackendId();
+        if (recommendedBackend && !state.choices.backend) {
+          state.choices.backend = recommendedBackend;
+        }
+        custom.diag.prompt = "";
+        custom.briefLocked = true;
+        saveState();
+        draw(true);
+        showToast("Бриф збережено.");
+      } catch (error) {
+        console.error("Не вдалося розпарсити бриф", error);
+        showToast(
+          "Помилка JSON. Перевір синтаксис. Якщо ChatGPT повернув відповідь у ```json``` — скопіюй лише вміст без кодових блоків.",
+          "error"
+        );
       }
-      if (!custom.commandsText?.trim()) {
-        custom.commandsText = deriveDefaultCommands(custom, getEntryFile());
-      }
-      const recommendedBackend = getRecommendedBackendId();
-      if (recommendedBackend && !state.choices.backend) {
-        state.choices.backend = recommendedBackend;
-      }
-      custom.diag.prompt = "";
-      saveState();
-      draw(true);
-      showToast("Бриф збережено.");
-    } catch (error) {
-      console.error("Не вдалося розпарсити бриф", error);
-      showToast(
-        "Помилка JSON. Перевір синтаксис. Якщо ChatGPT повернув відповідь у ```json``` — скопіюй лише вміст без кодових блоків."
-      );
-    }
-  });
+    });
+  }
   actions.appendChild(saveBtn);
   container.appendChild(actions);
 }
@@ -4630,8 +5230,17 @@ function renderLaunchStep(container, step) {
 }
 
 function renderStepDetails(container, stepId) {
-  const details = STEP_DETAILS[stepId];
-  if (!details || !details.length) return;
+  const mount = document.getElementById("step-details-mount");
+  if (mount) mount.innerHTML = "";
+  const allDetails = STEP_DETAILS[stepId];
+  if (!allDetails || !allDetails.length || !mount) return;
+
+  const currentEnv = state?.choices?.environment || null;
+  const details = allDetails.filter((item) => {
+    if (item.onlyEnv && item.onlyEnv !== currentEnv) return false;
+    return true;
+  });
+  if (!details.length) return;
 
   const wrapper = document.createElement("div");
   wrapper.className = "step-details";
@@ -4640,44 +5249,9 @@ function renderStepDetails(container, stepId) {
   toggle.type = "button";
   toggle.className = "ghost details-toggle";
   toggle.textContent = "Детальніше";
+  toggle.addEventListener("click", () => openStepDetailsModal(details));
   wrapper.appendChild(toggle);
-
-  const body = document.createElement("div");
-  body.className = "step-details-body";
-  body.hidden = true;
-
-  details.forEach((item, index) => {
-    const card = document.createElement("article");
-    card.className = "step-details-card";
-
-    const header = document.createElement("header");
-    header.textContent = item.title || `Крок ${index + 1}`;
-    card.appendChild(header);
-
-    if (item.gif) {
-      const img = document.createElement("img");
-      img.src = item.gif;
-      img.alt = item.title || "Детальний приклад";
-      img.loading = "lazy";
-      card.appendChild(img);
-    }
-
-    if (item.description) {
-      const p = document.createElement("p");
-      p.textContent = item.description;
-      card.appendChild(p);
-    }
-
-    body.appendChild(card);
-  });
-
-  toggle.addEventListener("click", () => {
-    body.hidden = !body.hidden;
-    toggle.textContent = body.hidden ? "Детальніше" : "Згорнути деталі";
-  });
-
-  wrapper.appendChild(body);
-  container.appendChild(wrapper);
+  mount.appendChild(wrapper);
 }
 
 function renderExtraModulesStep(container) {
@@ -5360,7 +5934,7 @@ function createLivePromptBlock(getText, options = {}) {
   copyBtn.addEventListener("click", () => {
     const text = getText();
     if (!text?.trim()) {
-      showToast("Спочатку заповни поля для промпту.");
+      showToast("Спочатку заповни поля для промпту.", "error");
       return;
     }
     copyText(text);
@@ -5671,7 +6245,7 @@ function appendInfoLine(block, line) {
 // --- Загальні утиліти ---
 function copyText(text) {
   if (!navigator.clipboard) {
-    showToast("Скопіювати не вдалося (обмеження браузера).");
+    showToast("Скопіювати не вдалося (обмеження браузера).", "error");
     return;
   }
   navigator.clipboard
@@ -5679,13 +6253,19 @@ function copyText(text) {
     .then(() => showToast("Скопійовано у буфер."));
 }
 
-function showToast(message) {
-  elements.toast.textContent = message;
-  elements.toast.style.display = "inline-flex";
-  clearTimeout(showToast._timer);
-  showToast._timer = setTimeout(() => {
-    elements.toast.style.display = "none";
-  }, 2200);
+function showToast(message, type = "success") {
+  const root = document.getElementById("toast");
+  if (!root) return;
+  const body = root.querySelector(".toast-body");
+  if (!body) return;
+  root.hidden = false;
+  body.textContent = message;
+  body.classList.remove("toast-success", "toast-error");
+  body.classList.add(type === "error" ? "toast-error" : "toast-success");
+  clearTimeout(root._hideTimer);
+  root._hideTimer = setTimeout(() => {
+    root.hidden = true;
+  }, 4000);
 }
 
 function validateStep(step) {
@@ -5727,6 +6307,9 @@ function validateStep(step) {
         : fail("Опиши, якого бота ти хочеш.");
     }
     case "custom-brief-import": {
+      if (isActiveEnvironmentBriefLocked()) {
+        return ok();
+      }
       const custom = ensureCustomState();
       return custom.brief
         ? ok()
@@ -5831,45 +6414,125 @@ function generateCodePrompt() {
   ].join("\n");
 }
 
+function normalizeState(nextState) {
+  const merged = Object.assign(
+    structuredClone(defaultState),
+    nextState || {}
+  );
+  merged.tools = Object.assign({}, defaultState.tools, merged.tools);
+  if (merged.tools.requirements === undefined) merged.tools.requirements = false;
+  if (merged.tools.env === undefined) merged.tools.env = false;
+  if (merged.tools.codespace === undefined) merged.tools.codespace = false;
+  if (merged.tools.browser === undefined) merged.tools.browser = false;
+  merged.custom = Object.assign(
+    structuredClone(defaultCustomState),
+    merged.custom || {}
+  );
+  if (!Array.isArray(merged.custom.files)) merged.custom.files = [];
+  if (!merged.custom.diag)
+    merged.custom.diag = { description: "", logs: "", prompt: "" };
+  if (!merged.choices.entryFile)
+    merged.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
+  merged.ui = Object.assign(structuredClone(defaultUiState), merged.ui || {});
+  if (!merged.ui.replyVariant) merged.ui.replyVariant = "default";
+  if (!merged.ui.inlineVariant) merged.ui.inlineVariant = "default";
+  if (typeof merged.ui.replyCustomSpec !== "string")
+    merged.ui.replyCustomSpec = "";
+  if (typeof merged.ui.inlineCustomSpec !== "string")
+    merged.ui.inlineCustomSpec = "";
+  ensureExtraModules(merged);
+  ensureExtraModuleData(merged);
+  if (merged.lockedBotType === undefined) merged.lockedBotType = null;
+  if (
+    merged.lockedBotType &&
+    merged.choices &&
+    merged.choices.botType !== merged.lockedBotType
+  ) {
+    merged.choices.botType = merged.lockedBotType;
+  }
+  ensureCustomState(merged);
+  if (
+    merged.choices?.botType &&
+    merged.choices.botType !== "custom" &&
+    (!Array.isArray(merged.commands) || !merged.commands.length)
+  ) {
+    applyCommandsForBotType(merged.choices.botType, merged);
+  }
+  return merged;
+}
+
 function loadState() {
+  loadStateForActiveEnvironment();
+}
+
+function loadStateForEnv(envId) {
+  const key =
+    ENV_STATE_STORAGE_PREFIX + String(envId != null ? envId : "default");
+  const raw = localStorage.getItem(key);
+  if (!raw) {
+    return normalizeState();
+  }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return structuredClone(defaultState);
     const parsed = JSON.parse(raw);
-    const merged = Object.assign(structuredClone(defaultState), parsed);
-    merged.tools = Object.assign({}, defaultState.tools, merged.tools);
-    if (merged.tools.requirements === undefined)
-      merged.tools.requirements = false;
-    if (merged.tools.env === undefined) merged.tools.env = false;
-    if (merged.tools.codespace === undefined) merged.tools.codespace = false;
-    if (merged.tools.browser === undefined) merged.tools.browser = false;
-    merged.custom = Object.assign(
-      structuredClone(defaultCustomState),
-      merged.custom || {}
-    );
-    if (!Array.isArray(merged.custom.files)) merged.custom.files = [];
-    if (!merged.custom.diag)
-      merged.custom.diag = { description: "", logs: "", prompt: "" };
-    if (!merged.choices.entryFile)
-      merged.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
-    merged.ui = Object.assign(structuredClone(defaultUiState), merged.ui || {});
-    if (!merged.ui.replyVariant) merged.ui.replyVariant = "default";
-    if (!merged.ui.inlineVariant) merged.ui.inlineVariant = "default";
-    if (typeof merged.ui.replyCustomSpec !== "string")
-      merged.ui.replyCustomSpec = "";
-    if (typeof merged.ui.inlineCustomSpec !== "string")
-      merged.ui.inlineCustomSpec = "";
-    ensureExtraModules(merged);
-    ensureExtraModuleData(merged);
-    return merged;
-  } catch (error) {
-    console.error("Не вдалося завантажити стан", error);
-    return structuredClone(defaultState);
+    if (parsed && typeof parsed === "object" && parsed.state) {
+      return normalizeState(parsed.state);
+    }
+    return normalizeState(parsed);
+  } catch (e) {
+    console.warn("Failed to parse state for env", envId, e);
+    return normalizeState();
   }
 }
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function loadStateForActiveEnvironment() {
+  let payload = null;
+  try {
+    const key = getActiveEnvStorageKey();
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      payload = JSON.parse(raw);
+    }
+  } catch (error) {
+    console.warn("Failed to parse env state", error);
+  }
+
+  if (payload && typeof payload === "object" && payload.state) {
+    state = normalizeState(payload.state);
+  } else if (payload) {
+    state = normalizeState(payload);
+  } else {
+    state = normalizeState();
+  }
+
+  if (typeof state.currentStep !== "number" || state.currentStep < 1) {
+    state.currentStep = 1;
+  }
+  lastSyncedStep = Math.max(1, Number(state.currentStep) + 1 || 1);
+}
+
+async function saveState() {
+  try {
+    const key = getActiveEnvStorageKey();
+    const payload = {
+      state,
+      currentStep: state.currentStep,
+    };
+    localStorage.setItem(key, JSON.stringify(payload));
+    await syncEnvironmentStep();
+  } catch (error) {
+    console.error("Failed to save env state", error);
+  }
+}
+
+function resetCurrentEnvironmentState() {
+  state = normalizeState();
+  state.currentStep = 1;
+  lastSyncedStep = null;
+  pendingBriefLock = null;
+  saveState();
+  if (typeof draw === "function") {
+    draw(true);
+  }
 }
 
 function structuredClone(value) {
