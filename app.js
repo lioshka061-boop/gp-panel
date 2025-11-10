@@ -69,6 +69,22 @@ function applyCommandsForBotType(typeId, targetState = state) {
   }
 }
 
+function formatDateTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("uk-UA", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function formatMoney(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "0.00";
+  return num.toFixed(2);
+}
+
 function getActiveEnvStorageKey() {
   const id =
     (appState && appState.activeEnvironmentId != null
@@ -88,6 +104,8 @@ const appState = {
     users: [],
     selectedUserId: null,
     userPurchases: [],
+    analyticsOverview: null,
+    userAnalytics: {},
   },
 };
 
@@ -729,10 +747,16 @@ async function handleNextClick() {
 async function loadAdminData() {
   if (!appState.user || appState.user.role !== "admin") return;
   try {
-    const [botsResponse, settingsResponse, usersResponse] = await Promise.all([
+    const [
+      botsResponse,
+      settingsResponse,
+      usersResponse,
+      overviewResponse,
+    ] = await Promise.all([
       api("/admin/bots", { method: "GET" }),
       api("/admin/settings", { method: "GET" }),
       api("/admin/users", { method: "GET" }),
+      api("/admin/analytics/overview", { method: "GET" }),
     ]);
     appState.admin.bots = Array.isArray(botsResponse?.bots)
       ? botsResponse.bots
@@ -746,6 +770,10 @@ async function loadAdminData() {
       : Array.isArray(usersResponse)
       ? usersResponse
       : [];
+    appState.admin.analyticsOverview = overviewResponse || null;
+    if (!appState.admin.userAnalytics) {
+      appState.admin.userAnalytics = {};
+    }
     if (
       !appState.admin.selectedUserId &&
       appState.admin.users &&
@@ -765,9 +793,14 @@ async function loadAdminData() {
 async function loadAdminUserPurchases(userId) {
   if (!userId) return;
   try {
-    const purchasesResponse = await api(`/admin/users/${userId}/purchases`, {
-      method: "GET",
-    });
+    const [purchasesResponse, analyticsResponse] = await Promise.all([
+      api(`/admin/users/${userId}/purchases`, {
+        method: "GET",
+      }),
+      api(`/admin/users/${userId}/analytics`, {
+        method: "GET",
+      }),
+    ]);
     appState.admin.selectedUserId = userId;
     appState.admin.userPurchases = Array.isArray(
       purchasesResponse?.purchases
@@ -776,6 +809,8 @@ async function loadAdminUserPurchases(userId) {
       : Array.isArray(purchasesResponse)
       ? purchasesResponse
       : [];
+    if (!appState.admin.userAnalytics) appState.admin.userAnalytics = {};
+    appState.admin.userAnalytics[userId] = analyticsResponse || null;
     renderAdminPanel();
   } catch (error) {
     console.error("Failed to load user purchases", error);
@@ -802,9 +837,165 @@ function renderAdminPanel() {
   const paymentsEnabled =
     appState.admin.settings?.payments_enabled === "true" ||
     appState.admin.settings?.payments_enabled === true;
+  const overview = appState.admin.analyticsOverview || {};
+  const overviewRevenue = Array.isArray(overview.totalRevenueByCurrency)
+    ? overview.totalRevenueByCurrency
+    : [];
+  const overviewRevenueHtml = overviewRevenue.length
+    ? overviewRevenue
+        .map(
+          (item) =>
+            `<span class="admin-chip">${item.currency}: ${formatMoney(
+              item.total
+            )}</span>`
+        )
+        .join("")
+    : '<span class="admin-chip admin-chip--muted">Немає даних</span>';
+  const overviewBotsCount = Array.isArray(overview.botsStats)
+    ? overview.botsStats.length
+    : 0;
+  const userAnalytics =
+    (appState.admin.selectedUserId &&
+      appState.admin.userAnalytics &&
+      appState.admin.userAnalytics[appState.admin.selectedUserId]) ||
+    null;
+
+  const userRevenueChips = userAnalytics
+    ? userAnalytics.revenueByCurrency &&
+      userAnalytics.revenueByCurrency.length
+      ? userAnalytics.revenueByCurrency
+          .map(
+            (item) =>
+              `<span class="admin-chip">${item.currency}: ${formatMoney(
+                item.total
+              )}</span>`
+          )
+          .join("")
+      : '<span class="admin-chip admin-chip--muted">Немає оплат</span>'
+    : "";
+
+  const userEnvRows =
+    userAnalytics &&
+    Array.isArray(userAnalytics.envs) &&
+    userAnalytics.envs.length
+      ? userAnalytics.envs
+          .map(
+            (env) => `
+          <tr>
+            <td>${env.title || "Без назви"}</td>
+            <td>${env.botName || env.botCode || "—"}</td>
+            <td>${env.currentStep || 0}</td>
+            <td>${formatDateTime(env.createdAt)}</td>
+            <td>${formatDateTime(env.updatedAt)}</td>
+          </tr>
+        `
+          )
+          .join("")
+      : `<tr><td colspan="5">Немає середовищ.</td></tr>`;
+
+  const userBotsRows =
+    userAnalytics &&
+    Array.isArray(userAnalytics.botsBreakdown) &&
+    userAnalytics.botsBreakdown.length
+      ? userAnalytics.botsBreakdown
+          .map(
+            (bot) => `
+        <tr>
+          <td>${bot.botName || bot.botCode || `Bot #${bot.botId}`}</td>
+          <td>${bot.paidPurchases}</td>
+          <td>${formatMoney(bot.totalAmount)}</td>
+        </tr>
+      `
+          )
+          .join("")
+      : `<tr><td colspan="3">Немає оплат.</td></tr>`;
+
+  const userSummaryBlock = userAnalytics
+    ? `
+      <section class="admin-user-analytics">
+        <header>
+          <div class="admin-user-meta">
+            <h4>${userAnalytics.user?.full_name || "Користувач"} (ID ${
+        userAnalytics.user?.id
+      })</h4>
+            <p>
+              ${userAnalytics.user?.email || "—"} • ${
+        userAnalytics.user?.phone || "—"
+      } • Зареєстровано: ${formatDateTime(userAnalytics.user?.created_at)}
+            </p>
+          </div>
+          <div class="admin-chip-row">
+            <span class="admin-chip">Середовищ: ${userAnalytics.totalEnvs}</span>
+            <span class="admin-chip">Оплат: ${
+              userAnalytics.totalPaidPurchases
+            }</span>
+            ${userRevenueChips}
+          </div>
+        </header>
+        <div class="admin-user-analytics-grid">
+          <div class="admin-table-card">
+            <h5>Середовища</h5>
+            <div class="admin-table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Назва</th>
+                    <th>Бот</th>
+                    <th>Крок</th>
+                    <th>Створено</th>
+                    <th>Оновлено</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${userEnvRows}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="admin-table-card">
+            <h5>Оплати за ботами</h5>
+            <div class="admin-table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Бот</th>
+                    <th>Оплат</th>
+                    <th>Сума</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${userBotsRows}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    `
+    : "";
 
   panel.innerHTML = `
     <h2>Адмін-панель</h2>
+    <div class="admin-analytics">
+      <div class="admin-analytics-card">
+        <span class="admin-analytics-label">Користувачів</span>
+        <strong>${overview.totalUsers ?? 0}</strong>
+      </div>
+      <div class="admin-analytics-card">
+        <span class="admin-analytics-label">Оплачених покупок</span>
+        <strong>${overview.totalPaidPurchases ?? 0}</strong>
+      </div>
+      <div class="admin-analytics-card">
+        <span class="admin-analytics-label">Активних ботів</span>
+        <strong>${overviewBotsCount}</strong>
+      </div>
+    </div>
+    <div class="admin-analytics-revenue">
+      <span>Дохід за валютами:</span>
+      <div class="admin-chip-row">
+        ${overviewRevenueHtml}
+      </div>
+    </div>
     <div class="admin-settings">
       <label>
         <input type="checkbox" id="payments-enabled-toggle" ${
@@ -882,7 +1073,7 @@ function renderAdminPanel() {
               <button type="button" class="user-view-purchases" data-user-id="${
                 user.id
               }">
-                Переглянути покупки
+                Детальніше
               </button>
             </td>
           </tr>
@@ -945,6 +1136,7 @@ function renderAdminPanel() {
     `
         : "<p>Оберіть користувача, щоб побачити покупки.</p>"
     }
+    ${userSummaryBlock}
   `;
 
   const toggle = panel.querySelector("#payments-enabled-toggle");

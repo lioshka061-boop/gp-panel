@@ -1054,6 +1054,133 @@ body.modal-open,
   max-width: 120px;
 }
 
+.admin-analytics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+
+.admin-analytics-card {
+  flex: 1 1 180px;
+  min-width: 160px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(18, 28, 60, 0.92);
+  border: 1px solid rgba(110, 138, 255, 0.2);
+  box-shadow: 0 18px 60px -40px rgba(70, 100, 255, 0.35);
+  display: grid;
+  gap: 6px;
+}
+
+.admin-analytics-label {
+  font-size: 13px;
+  color: rgba(230, 236, 255, 0.75);
+}
+
+.admin-analytics-card strong {
+  font-size: 24px;
+  color: #f6f7ff;
+}
+
+.admin-analytics-revenue {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.admin-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(80, 110, 255, 0.18);
+  border: 1px solid rgba(120, 150, 255, 0.3);
+  font-size: 12px;
+  color: #f0f4ff;
+}
+
+.admin-chip--muted {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(240, 244, 255, 0.6);
+}
+
+.admin-user-analytics {
+  margin-top: 24px;
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: rgba(12, 20, 44, 0.95);
+  border: 1px solid rgba(110, 140, 255, 0.22);
+  box-shadow: 0 24px 80px -48px rgba(40, 70, 180, 0.45);
+  display: grid;
+  gap: 16px;
+}
+
+.admin-user-analytics header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-user-meta h4 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #f6f7ff;
+}
+
+.admin-user-meta p {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(226, 232, 255, 0.75);
+}
+
+.admin-user-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.admin-table-card h5 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: #f5f7ff;
+}
+
+.admin-table-card {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-table-scroll {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.admin-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-table-scroll th,
+.admin-table-scroll td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: left;
+}
+
+.admin-table-scroll thead {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .module-section {
   background: rgba(13, 22, 42, 0.92);
   border: 1px solid rgba(102, 136, 255, 0.22);
@@ -1960,6 +2087,12 @@ button.ghost {
   #admin-panel .admin-reset-progress input,
   #admin-panel .admin-reset-progress button {
     width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-user-analytics header {
+    flex-direction: column;
   }
 }
 
