@@ -30,6 +30,6 @@ module.exports = {
   },
   production: {
     ...shared,
-    connection,
+    connection: process.env.DATABASE_URL || connection,
   },
 };
