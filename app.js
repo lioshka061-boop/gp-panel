@@ -29,7 +29,14 @@ async function handleLoginSubmit(e) {
     });
 
     console.log('Logged in', result.user);
-    // тут ховаєш екран логіну і показуєш панель
+    // зберігаємо користувача та показуємо панель
+    window.currentUser = result.user;
+    const loginScreen = document.getElementById('login-screen');
+    const appShell = document.getElementById('app');
+    if (loginScreen) loginScreen.hidden = true;
+    if (appShell) appShell.hidden = false;
+
+    // підтягуємо дані для панелі
     await loadBots();
   } catch (err) {
     alert('Помилка входу');
