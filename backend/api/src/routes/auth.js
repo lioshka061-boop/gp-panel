@@ -6,6 +6,7 @@ const config = require('../config/env');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+const isProd = process.env.NODE_ENV === 'production';
 
 router.post('/register', async (req, res, next) => {
   try {
@@ -44,7 +45,6 @@ router.post('/register', async (req, res, next) => {
       { expiresIn: '7d' }
     );
 
-    const isProd = process.env.NODE_ENV === 'production';
     res.cookie('gp_token', token, {
       httpOnly: true,
       secure: isProd,
@@ -91,8 +91,6 @@ router.post('/login', async (req, res, next) => {
       { expiresIn: '7d' }
     );
 
-    const isProd = process.env.NODE_ENV === 'production';
-
     res.cookie('gp_token', token, {
       httpOnly: true,
       secure: isProd,                // на Render буде true (https)
@@ -116,6 +114,16 @@ router.post('/login', async (req, res, next) => {
 
 router.get('/me', requireAuth, (req, res) => {
   return res.json({ user: req.user });
+});
+
+router.post('/logout', requireAuth, (req, res) => {
+  res.clearCookie('gp_token', {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    path: '/',
+  });
+  return res.sendStatus(204);
 });
 
 module.exports = router;
