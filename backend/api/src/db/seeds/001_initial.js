@@ -12,7 +12,7 @@ exports.seed = async function (knex) {
   await knex('users').insert({
     full_name: 'Admin',
     phone: '+380000000000',
-    email: 'Admin',
+    email: 'admin@gmail.com',
     password_hash: passwordHash,
     role: 'admin',
   });
@@ -52,5 +52,5 @@ exports.seed = async function (knex) {
 
   await knex('settings').insert({ key: 'payments_enabled', value: 'true' });
 
-  console.info('Seeded admin user (login/email: Admin, password: admingp25)');
+  console.info('Seeded admin user (login/email: admin@gmail.com, password: admingp25)');
 };

@@ -1,8 +1,5 @@
-const API_URL =
-  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:4000'
-    : 'https://api.genieprompts.net';
-    
+const API_URL = 'https://gp-panel-api.onrender.com';
+
 async function api(path, options = {}) {
   const res = await fetch(API_URL + path, {
     credentials: 'include',
