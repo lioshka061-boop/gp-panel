@@ -1,24 +1,34 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
-const knex = require('../db/knex');
 
-const COOKIE_NAME = config.cookieName;
+function attachUser(req, res, next) {
+  const authHeader = req.headers.authorization;
 
-async function attachUser(req, res, next) {
-  try {
-    const token = getTokenFromRequest(req);
-    if (!token) {
-      req.user = null;
-      return next();
-    }
-    const payload = jwt.verify(token, config.jwtSecret);
-    const user = await knex('users').where({ id: payload.sub }).first();
-    req.user = user || null;
-    return next();
-  } catch (error) {
+  const tokenFromHeader =
+    authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : null;
+
+  const token = req.cookies.gp_token || tokenFromHeader;
+
+  if (!token) {
     req.user = null;
     return next();
   }
+
+  try {
+    const payload = jwt.verify(token, config.jwtSecret);
+    req.user = {
+      id: payload.sub,
+      role: payload.role,
+      email: payload.email,
+    };
+  } catch (err) {
+    console.error('JWT verify error:', err.message);
+    req.user = null;
+  }
+
+  return next();
 }
 
 function requireAuth(req, res, next) {
@@ -28,43 +38,4 @@ function requireAuth(req, res, next) {
   return next();
 }
 
-function requireAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  return next();
-}
-
-function setAuthCookie(res, token) {
-  res.cookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: config.cookieSecure,
-    maxAge: 1000 * 60 * 60 * 24 * 7,
-  });
-}
-
-function clearAuthCookie(res) {
-  res.clearCookie(COOKIE_NAME, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: config.cookieSecure,
-  });
-}
-
-function getTokenFromRequest(req) {
-  if (req.cookies && req.cookies[COOKIE_NAME]) {
-    return req.cookies[COOKIE_NAME];
-  }
-  const header = req.headers.authorization || '';
-  const [, token] = header.split(' ');
-  return token || null;
-}
-
-module.exports = {
-  attachUser,
-  requireAuth,
-  requireAdmin,
-  setAuthCookie,
-  clearAuthCookie,
-};
+module.exports = { attachUser, requireAuth };
