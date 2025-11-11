@@ -3,8 +3,61 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const knex = require('../db/knex'); // у тебе може бути інший шлях
 const config = require('../config/env');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+router.post('/register', async (req, res, next) => {
+  try {
+    const { full_name, fullName, phone, email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: 'email and password required' });
+    }
+
+    const existing = await knex('users')
+      .whereRaw('LOWER(email) = ?', [email.toLowerCase()])
+      .first();
+    if (existing) {
+      return res.status(400).json({ error: 'email already exists' });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    const fullNameValue = full_name || fullName || email;
+
+    const [user] = await knex('users')
+      .insert({
+        full_name: fullNameValue,
+        phone: phone || null,
+        email,
+        password_hash: hash,
+        role: 'user',
+      })
+      .returning(['id', 'email', 'full_name', 'role']);
+
+    const token = jwt.sign(
+      {
+        sub: user.id,
+        role: user.role,
+        email: user.email,
+      },
+      config.jwtSecret,
+      { expiresIn: '7d' }
+    );
+
+    const isProd = process.env.NODE_ENV === 'production';
+    res.cookie('gp_token', token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.post('/login', async (req, res, next) => {
   try {
@@ -59,6 +112,10 @@ router.post('/login', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/me', requireAuth, (req, res) => {
+  return res.json({ user: req.user });
 });
 
 module.exports = router;
