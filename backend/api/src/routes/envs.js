@@ -78,6 +78,22 @@ router.put('/:id', async (req, res) => {
       updates.current_step = incomingStep;
     }
 
+    if (
+      Object.prototype.hasOwnProperty.call(req.body || {}, 'brief_locked') &&
+      req.body.brief_locked === true &&
+      !env.brief_locked
+    ) {
+      updates.brief_locked = true;
+      if (
+        Object.prototype.hasOwnProperty.call(req.body || {}, 'brief_step') &&
+        Number.isInteger(Number(req.body.brief_step))
+      ) {
+        updates.brief_step = Number(req.body.brief_step);
+      } else {
+        updates.brief_step = env.current_step || 1;
+      }
+    }
+
     if (!Object.keys(updates).length) {
       return res.status(400).json({ error: 'nothing_to_update' });
     }

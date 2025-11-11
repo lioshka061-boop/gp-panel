@@ -31,44 +31,303 @@ async function handleLoginSubmit(e) {
     console.log('Logged in', result.user);
     // зберігаємо користувача та показуємо панель
     window.currentUser = result.user;
-    const loginScreen = document.getElementById('login-screen');
-    const appShell = document.getElementById('app');
-    if (loginScreen) loginScreen.hidden = true;
-    if (appShell) appShell.hidden = false;
+    resetBotAccessCache();
+    showAppShell();
 
     // підтягуємо дані для панелі
     await loadBots();
+    await loadEnvironments();
+    promptEnvironmentSelection(true);
+    if (isAdmin()) {
+      await loadAdminData();
+    }
   } catch (err) {
     alert('Помилка входу');
+  }
+}
+function setupAuthTabs() {
+  const tabs = document.querySelectorAll(".auth-tab");
+  const loginForm = document.getElementById("login-form");
+  const registerForm = document.getElementById("register-form");
+  if (!tabs.length || !loginForm || !registerForm) return;
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const mode = tab.dataset.mode || "login";
+      tabs.forEach((btn) =>
+        btn.classList.toggle("auth-tab--active", btn === tab)
+      );
+      loginForm.hidden = mode !== "login";
+      registerForm.hidden = mode !== "register";
+    });
+  });
+}
+
+function showAppShell() {
+  const loginScreen = document.getElementById("login-screen");
+  const appShell = document.getElementById("app");
+  const topbar = document.getElementById("topbar");
+  if (loginScreen) loginScreen.hidden = true;
+  if (appShell) appShell.hidden = false;
+  if (topbar) topbar.hidden = false;
+  updateAdminButtons();
+  if (!isAdmin()) {
+    toggleAdminPanel(false);
+  }
+}
+
+function showLoginScreen() {
+  const loginScreen = document.getElementById("login-screen");
+  const appShell = document.getElementById("app");
+  const topbar = document.getElementById("topbar");
+  if (loginScreen) loginScreen.hidden = false;
+  if (appShell) appShell.hidden = true;
+  if (topbar) topbar.hidden = true;
+  toggleAdminPanel(false);
+  updateAdminButtons();
+}
+
+async function initApp() {
+  try {
+    const me = await api('/auth/me', { method: 'GET' });
+    if (me?.user) {
+      window.currentUser = me.user;
+    } else if (me?.id) {
+      window.currentUser = me;
+    }
+    if (!window.currentUser) {
+      showLoginScreen();
+      return;
+    }
+    resetBotAccessCache();
+    showAppShell();
+    await Promise.all([loadBots(), loadEnvironments()]);
+    promptEnvironmentSelection(true);
+    if (isAdmin()) {
+      await loadAdminData();
+    }
+  } catch (error) {
+    window.currentUser = null;
+    showLoginScreen();
   }
 }
 
 document
   .querySelector('#login-form')
   .addEventListener('submit', handleLoginSubmit);
+const registerFormEl = document.querySelector('#register-form');
+if (registerFormEl) {
+  registerFormEl.addEventListener('submit', handleRegisterSubmit);
+}
+
+async function handleRegisterSubmit(e) {
+  e.preventDefault();
+  const firstName = document.querySelector('#reg-first-name')?.value.trim();
+  const lastName = document.querySelector('#reg-last-name')?.value.trim();
+  const patronymic = document.querySelector('#reg-patronymic')?.value.trim();
+  const phoneCode = document.querySelector('#reg-phone-code')?.value || '';
+  const phoneDigits = (document
+    .querySelector('#reg-phone-number')
+    ?.value || ''
+  ).replace(/\D/g, '');
+  const email = document.querySelector('#reg-email')?.value.trim();
+  const password = document.querySelector('#reg-password')?.value.trim();
+
+  if (!firstName || !lastName || !phoneDigits || !email || !password) {
+    alert('Заповніть усі обовʼязкові поля.');
+    return;
+  }
+  if (password.length < 8) {
+    alert('Пароль має містити щонайменше 8 символів.');
+    return;
+  }
+  const full_name = [lastName, firstName, patronymic].filter(Boolean).join(' ');
+  const phone = `${phoneCode}${phoneDigits}`;
+  try {
+    const result = await api('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        full_name,
+        phone,
+        email,
+        password,
+      }),
+    });
+    window.currentUser = result.user;
+    resetBotAccessCache();
+    showAppShell();
+    await loadBots();
+    await loadEnvironments();
+    promptEnvironmentSelection(true);
+    if (isAdmin()) {
+      await loadAdminData();
+    }
+  } catch (error) {
+    console.error('Register error', error);
+    alert('Помилка реєстрації');
+  }
+}
+let backendBots = [];
+let mergedBots = [];
+
 async function loadBots() {
-  const bots = await api('/bots', { method: 'GET' });
-  console.log('Bots:', bots);
-  // тут замість захардкожених кнопок рендериш їх з масиву bots
+  const botsResponse = await api('/bots', { method: 'GET' });
+  const botsArray = Array.isArray(botsResponse?.bots)
+    ? botsResponse.bots
+    : Array.isArray(botsResponse)
+    ? botsResponse
+    : [];
+  backendBots = botsArray;
+  mergedBots = mergeBotMetadata();
+  const activeEnv = getActiveEnvironmentMeta();
+  if (activeEnv && syncActiveEnvironmentState(activeEnv)) {
+    saveState();
+  }
+  draw(true);
+}
+
+function mergeBotMetadata() {
+  if (!backendBots.length) {
+    return BOT_TYPES.map((type) => ({
+      id: type.id,
+      title: type.title,
+      description: type.description,
+      commands: type.commands,
+      backendId: null,
+      price: null,
+      currency: '',
+      isFree: false,
+    }));
+  }
+  return BOT_TYPES.map((type) => {
+    const backendCode = BOT_BACKEND_CODES[type.id] || type.id;
+    const backend = backendBots.find((bot) => bot.code === backendCode);
+    return {
+      id: type.id,
+      title: type.title,
+      description: type.description,
+      commands: type.commands,
+      backendId: backend?.id ?? null,
+      price: backend?.price ?? null,
+      currency: backend?.currency ?? '',
+      isFree: backend?.is_free ?? backend?.price === 0,
+    };
+  });
 }
 async function handlePay(botId) {
+  const bot =
+    mergedBots.find((item) => item.backendId === botId) ||
+    mergedBots.find((item) => item.id === botId);
+  if (!bot?.backendId) {
+    showToast("Бот поки недоступний для оплати.");
+    return;
+  }
+  const activeEnv = getActiveEnvironmentMeta();
+  if (
+    activeEnv?.bot_id &&
+    activeEnv.bot_id !== bot.backendId &&
+    !isAdmin()
+  ) {
+    showToast("Це середовище вже привʼязане до іншого бота. Створи нове.");
+    return;
+  }
   const res = await api('/payments/create', {
     method: 'POST',
     body: JSON.stringify({ botId })
   });
 
-  if (res.status === 'free') {
-    // free / test
-    await loadBots(); // або онови доступ / кроки
+  if (res.status === 'pending' && res.redirectUrl) {
+    window.location.href = res.redirectUrl;
     return;
   }
 
-  if (res.status === 'pending' && res.redirectUrl) {
-    window.location.href = res.redirectUrl;
+  const successStatuses = ['free', 'test_mode'];
+  const isDevPending = res.status === 'pending' && !res.redirectUrl;
+  if (isDevPending || successStatuses.includes(res.status)) {
+    if (bot.id) {
+      state.choices.botType = bot.id;
+      if (state.currentStep < 2) {
+        state.currentStep = 2;
+      }
+      saveState();
+      scheduleProgressSync(true);
+    }
+    botAccessCache.set(bot.backendId, true);
+    if (envState.activeId && bot.backendId) {
+      try {
+        await patchEnvironment(envState.activeId, {
+          bot_id: bot.backendId,
+          current_step: Math.max(state.currentStep + 1, 3),
+        });
+      } catch (error) {
+        console.error('Failed to sync environment bot', error);
+      }
+    }
+    await loadBots();
+    await loadEnvironments();
+    draw(true);
+    showToast('Оплата створена. Можна починати.');
+    return;
   }
+
+  alert('Невідома відповідь платіжної системи. Спробуй ще раз.');
 }
 
 const STORAGE_KEY = "ztb_v4_state";
+const ENV_STATE_PREFIX = "gp_env_state_";
+const ACTIVE_ENV_KEY = "gp_active_env_id";
+
+const envState = {
+  items: [],
+  activeId: null,
+};
+let envSelectionShown = false;
+const storedActiveEnvRaw = localStorage.getItem(ACTIVE_ENV_KEY);
+if (storedActiveEnvRaw) {
+  const parsed = Number(storedActiveEnvRaw);
+  if (!Number.isNaN(parsed)) {
+    envState.activeId = parsed;
+  }
+}
+
+const adminState = {
+  overview: null,
+  users: [],
+  selectedUserId: null,
+  userAnalytics: null,
+  bots: [],
+  settings: {},
+  userPurchases: [],
+};
+
+const botAccessCache = new Map();
+let progressSyncTimer = null;
+let progressSyncInFlight = false;
+let pendingProgressSync = false;
+const PROGRESS_SYNC_DELAY = 500;
+
+function isAdmin() {
+  return window.currentUser?.role === "admin";
+}
+
+function getActiveEnvironmentMeta() {
+  if (!envState.activeId) return null;
+  return envState.items.find((env) => env.id === envState.activeId) || null;
+}
+
+function getBotMetaByType(typeId) {
+  if (!typeId) return null;
+  return mergedBots.find((bot) => bot.id === typeId) || null;
+}
+
+function getBackendIdByType(typeId) {
+  const bot = getBotMetaByType(typeId);
+  return bot?.backendId ?? null;
+}
+
+function resetBotAccessCache() {
+  botAccessCache.clear();
+}
 
 // --- Довідкові дані ---
 const BOT_TYPES = [
@@ -696,6 +955,26 @@ const BOT_TYPES = [
   },
 ];
 
+const BOT_BACKEND_CODES = {
+  crm: "crm_bot",
+  task: "task_manager",
+  habit: "habit_bot",
+  faq: "faq_bot",
+  shop: "shop_bot",
+  booking: "booking_bot",
+  custom: "custom_bot",
+};
+
+function resolveTypeIdByBackendBotId(backendBotId) {
+  if (!backendBotId || !backendBots.length) return null;
+  const backend = backendBots.find((bot) => bot.id === backendBotId);
+  if (!backend) return null;
+  const entry = Object.entries(BOT_BACKEND_CODES).find(
+    ([, code]) => code === backend.code
+  );
+  return entry ? entry[0] : backend.code;
+}
+
 const MODE_OPTIONS = [
   {
     id: "chatgpt",
@@ -877,6 +1156,7 @@ const defaultCustomState = {
     logs: "",
     prompt: "",
   },
+  briefLocked: false,
 };
 
 const defaultUiState = {
@@ -1141,6 +1421,9 @@ function ensureCustomState(targetState = state) {
     if (targetState.custom.diag === undefined)
       targetState.custom.diag = { description: "", logs: "", prompt: "" };
     if (targetState.custom.files === undefined) targetState.custom.files = [];
+    if (typeof targetState.custom.briefLocked !== "boolean") {
+      targetState.custom.briefLocked = false;
+    }
   }
   return targetState.custom;
 }
@@ -1647,9 +1930,12 @@ const elements = {
   docsBtn: document.getElementById("docs-btn"),
   docsBackdrop: document.getElementById("docs-backdrop"),
   docsClose: document.getElementById("docs-close"),
+  detailsOverlay: document.getElementById("details-overlay"),
+  detailsBody: document.getElementById("details-body"),
+  detailsClose: document.getElementById("details-close"),
   jumpSelect: document.getElementById("jump-select"),
   jumpButton: document.getElementById("jump-btn"),
-  footer: document.querySelector("footer.controls"),
+  footer: document.querySelector(".step-actions"),
   toast: document.getElementById("toast"),
 };
 
@@ -1661,19 +1947,26 @@ elements.prev.addEventListener("click", () => {
   state.currentStep -= 1;
   saveState();
   draw(false);
+  scheduleProgressSync();
 });
 
-elements.next.addEventListener("click", () => {
+elements.next.addEventListener("click", async () => {
   const step = steps[state.currentStep];
   const validation = validateStep(step);
   if (!validation.allow) {
     showToast(validation.message);
     return;
   }
+  const targetIndex = state.currentStep + 1;
+  if (targetIndex < steps.length && needsBotAccess(targetIndex)) {
+    const allowed = await ensureAccessForCurrentBot();
+    if (!allowed) return;
+  }
   if (state.currentStep < steps.length - 1) {
     state.currentStep += 1;
     saveState();
     draw(false);
+    scheduleProgressSync();
   } else {
     showToast("Готово! Можеш переглядати попередні кроки.");
   }
@@ -1715,6 +2008,18 @@ if (elements.docsClose) {
   elements.docsClose.addEventListener("click", closeDocs);
 }
 
+if (elements.detailsClose) {
+  elements.detailsClose.addEventListener("click", closeDetailsOverlay);
+}
+
+if (elements.detailsOverlay) {
+  elements.detailsOverlay.addEventListener("click", (event) => {
+    if (event.target === elements.detailsOverlay) {
+      closeDetailsOverlay();
+    }
+  });
+}
+
 if (elements.navToggle) {
   elements.navToggle.addEventListener("click", () => {
     if (elements.navMenu?.classList.contains("open")) {
@@ -1735,18 +2040,24 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeDocs();
     closeNavMenu();
+    closeDetailsOverlay();
   }
 });
 
-function jumpToSelectedStep() {
+async function jumpToSelectedStep() {
   if (!elements.jumpSelect) return;
   const value = elements.jumpSelect.value;
   if (!value) return;
   const index = steps.findIndex((step) => step.id === value);
   if (index === -1) return;
+  if (needsBotAccess(index)) {
+    const allowed = await ensureAccessForCurrentBot();
+    if (!allowed) return;
+  }
   state.currentStep = index;
   saveState();
   draw(false);
+  scheduleProgressSync();
 }
 
 function openDocs() {
@@ -1757,6 +2068,46 @@ function openDocs() {
 function closeDocs() {
   elements.docsBackdrop.hidden = true;
   document.body.classList.remove("docs-open");
+}
+
+function openDetailsOverlay(stepId) {
+  const details = STEP_DETAILS[stepId];
+  if (
+    !details ||
+    !details.length ||
+    !elements.detailsOverlay ||
+    !elements.detailsBody
+  )
+    return;
+  elements.detailsBody.innerHTML = details
+    .map((item, index) => {
+      const order = item.title || `Крок ${index + 1}`;
+      const image = item.gif
+        ? `<img src="${item.gif}" alt="${order}" loading="lazy" />`
+        : "";
+      const description = item.description
+        ? `<p>${item.description}</p>`
+        : "";
+      return `
+        <article class="step-details-card">
+          <header>${order}</header>
+          ${image}
+          ${description}
+        </article>
+      `;
+    })
+    .join("");
+  elements.detailsOverlay.hidden = false;
+  document.body.classList.add("details-open");
+}
+
+function closeDetailsOverlay() {
+  if (!elements.detailsOverlay) return;
+  elements.detailsOverlay.hidden = true;
+  if (elements.detailsBody) {
+    elements.detailsBody.innerHTML = "";
+  }
+  document.body.classList.remove("details-open");
 }
 
 function openNavMenu() {
@@ -1808,10 +2159,959 @@ function updateNavSummary() {
   const mode =
     MODE_OPTIONS.find((item) => item.id === state.choices.mode)?.title ||
     "не обрано";
-  elements.navSummary.innerHTML = `Тип: <span>${type}</span> | Середовище: <span>${environment}</span> | ШІ: <span>${mode}</span>`;
+elements.navSummary.innerHTML = `Тип: <span>${type}</span> | Середовище: <span>${environment}</span> | ШІ: <span>${mode}</span>`;
 }
 
+setupTopbarControls();
+setupAuthTabs();
+updateAdminButtons();
+const envCreateBtn = document.getElementById("env-create-btn");
+const envBackBtn = document.getElementById("env-back-btn");
+if (envCreateBtn) {
+  envCreateBtn.addEventListener("click", () => createEnvironmentPrompt());
+}
+if (envBackBtn) {
+  envBackBtn.addEventListener("click", () => hideEnvScreen());
+}
 draw(true);
+initApp();
+
+function updateAdminButtons() {
+  const show = isAdmin();
+  const navBtn = document.getElementById("nav-admin");
+  const popupBtn = document.querySelector('#nav-popup button[data-action="admin"]');
+  if (navBtn) navBtn.hidden = !show;
+  if (popupBtn) popupBtn.hidden = !show;
+}
+
+function handleReset() {
+  if (!confirm("Скинути всі кроки та повернутися до початку?")) return;
+  state = structuredClone(defaultState);
+  saveState();
+  draw(true);
+  scheduleProgressSync(true);
+  showToast("Майстер скинуто.");
+}
+
+async function handleLogout() {
+  try {
+    await api("/auth/logout", { method: "POST" });
+  } catch (error) {
+    console.warn("Logout error", error);
+  }
+  window.currentUser = null;
+  resetBotAccessCache();
+  if (progressSyncTimer) {
+    clearTimeout(progressSyncTimer);
+    progressSyncTimer = null;
+  }
+  pendingProgressSync = false;
+  progressSyncInFlight = false;
+  envState.activeId = null;
+  envSelectionShown = false;
+  localStorage.removeItem(ACTIVE_ENV_KEY);
+  envState.items = [];
+  renderEnvironmentList();
+  state = structuredClone(defaultState);
+  saveState();
+  draw(true);
+  showLoginScreen();
+}
+
+async function loadEnvironments() {
+  try {
+    const response = await api("/envs", { method: "GET" });
+    const list = Array.isArray(response?.envs)
+      ? response.envs
+      : Array.isArray(response)
+      ? response
+      : [];
+    envState.items = list;
+    if (
+      envState.activeId &&
+      !envState.items.some((env) => env.id === envState.activeId)
+    ) {
+      envState.activeId = null;
+      localStorage.removeItem(ACTIVE_ENV_KEY);
+      state = structuredClone(defaultState);
+      saveState();
+      draw(true);
+    }
+    let mutated = false;
+    const activeEnv = getActiveEnvironmentMeta();
+    if (activeEnv) {
+      mutated = syncActiveEnvironmentState(activeEnv);
+    }
+    renderEnvironmentList();
+    if (mutated) {
+      saveState();
+      draw(true);
+    }
+  } catch (error) {
+    console.error("Failed to load environments", error);
+    envState.items = [];
+    renderEnvironmentList();
+  }
+}
+
+function renderEnvironmentList() {
+  const listEl = document.getElementById("env-list");
+  if (!listEl) return;
+  if (!envState.items.length) {
+    listEl.innerHTML = `<div class="env-card env-empty">Поки немає середовищ. Створи перше, щоб зберегти прогрес.</div>`;
+    listEl.onclick = null;
+    return;
+  }
+
+  listEl.innerHTML = envState.items
+    .map((env) => {
+      const updated = env.updated_at
+        ? new Date(env.updated_at).toLocaleString("uk-UA", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })
+        : "—";
+      const total = Number(env.total_steps || 30);
+      const progress = total
+        ? Math.min(100, Math.round(((env.current_step || 0) / total) * 100))
+        : 0;
+      return `
+        <article class="env-card" data-env-id="${env.id}">
+          <div class="env-card-header">
+            <div class="env-card-title">${env.title || "Без назви"}</div>
+            <div class="env-card-step">Крок ${env.current_step ?? 1}</div>
+          </div>
+          <div class="env-card-meta">
+            <span>Оновлено: ${updated}</span>
+          </div>
+          <div class="env-card-progress">
+            <span class="env-card-progress-bar" style="width:${progress}%"></span>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  listEl.onclick = (event) => {
+    const card = event.target.closest(".env-card");
+    if (!card) return;
+    const envId = Number(card.dataset.envId);
+    if (envId) {
+      enterEnvironment(envId);
+    }
+  };
+}
+
+function updateEnvironmentCache(updatedEnv) {
+  if (!updatedEnv?.id) return;
+  const idx = envState.items.findIndex((env) => env.id === updatedEnv.id);
+  if (idx >= 0) {
+    envState.items[idx] = { ...envState.items[idx], ...updatedEnv };
+  } else {
+    envState.items = [...envState.items, updatedEnv];
+  }
+  renderEnvironmentList();
+}
+
+async function patchEnvironment(envId, payload) {
+  if (!envId) return null;
+  const result = await api(`/envs/${envId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  const updated = result?.env || result;
+  if (updated?.id) {
+    updateEnvironmentCache(updated);
+  }
+  return updated;
+}
+
+function syncActiveEnvironmentState(envMeta = getActiveEnvironmentMeta()) {
+  if (!envMeta) return false;
+  let mutated = false;
+
+  const serverStepRaw = Number(envMeta.current_step);
+  if (!Number.isNaN(serverStepRaw)) {
+    const serverIndex = Math.max(0, serverStepRaw - 1);
+    if (serverIndex > state.currentStep) {
+      state.currentStep = serverIndex;
+      mutated = true;
+    }
+  }
+
+  if (envMeta.bot_id) {
+    const resolvedType = resolveTypeIdByBackendBotId(envMeta.bot_id);
+    if (resolvedType && state.choices.botType !== resolvedType) {
+      state.choices.botType = resolvedType;
+      const typeMeta = BOT_TYPES.find((item) => item.id === resolvedType);
+      if (typeMeta && resolvedType !== "custom") {
+        state.commands = [...typeMeta.commands];
+      }
+      mutated = true;
+    }
+    botAccessCache.set(envMeta.bot_id, true);
+  }
+
+  if (envMeta.brief_locked !== undefined) {
+    const custom = ensureCustomState();
+    const locked = Boolean(envMeta.brief_locked);
+    if (custom.briefLocked !== locked) {
+      custom.briefLocked = locked;
+      mutated = true;
+    }
+  }
+
+  return mutated;
+}
+
+function scheduleProgressSync(immediate = false) {
+  if (progressSyncTimer) {
+    clearTimeout(progressSyncTimer);
+    progressSyncTimer = null;
+  }
+  const delay = immediate ? 0 : PROGRESS_SYNC_DELAY;
+  progressSyncTimer = setTimeout(() => {
+    progressSyncTimer = null;
+    runProgressSync();
+  }, delay);
+}
+
+async function runProgressSync() {
+  if (progressSyncInFlight) {
+    pendingProgressSync = true;
+    return;
+  }
+  progressSyncInFlight = true;
+  try {
+    await syncEnvironmentProgress();
+    await syncBotProgress();
+  } finally {
+    progressSyncInFlight = false;
+    if (pendingProgressSync) {
+      pendingProgressSync = false;
+      runProgressSync();
+    }
+  }
+}
+
+async function syncEnvironmentProgress() {
+  if (!window.currentUser) return;
+  const envId = envState.activeId;
+  if (!envId) return;
+  const envMeta = getActiveEnvironmentMeta();
+  const currentStepNumber = state.currentStep + 1;
+  const payload = {};
+
+  if (!envMeta || envMeta.current_step !== currentStepNumber) {
+    payload.current_step = currentStepNumber;
+  }
+
+  const maxReached = Math.max(envMeta?.max_step_reached || 0, currentStepNumber);
+  if (!envMeta || envMeta.max_step_reached !== maxReached) {
+    payload.max_step_reached = maxReached;
+  }
+
+  if (!Object.keys(payload).length) return;
+
+  try {
+    await patchEnvironment(envId, payload);
+  } catch (error) {
+    console.warn("Failed to sync environment progress", error);
+  }
+}
+
+async function syncBotProgress() {
+  if (!window.currentUser) return;
+  const backendId = getBackendIdByType(state.choices.botType);
+  if (!backendId) return;
+  try {
+    await api(`/bots/${backendId}/progress`, {
+      method: "POST",
+      body: JSON.stringify({
+        step: Math.max(1, state.currentStep + 1),
+      }),
+    });
+  } catch (error) {
+    console.warn("Failed to sync bot progress", error);
+  }
+}
+
+function needsBotAccess(targetIndex) {
+  if (isAdmin()) return false;
+  const guardIndex = steps.findIndex((step) => step.id === "bot-type");
+  if (guardIndex === -1) return false;
+  return targetIndex > guardIndex;
+}
+
+async function ensureAccessForCurrentBot() {
+  if (!window.currentUser) {
+    showToast("Увійди, щоб продовжити.");
+    showLoginScreen();
+    return false;
+  }
+  if (isAdmin()) return true;
+  const typeId = state.choices.botType;
+  if (!typeId) {
+    showToast("Спочатку обери тип бота.");
+    return false;
+  }
+  const backendId = getBackendIdByType(typeId);
+  if (!backendId) {
+    showToast("Для цього бота ще немає даних. Спробуй пізніше.");
+    return false;
+  }
+  if (botAccessCache.get(backendId)) {
+    return true;
+  }
+  try {
+    const access = await api(`/bots/${backendId}/access`, { method: "GET" });
+    if (access?.hasAccess) {
+      botAccessCache.set(backendId, true);
+      return true;
+    }
+  } catch (error) {
+    console.warn("Failed to verify bot access", error);
+  }
+  showToast("Оплати або активуй бота перед тим, як продовжити.");
+  return false;
+}
+
+function enterEnvironment(envId) {
+  envState.activeId = envId;
+  if (envId) {
+    localStorage.setItem(ACTIVE_ENV_KEY, String(envId));
+  } else {
+    localStorage.removeItem(ACTIVE_ENV_KEY);
+  }
+  state = loadState(envId);
+  const envMeta = envState.items.find((env) => env.id === envId);
+  syncActiveEnvironmentState(envMeta);
+  saveState();
+  draw(true);
+  hideEnvScreen();
+  showToast("Середовище активовано.");
+}
+
+function showEnvScreen() {
+  const envScreen = document.getElementById("env-screen");
+  const wizard = document.getElementById("wizard-root");
+  if (envScreen) envScreen.hidden = false;
+  if (wizard) wizard.hidden = true;
+}
+
+function hideEnvScreen() {
+  const envScreen = document.getElementById("env-screen");
+  const wizard = document.getElementById("wizard-root");
+  if (envScreen) envScreen.hidden = true;
+  if (wizard) wizard.hidden = false;
+}
+
+function promptEnvironmentSelection(force = false) {
+  if (!window.currentUser) return;
+  if (force) {
+    envSelectionShown = true;
+    showEnvScreen();
+    return;
+  }
+  if (!envSelectionShown && !envState.activeId) {
+    envSelectionShown = true;
+    showEnvScreen();
+  }
+}
+
+function toggleAdminPanel(force) {
+  const panel = document.getElementById("admin-panel");
+  if (!panel) return;
+  const shouldShow =
+    typeof force === "boolean" ? force : panel.hidden !== false;
+  if (shouldShow) {
+    panel.hidden = false;
+    renderAdminPanel();
+  } else {
+    panel.hidden = true;
+  }
+}
+
+async function createEnvironmentPrompt() {
+  const title = prompt("Назва середовища", "Мій бот");
+  if (!title) return;
+  try {
+    const res = await api("/envs", {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    });
+    const created = res?.env || res;
+    await loadEnvironments();
+    if (created?.id) {
+      enterEnvironment(created.id);
+    }
+  } catch (error) {
+    console.error("Failed to create environment", error);
+    showToast("Не вдалося створити середовище", "error");
+  }
+}
+
+async function loadAdminData() {
+  if (!isAdmin()) return;
+  try {
+    const [overview, users, bots, settings] = await Promise.all([
+      api("/admin/analytics/overview", { method: "GET" }),
+      api("/admin/users", { method: "GET" }),
+      api("/admin/bots", { method: "GET" }),
+      api("/admin/settings", { method: "GET" }),
+    ]);
+    adminState.overview = overview || null;
+    adminState.users = Array.isArray(users?.users)
+      ? users.users
+      : Array.isArray(users)
+      ? users
+      : [];
+    adminState.bots = Array.isArray(bots?.bots)
+      ? bots.bots
+      : Array.isArray(bots)
+      ? bots
+      : [];
+    adminState.settings = settings?.settings || {};
+    adminState.selectedUserId = null;
+    adminState.userAnalytics = null;
+    adminState.userPurchases = [];
+    renderAdminPanel();
+  } catch (error) {
+    console.error("Failed to load admin data", error);
+  }
+}
+
+async function loadUserAnalytics(userId) {
+  if (!userId || !isAdmin()) return;
+  try {
+    const [analytics, purchases] = await Promise.all([
+      api(`/admin/users/${userId}/analytics`, {
+        method: "GET",
+      }),
+      api(`/admin/users/${userId}/purchases`, {
+        method: "GET",
+      }),
+    ]);
+    adminState.selectedUserId = userId;
+    adminState.userAnalytics = analytics || null;
+    adminState.userPurchases = Array.isArray(purchases?.purchases)
+      ? purchases.purchases
+      : Array.isArray(purchases)
+      ? purchases
+      : [];
+    renderAdminPanel();
+  } catch (error) {
+    console.error("Failed to load user analytics", error);
+  }
+}
+
+async function handleAdminSettingUpdate(key, value) {
+  if (!isAdmin() || !key) return;
+  try {
+    await api("/admin/settings", {
+      method: "POST",
+      body: JSON.stringify({ key, value: String(value) }),
+    });
+    adminState.settings = { ...adminState.settings, [key]: String(value) };
+    showToast("Налаштування збережені.");
+    renderAdminPanel();
+  } catch (error) {
+    console.error("Failed to update setting", error);
+    showToast("Не вдалося зберегти налаштування.");
+  }
+}
+
+async function handleAdminBotSave(botId, row) {
+  if (!isAdmin() || !botId || !row) return;
+  const payload = {};
+  const getValue = (name) =>
+    row.querySelector(`[data-field="${name}"]`);
+  const nameInput = getValue("name");
+  if (nameInput) payload.name = nameInput.value.trim();
+  const descInput = getValue("description");
+  if (descInput) payload.description = descInput.value.trim();
+  const priceInput = getValue("price");
+  if (priceInput) {
+    const val = parseFloat(priceInput.value);
+    if (!Number.isNaN(val)) payload.price = val;
+  }
+  const currencyInput = getValue("currency");
+  if (currencyInput) payload.currency = currencyInput.value.trim().toUpperCase();
+  const isFreeInput = getValue("is_free");
+  if (isFreeInput) payload.is_free = isFreeInput.checked;
+  const isActiveInput = getValue("is_active");
+  if (isActiveInput) payload.is_active = isActiveInput.checked;
+  const stepsInput = getValue("total_steps");
+  if (stepsInput) {
+    const stepsVal = parseInt(stepsInput.value, 10);
+    if (!Number.isNaN(stepsVal)) payload.total_steps = stepsVal;
+  }
+  try {
+    await api(`/admin/bots/${botId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+    showToast("Бота оновлено.");
+    await loadAdminData();
+  } catch (error) {
+    console.error("Failed to update bot", error);
+    showToast("Не вдалося зберегти зміни бота.");
+  }
+}
+
+async function handleAdminMarkPaid(purchaseId) {
+  if (!isAdmin() || !purchaseId) return;
+  try {
+    await api(`/admin/purchases/${purchaseId}/mark-paid`, {
+      method: "POST",
+    });
+    showToast("Оплату позначено як успішну.");
+    if (adminState.selectedUserId) {
+      await loadUserAnalytics(adminState.selectedUserId);
+    }
+  } catch (error) {
+    console.error("Failed to mark purchase paid", error);
+    showToast("Не вдалося оновити покупку.");
+  }
+}
+
+async function handleAdminResetProgress(userId, botId) {
+  if (!isAdmin() || !userId || !botId) return;
+  try {
+    await api(`/admin/users/${userId}/reset-progress`, {
+      method: "POST",
+      body: JSON.stringify({ botId }),
+    });
+    showToast("Прогрес скинуто.");
+    await loadUserAnalytics(userId);
+  } catch (error) {
+    console.error("Failed to reset progress", error);
+    showToast("Не вдалося скинути прогрес.");
+  }
+}
+
+function renderAdminPanel() {
+  const panel = document.getElementById("admin-panel");
+  if (!panel) return;
+  if (!isAdmin()) {
+    panel.hidden = true;
+    panel.innerHTML = "";
+    return;
+  }
+  panel.hidden = false;
+
+  const overview = adminState.overview || {};
+  const revenueChips = (overview.totalRevenueByCurrency || [])
+    .map(
+      (item) =>
+        `<span class="admin-chip">${item.currency}: ${Number(
+          item.total || 0
+        ).toFixed(2)}</span>`
+    )
+    .join("");
+
+  const botsStatsRows =
+    overview.botsStats && overview.botsStats.length
+      ? overview.botsStats
+          .map(
+            (stat) => `
+        <tr>
+          <td>${escapeHtml(stat.name || stat.code || "—")}</td>
+          <td>${stat.envCount ?? 0}</td>
+          <td>${stat.paidUsers ?? 0}</td>
+          <td>${
+            stat.price !== undefined && stat.price !== null
+              ? `${Number(stat.price).toFixed(2)} ${stat.currency || ""}`
+              : "—"
+          }</td>
+          <td>${
+            stat.revenueByCurrency && stat.revenueByCurrency.length
+              ? stat.revenueByCurrency
+                  .map(
+                    (entry) =>
+                      `${entry.currency || ""} ${Number(entry.total || 0).toFixed(
+                        2
+                      )}`
+                  )
+                  .join("<br>")
+              : "—"
+          }</td>
+        </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="5">Ще немає даних по ботах.</td></tr>`;
+
+  const paymentsEnabled =
+    String(adminState.settings?.payments_enabled ?? "true") !== "false";
+
+  const botsCrudRows = adminState.bots.length
+    ? adminState.bots
+        .map((bot) => {
+          return `
+        <tr data-bot-row="${bot.id}">
+          <td>${bot.id}</td>
+          <td>${escapeHtml(bot.code)}</td>
+          <td><input type="text" data-field="name" value="${escapeHtml(
+            bot.name || ""
+          )}" /></td>
+          <td><input type="text" data-field="description" value="${escapeHtml(
+            bot.description || ""
+          )}" /></td>
+          <td><input type="number" step="0.01" data-field="price" value="${
+            bot.price ?? 0
+          }" /></td>
+          <td><input type="text" data-field="currency" value="${escapeHtml(
+            bot.currency || ""
+          )}" /></td>
+          <td><input type="number" min="0" data-field="total_steps" value="${
+            bot.total_steps ?? 0
+          }" /></td>
+          <td>
+            <label class="admin-switch">
+              <input type="checkbox" data-field="is_free" ${
+                bot.is_free ? "checked" : ""
+              } />
+              <span>Free</span>
+            </label>
+          </td>
+          <td>
+            <label class="admin-switch">
+              <input type="checkbox" data-field="is_active" ${
+                bot.is_active ? "checked" : ""
+              } />
+              <span>Active</span>
+            </label>
+          </td>
+          <td>
+            <button type="button" class="ghost admin-bot-save" data-bot-id="${
+              bot.id
+            }">Зберегти</button>
+          </td>
+        </tr>
+      `;
+        })
+        .join("")
+    : `<tr><td colspan="10">Ще немає ботів у базі.</td></tr>`;
+
+  const usersTable = (adminState.users || [])
+    .map(
+      (user) => `
+        <tr>
+          <td>${user.id}</td>
+          <td>${user.full_name || "—"}</td>
+          <td>${user.email || "—"}</td>
+          <td>${user.created_at || "—"}</td>
+          <td><button type="button" class="admin-user-details" data-user-id="${user.id}">Детальніше</button></td>
+        </tr>
+      `
+    )
+    .join("");
+
+  let userDetails = "<p>Оберіть користувача, щоб переглянути статистику.</p>";
+  if (adminState.userAnalytics) {
+    const info = adminState.userAnalytics;
+    const revenue =
+      info.revenueByCurrency && info.revenueByCurrency.length
+        ? info.revenueByCurrency
+            .map(
+              (item) =>
+                `<span class="admin-chip">${item.currency}: ${Number(
+                  item.total || 0
+                ).toFixed(2)}</span>`
+            )
+            .join("")
+        : '<span class="admin-chip admin-chip--muted">Ще немає оплат</span>';
+
+    const envRows =
+      info.envs && info.envs.length
+        ? info.envs
+            .map(
+              (env) => `
+          <tr>
+            <td>${env.title || "Без назви"}</td>
+            <td>${env.botName || env.botCode || "—"}</td>
+            <td>${env.currentStep ?? 0}</td>
+            <td>${new Date(env.updatedAt || env.updated_at || "").toLocaleString(
+              "uk-UA"
+            )}</td>
+          </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="4">Середовищ ще нема.</td></tr>`;
+
+    const botRows =
+      info.botsBreakdown && info.botsBreakdown.length
+        ? info.botsBreakdown
+            .map(
+              (bot) => `
+          <tr>
+            <td>${bot.botName || bot.botCode || "—"}</td>
+            <td>${bot.paidPurchases ?? 0}</td>
+            <td>${Number(bot.totalAmount || 0).toFixed(2)}</td>
+          </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="3">Оплат ще нема.</td></tr>`;
+
+    const purchasesRows = adminState.userPurchases.length
+      ? adminState.userPurchases
+          .map(
+            (purchase) => `
+            <tr>
+              <td>${purchase.id}</td>
+              <td>${purchase.bot_id ?? "—"}</td>
+              <td>${Number(purchase.amount || 0).toFixed(2)} ${
+              purchase.currency || ""
+            }</td>
+              <td>${purchase.status}</td>
+              <td>${
+                purchase.created_at
+                  ? new Date(purchase.created_at).toLocaleString("uk-UA")
+                  : "—"
+              }</td>
+              <td>
+                ${
+                  purchase.status === "paid"
+                    ? "-"
+                    : `<button type="button" class="ghost admin-purchase-mark" data-purchase-id="${purchase.id}">Mark paid</button>`
+                }
+              </td>
+            </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="6">Ще немає покупок.</td></tr>`;
+
+    const resetOptions = adminState.bots
+      .map(
+        (bot) =>
+          `<option value="${bot.id}">${escapeHtml(bot.name || bot.code)}</option>`
+      )
+      .join("");
+
+    userDetails = `
+      <div class="admin-user-analytics">
+        <header>
+          <div class="admin-user-meta">
+            <h4>${info.user?.full_name || "Користувач"} (ID ${info.user?.id})</h4>
+            <p>${info.user?.email || "—"} • Середовищ: ${info.totalEnvs} • Оплат: ${
+      info.totalPaidPurchases
+    }</p>
+          </div>
+          <div class="admin-chip-row">
+            ${revenue}
+          </div>
+        </header>
+        <div class="admin-user-analytics-grid">
+          <div class="admin-table-card">
+            <h5>Середовища</h5>
+            <div class="admin-table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Назва</th>
+                    <th>Бот</th>
+                    <th>Крок</th>
+                    <th>Оновлено</th>
+                  </tr>
+                </thead>
+                <tbody>${envRows}</tbody>
+              </table>
+            </div>
+          </div>
+          <div class="admin-table-card">
+            <h5>Оплати за ботами</h5>
+            <div class="admin-table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Бот</th>
+                    <th>Кількість</th>
+                    <th>Сума</th>
+                  </tr>
+                </thead>
+                <tbody>${botRows}</tbody>
+              </table>
+            </div>
+          </div>
+          <div class="admin-table-card">
+            <h5>Покупки</h5>
+            <div class="admin-table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Бот</th>
+                    <th>Сума</th>
+                    <th>Статус</th>
+                    <th>Створено</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>${purchasesRows}</tbody>
+              </table>
+            </div>
+          </div>
+          <div class="admin-table-card">
+            <h5>Скидання прогресу</h5>
+            <form data-admin-reset data-user-id="${info.user?.id || ""}">
+              <label>
+                Бот
+                <select name="botId" required>
+                  <option value="">Оберіть бота</option>
+                  ${resetOptions}
+                </select>
+              </label>
+              <button type="submit" class="ghost">Скинути прогрес</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  panel.innerHTML = `
+    <div class="admin-analytics">
+      <div class="admin-analytics-card">
+        <span class="admin-analytics-label">Користувачів</span>
+        <strong>${overview.totalUsers ?? 0}</strong>
+      </div>
+      <div class="admin-analytics-card">
+        <span class="admin-analytics-label">Оплат</span>
+        <strong>${overview.totalPaidPurchases ?? 0}</strong>
+      </div>
+    </div>
+    <div class="admin-analytics-revenue">
+      <span>Дохід:</span>
+      <div class="admin-chip-row">
+        ${revenueChips || '<span class="admin-chip admin-chip--muted">Ще немає</span>'}
+      </div>
+    </div>
+    <div class="admin-table-card">
+      <h5>Статистика ботів</h5>
+      <div class="admin-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Бот</th>
+              <th>Середовищ</th>
+              <th>Оплачено</th>
+              <th>Базова ціна</th>
+              <th>Дохід</th>
+            </tr>
+          </thead>
+          <tbody>${botsStatsRows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="admin-settings-card">
+      <div>
+        <h5>Оплати WayForPay</h5>
+        <p>У вимкненому режимі всі боти поводяться як безкоштовні.</p>
+      </div>
+      <label class="admin-switch">
+        <input type="checkbox" data-setting="payments_enabled" ${
+          paymentsEnabled ? "checked" : ""
+        } />
+        <span>${paymentsEnabled ? "Увімкнено" : "Вимкнено"}</span>
+      </label>
+    </div>
+    <div class="admin-table-card">
+      <h5>Боти</h5>
+      <div class="admin-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Код</th>
+              <th>Назва</th>
+              <th>Опис</th>
+              <th>Ціна</th>
+              <th>Валюта</th>
+              <th>Кроків</th>
+              <th>Free</th>
+              <th>Active</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${botsCrudRows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="admin-table-card">
+      <h5>Користувачі</h5>
+      <div class="admin-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Імʼя</th>
+              <th>Email</th>
+              <th>Створено</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${usersTable}</tbody>
+        </table>
+      </div>
+    </div>
+    ${userDetails}
+  `;
+}
+
+function ensureAdminPanelBindings() {
+  const panel = document.getElementById("admin-panel");
+  if (!panel || panel.dataset.bound) return;
+  panel.dataset.bound = "true";
+  panel.addEventListener("click", onAdminPanelClick);
+  panel.addEventListener("change", onAdminPanelChange);
+  panel.addEventListener("submit", onAdminPanelSubmit);
+}
+
+function onAdminPanelClick(event) {
+  const userBtn = event.target.closest(".admin-user-details");
+  if (userBtn) {
+    const userId = Number(userBtn.dataset.userId);
+    if (userId) loadUserAnalytics(userId);
+    return;
+  }
+  const botSave = event.target.closest(".admin-bot-save");
+  if (botSave) {
+    const botId = Number(botSave.dataset.botId);
+    const row = botSave.closest("tr[data-bot-row]");
+    if (botId && row) handleAdminBotSave(botId, row);
+    return;
+  }
+  const markPaid = event.target.closest(".admin-purchase-mark");
+  if (markPaid) {
+    const purchaseId = Number(markPaid.dataset.purchaseId);
+    if (purchaseId) handleAdminMarkPaid(purchaseId);
+  }
+}
+
+function onAdminPanelChange(event) {
+  const settingInput = event.target.closest("[data-setting]");
+  if (settingInput) {
+    const key = settingInput.dataset.setting;
+    const value =
+      settingInput.type === "checkbox"
+        ? settingInput.checked
+        : settingInput.value;
+    handleAdminSettingUpdate(key, value);
+  }
+}
+
+function onAdminPanelSubmit(event) {
+  if (!event.target.matches("[data-admin-reset]")) return;
+  event.preventDefault();
+  const form = event.target;
+  const userId = Number(form.dataset.userId);
+  const botId = Number(form.elements.botId?.value);
+  if (userId && botId) {
+    handleAdminResetProgress(userId, botId);
+  } else {
+    showToast("Оберіть бота для скидання.");
+  }
+}
 
 // --- Головні функції ---
 function draw(rebuild) {
@@ -1829,15 +3129,25 @@ function draw(rebuild) {
   renderStepDetails(elements.stepBody, step.id);
 
   const progress = ((state.currentStep + 1) / steps.length) * 100;
-  elements.progressInner.style.width = `${progress}%`;
-  elements.progressLabel.textContent = `${state.currentStep + 1} / ${
-    steps.length
-  }`;
+  if (elements.progressInner) {
+    elements.progressInner.style.width = `${progress}%`;
+  }
+  if (elements.progressLabel) {
+    elements.progressLabel.textContent = `${state.currentStep + 1} / ${
+      steps.length
+    }`;
+  }
 
   elements.prev.disabled = state.currentStep === 0;
-  elements.next.textContent =
-    state.currentStep === steps.length - 1 ? "Завершити" : "Далі ➡️";
-  elements.footer.style.display = step.hideNav ? "none" : "";
+  const hideNext = shouldHideNextButton(step);
+  if (elements.next) {
+    elements.next.textContent =
+      state.currentStep === steps.length - 1 ? "Завершити" : "Далі ➡️";
+    elements.next.hidden = !!hideNext;
+  }
+  if (elements.footer) {
+    elements.footer.style.display = step.hideNav ? "none" : "";
+  }
 }
 
 function rebuildSteps() {
@@ -1862,6 +3172,14 @@ function rebuildSteps() {
     }
   }
   state.currentStep = Math.min(state.currentStep, steps.length - 1);
+}
+
+function shouldHideNextButton(step) {
+  if (!step) return false;
+  if (step.id === "bot-type" && !isAdmin()) {
+    return true;
+  }
+  return false;
 }
 
 function updateJumpControls() {
@@ -2319,6 +3637,7 @@ function renderStartStep(container) {
     state.currentStep += 1;
     saveState();
     draw(true);
+    scheduleProgressSync();
   });
   block.appendChild(button);
 
@@ -2326,40 +3645,72 @@ function renderStartStep(container) {
 }
 
 function renderBotTypeStep(container) {
-  const tableWrap = document.createElement("div");
-  tableWrap.className = "table-wrapper";
-  const table = document.createElement("table");
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th>Тип</th>
-        <th>Опис</th>
-        <th>Рекомендовані команди</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${BOT_TYPES.map(
-        (type) => `
-        <tr>
-          <td>
-            <label>
-              <input type="radio" name="bot-type" value="${type.id}" ${
-          state.choices.botType === type.id ? "checked" : ""
-        } />
-              <span>${type.title}</span>
+  const bots = mergedBots.length ? mergedBots : mergeBotMetadata();
+  const activeEnv = getActiveEnvironmentMeta();
+  const envLockedType =
+    !isAdmin() && activeEnv?.bot_id
+      ? resolveTypeIdByBackendBotId(activeEnv.bot_id)
+      : null;
+  const wrap = document.createElement("div");
+  wrap.className = "bot-type-list";
+
+  wrap.innerHTML = bots
+    .map((bot) => {
+      const commands = Array.isArray(bot.commands) && bot.commands.length
+        ? bot.commands.join(", ")
+        : "/start, /help";
+      const checked = state.choices.botType === bot.id ? "checked" : "";
+      const disabled =
+        envLockedType && envLockedType !== bot.id ? "disabled" : "";
+      const priceBlock = bot.backendId
+        ? bot.isFree
+          ? `<div class="bot-price-cell">
+              <span class="bot-price-label">FREE</span>
+              <button type="button" class="bot-type-btn" data-pay-id="${bot.backendId}">Почати (FREE)</button>
+            </div>`
+          : `<div class="bot-price-cell">
+              <span class="bot-price-label">Ціна: ${Number(bot.price || 0).toFixed(2)} ${bot.currency || ""}</span>
+              <button type="button" class="bot-type-btn" data-pay-id="${bot.backendId}">Оплатити</button>
+            </div>`
+        : `<div class="bot-price-cell">
+            <span class="bot-price-empty">Немає даних</span>
+          </div>`;
+
+      return `
+        <article class="bot-type-card">
+          <div class="bot-type-main">
+            <label class="bot-type-radio">
+              <input type="radio" name="bot-type" value="${bot.id}" ${checked} ${disabled} />
+              <span class="bot-type-title">${bot.title}</span>
             </label>
-          </td>
-          <td>${type.description}</td>
-          <td>${type.commands.join(", ")}</td>
-        </tr>
-      `
-      ).join("")}
-    </tbody>
-  `;
-  table.addEventListener("change", (event) => {
+            <p class="bot-type-desc">${bot.description}</p>
+            <p class="bot-type-commands">${commands}</p>
+          </div>
+          <div class="bot-type-pay">
+            ${priceBlock}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  wrap.addEventListener("change", (event) => {
     if (event.target.name === "bot-type") {
       const previous = state.choices.botType;
       const value = event.target.value;
+      if (
+        envLockedType &&
+        envLockedType !== value &&
+        !isAdmin()
+      ) {
+        event.target.checked = false;
+        const prevInput = wrap.querySelector(
+          `input[name="bot-type"][value="${previous}"]`
+        );
+        if (prevInput) prevInput.checked = true;
+        showToast("Середовище вже привʼязане до іншого бота.");
+        return;
+      }
       state.choices.botType = value;
       state.ui = structuredClone(defaultUiState);
       const type = BOT_TYPES.find((item) => item.id === state.choices.botType);
@@ -2376,12 +3727,28 @@ function renderBotTypeStep(container) {
       draw(true);
     }
   });
-  tableWrap.appendChild(table);
-  container.appendChild(tableWrap);
+
+  wrap.addEventListener("click", (event) => {
+    const btn = event.target.closest("button[data-pay-id]");
+    if (!btn) return;
+    const backendId = Number(btn.dataset.payId);
+    if (backendId) {
+      handlePay(backendId);
+    }
+  });
+
+  container.appendChild(wrap);
 
   renderInfo(container, [
     "• Обери сценарій, який найближчий до твого проєкту.",
   ]);
+  if (envLockedType && !isAdmin()) {
+    const notice = document.createElement("p");
+    notice.className = "note-block";
+    notice.textContent =
+      "Це середовище вже привʼязане до конкретного бота. Створи нове середовище, щоб вибрати інший сценарій.";
+    container.appendChild(notice);
+  }
 }
 
 function renderModeStep(container) {
@@ -2853,10 +4220,25 @@ function renderDevBriefStep(container) {
   h.textContent = "Огляд виборів та швидке редагування";
   panel.appendChild(h);
 
-  panel.appendChild(
-    makeRow(
-      "Тип бота",
-      makeSelect(
+  const typeMeta = BOT_TYPES.find((item) => item.id === state.choices.botType);
+  const currentTypeLabel = typeMeta
+    ? `${typeMeta.title} — ${typeMeta.description}`
+    : "Тип ще не обрано";
+  const customState = ensureCustomState();
+  const isCustom = isCustomBot();
+  const envMeta = getActiveEnvironmentMeta();
+  let typeLockReason = null;
+  if (!isAdmin()) {
+    if (!isCustom) {
+      typeLockReason = "Зміна сценарію можлива лише у новому середовищі.";
+    } else if (customState.briefLocked || envMeta?.brief_locked) {
+      typeLockReason =
+        "Бриф збережено для цього середовища. Щоб змінити тип, створи нове середовище.";
+    }
+  }
+  const canEditBotType = !typeLockReason;
+  const typeControl = canEditBotType
+    ? makeSelect(
         BOT_TYPES.map((t) => [t.id, `${t.title} — ${t.description}`]),
         state.choices.botType,
         (value) => {
@@ -2877,6 +4259,12 @@ function renderDevBriefStep(container) {
           draw(true);
         }
       )
+    : makeReadonlyValue(currentTypeLabel, typeLockReason);
+
+  panel.appendChild(
+    makeRow(
+      "Тип бота",
+      typeControl
     )
   );
 
@@ -3021,6 +4409,12 @@ function renderCustomRequirementsStep(container) {
     "• Чим детальніше поясниш — тим точніше буде бриф.",
   ]);
 
+  const warning = document.createElement("div");
+  warning.className = "note-block warning";
+  warning.innerHTML =
+    "<strong>Важливо:</strong> уважно опиши бота саме тут. Після збереження брифу змінити сценарій у цьому середовищі буде неможливо без створення нового середовища.";
+  container.appendChild(warning);
+
   const textarea = document.createElement("textarea");
   textarea.value = custom.requirements;
   textarea.placeholder =
@@ -3056,14 +4450,44 @@ function renderCustomBriefPromptStep(container) {
 
 function renderCustomBriefInputStep(container) {
   const custom = ensureCustomState();
-  renderInfo(container, [
-    "Встав JSON із брифом. Після збереження система побудує план файлів.",
-  ]);
+  const briefLocked = Boolean(custom.briefLocked);
+  const activeEnv = getActiveEnvironmentMeta();
+  const envRequiredTip =
+    "• Бриф привʼязується до активного середовища. Щоб створити новий бот, створи окреме середовище.";
+  const baseInfo =
+    "Встав JSON із брифом. Після збереження система побудує план файлів і заблокує повторне редагування для цього середовища.";
+  renderInfo(container, [baseInfo, envRequiredTip]);
+
+  const envNotice = document.createElement("div");
+  envNotice.className = activeEnv ? "note-block" : "note-block warning";
+  envNotice.textContent = activeEnv
+    ? `Активне середовище: «${activeEnv.title || "Без назви"}». Бриф буде привʼязаний саме до нього.`
+    : "Середовище ще не обрано — натисни «Середовища» у верхньому меню та створи / активуй його перед збереженням брифу.";
+  container.appendChild(envNotice);
+
+  if (briefLocked) {
+    const notice = document.createElement("p");
+    notice.className = "note-block";
+    notice.textContent =
+      "Бриф для цього середовища вже збережений. Створи нове середовище, щоб зробити ще один кастомний бот.";
+    container.appendChild(notice);
+  } else {
+    const warning = document.createElement("div");
+    warning.className = "note-block warning";
+    warning.innerHTML =
+      "<strong>Після збереження:</strong> змінити бриф або тип бота вже не можна. Переконайся, що специфікація повна і точна.";
+    container.appendChild(warning);
+  }
 
   const textarea = document.createElement("textarea");
   textarea.value = custom.briefText;
   textarea.placeholder = '{\n  "commands": [...],\n  "files": [...],\n  ...\n}';
   textarea.rows = 12;
+  textarea.readOnly = briefLocked;
+  textarea.disabled = briefLocked;
+  if (briefLocked) {
+    textarea.classList.add("textarea-readonly");
+  }
   textarea.addEventListener("input", (event) => {
     custom.briefText = event.target.value;
     saveState();
@@ -3075,8 +4499,30 @@ function renderCustomBriefInputStep(container) {
   const saveBtn = document.createElement("button");
   saveBtn.type = "button";
   saveBtn.className = "primary";
-  saveBtn.textContent = "Зберегти бриф";
-  saveBtn.addEventListener("click", () => {
+  saveBtn.textContent = briefLocked ? "Бриф зафіксовано" : "Зберегти бриф";
+  saveBtn.disabled = briefLocked;
+  const lockUi = () => {
+    textarea.readOnly = true;
+    textarea.disabled = true;
+    textarea.classList.add("textarea-readonly");
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Бриф зафіксовано";
+  };
+  saveBtn.addEventListener("click", async () => {
+    if (custom.briefLocked) {
+      showToast("Цей бриф вже заблоковано.");
+      return;
+    }
+    if (!envState.activeId) {
+      showToast("Створи та обери середовище перед збереженням брифу.");
+      return;
+    }
+    const confirmed = confirm(
+      "Після збереження бриф буде заблоковано і змінити його вже не можна. Уважно перевірив усі вимоги?"
+    );
+    if (!confirmed) {
+      return;
+    }
     try {
       const parsed = parseCustomBrief(custom.briefText);
       custom.brief = parsed;
@@ -3096,12 +4542,26 @@ function renderCustomBriefInputStep(container) {
       custom.diag.prompt = "";
       saveState();
       draw(true);
-      showToast("Бриф збережено.");
     } catch (error) {
       console.error("Не вдалося розпарсити бриф", error);
       showToast(
         "Помилка JSON. Перевір синтаксис. Якщо ChatGPT повернув відповідь у ```json``` — скопіюй лише вміст без кодових блоків."
       );
+      return;
+    }
+    try {
+      await patchEnvironment(envState.activeId, {
+        brief_locked: true,
+        brief_step: state.currentStep + 1,
+      });
+      custom.briefLocked = true;
+      saveState();
+      lockUi();
+      draw(true);
+      showToast("Бриф збережено та зафіксовано.");
+    } catch (error) {
+      console.error("Failed to lock brief", error);
+      showToast("Бриф збережено, але не вдалося зафіксувати середовище. Спробуй ще раз.");
     }
   });
   actions.appendChild(saveBtn);
@@ -3982,43 +5442,8 @@ function renderStepDetails(container, stepId) {
   toggle.type = "button";
   toggle.className = "ghost details-toggle";
   toggle.textContent = "Детальніше";
+  toggle.addEventListener("click", () => openDetailsOverlay(stepId));
   wrapper.appendChild(toggle);
-
-  const body = document.createElement("div");
-  body.className = "step-details-body";
-  body.hidden = true;
-
-  details.forEach((item, index) => {
-    const card = document.createElement("article");
-    card.className = "step-details-card";
-
-    const header = document.createElement("header");
-    header.textContent = item.title || `Крок ${index + 1}`;
-    card.appendChild(header);
-
-    if (item.gif) {
-      const img = document.createElement("img");
-      img.src = item.gif;
-      img.alt = item.title || "Детальний приклад";
-      img.loading = "lazy";
-      card.appendChild(img);
-    }
-
-    if (item.description) {
-      const p = document.createElement("p");
-      p.textContent = item.description;
-      card.appendChild(p);
-    }
-
-    body.appendChild(card);
-  });
-
-  toggle.addEventListener("click", () => {
-    body.hidden = !body.hidden;
-    toggle.textContent = body.hidden ? "Детальніше" : "Згорнути деталі";
-  });
-
-  wrapper.appendChild(body);
   container.appendChild(wrapper);
 }
 
@@ -4601,6 +6026,22 @@ function makeSelect(options, value, onChange) {
   return wrapper;
 }
 
+function makeReadonlyValue(text, hint) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "form-control form-control--static";
+  const value = document.createElement("div");
+  value.className = "readonly-value";
+  value.textContent = text || "—";
+  wrapper.appendChild(value);
+  if (hint) {
+    const hintEl = document.createElement("p");
+    hintEl.className = "form-hint warning";
+    hintEl.textContent = hint;
+    wrapper.appendChild(hintEl);
+  }
+  return wrapper;
+}
+
 function wrapControl(control) {
   const wrapper = document.createElement("div");
   wrapper.className = "form-control";
@@ -5011,6 +6452,14 @@ function appendInfoLine(block, line) {
 }
 
 // --- Загальні утиліти ---
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function copyText(text) {
   if (!navigator.clipboard) {
     showToast("Скопіювати не вдалося (обмеження браузера).");
@@ -5173,9 +6622,13 @@ function generateCodePrompt() {
   ].join("\n");
 }
 
-function loadState() {
+function getEnvStorageKey(envId) {
+  return envId ? `${ENV_STATE_PREFIX}${envId}` : STORAGE_KEY;
+}
+
+function loadState(targetEnvId = envState.activeId) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getEnvStorageKey(targetEnvId));
     if (!raw) return structuredClone(defaultState);
     const parsed = JSON.parse(raw);
     const merged = Object.assign(structuredClone(defaultState), parsed);
@@ -5211,9 +6664,56 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(getEnvStorageKey(envState.activeId), JSON.stringify(state));
 }
 
 function structuredClone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+function setupTopbarControls() {
+  const resetBtn = document.getElementById('nav-reset');
+  const docsBtn = document.getElementById('nav-docs');
+  const envBtn = document.getElementById('nav-env');
+  const logoutBtn = document.getElementById('nav-logout');
+  const adminBtn = document.getElementById('nav-admin');
+  const burger = document.getElementById('nav-burger');
+  const popup = document.getElementById('nav-popup');
+  const overlay = document.getElementById('nav-overlay');
+  const closeBtn = document.getElementById('nav-close');
+
+  if (resetBtn) resetBtn.addEventListener('click', () => handleReset());
+  if (docsBtn) docsBtn.addEventListener('click', () => openDocs());
+  if (envBtn)
+    envBtn.addEventListener('click', async () => {
+      await loadEnvironments();
+      showEnvScreen();
+    });
+  if (adminBtn) adminBtn.addEventListener('click', () => toggleAdminPanel());
+  if (logoutBtn) logoutBtn.addEventListener('click', () => handleLogout());
+
+  if (burger && popup && overlay) {
+    burger.addEventListener('click', () => {
+      overlay.hidden = false;
+      popup.classList.add('open');
+    });
+    const close = () => {
+      overlay.hidden = true;
+      popup.classList.remove('open');
+    };
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) close();
+    });
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    popup.addEventListener('click', (event) => {
+      const btn = event.target.closest('button[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      if (action === 'reset') handleReset();
+      if (action === 'docs') openDocs();
+      if (action === 'env') loadEnvironments().then(showEnvScreen);
+      if (action === 'admin') toggleAdminPanel();
+      if (action === 'logout') handleLogout();
+      close();
+    });
+  }
 }
