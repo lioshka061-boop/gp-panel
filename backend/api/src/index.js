@@ -12,12 +12,28 @@ const envRoutes = require('./routes/envs');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
+
+// Дозволені origin'и для CORS
+const allowedOrigins = [
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  // додаси сюди після деплою:
+  // 'https://gp-panel.onrender.com',
+  // 'https://app.genieprompts.net',
+];
+
 app.use(
   cors({
-    origin: ['http://localhost:5500', 'http://127.0.0.1:5500'],
+    origin(origin, callback) {
+      // запити без Origin (Postman, curl) – дозволяємо
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   })
 );
+
 app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
@@ -39,6 +55,9 @@ app.use((err, req, res, next) => {
   return res.status(500).json({ error: 'internal server error' });
 });
 
-app.listen(config.port, () => {
-  console.log(`API listening on port ${config.port}`);
+// Головне: порт з ENV (Render його виставляє)
+const PORT = process.env.PORT || config.port || 4000;
+
+app.listen(PORT, () => {
+  console.log(`API listening on port ${PORT}`);
 });
