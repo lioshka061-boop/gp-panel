@@ -170,4 +170,27 @@ router.put('/:id/step', async (req, res) => {
   }
 });
 
+router.delete('/:id', async (req, res) => {
+  try {
+    const envId = Number(req.params.id);
+    if (!envId) {
+      return res.status(400).json({ error: 'Invalid env id' });
+    }
+
+    const env = await knex('environments')
+      .where({ id: envId, user_id: req.user.id })
+      .first();
+
+    if (!env) {
+      return res.status(404).json({ error: 'Environment not found' });
+    }
+
+    await knex('environments').where({ id: envId, user_id: req.user.id }).del();
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Env delete error', error);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 module.exports = router;

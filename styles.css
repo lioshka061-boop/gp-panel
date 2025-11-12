@@ -2052,6 +2052,7 @@ button.ghost {
   cursor: pointer;
   overflow-wrap: anywhere;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
 }
 .env-card:hover {
   transform: translateY(-2px);
@@ -2101,6 +2102,28 @@ button.ghost {
   border-radius: 999px;
   background: linear-gradient(90deg, #4f8bff, #7d7bff);
   width: 0%;
+}
+.env-card-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(10, 18, 40, 0.6);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.env-card:hover .env-card-delete,
+.env-card-delete:focus-visible {
+  opacity: 1;
+}
+.env-card-delete:hover {
+  background: rgba(218, 78, 78, 0.95);
+  color: #fff;
 }
 .env-empty {
   opacity: 0.7;

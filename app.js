@@ -1937,6 +1937,7 @@ const elements = {
   jumpButton: document.getElementById("jump-btn"),
   footer: document.querySelector(".step-actions"),
   toast: document.getElementById("toast"),
+  toastBody: document.querySelector("#toast .toast-body"),
 };
 
 let state = loadState();
@@ -2277,6 +2278,7 @@ function renderEnvironmentList() {
         : 0;
       return `
         <article class="env-card" data-env-id="${env.id}">
+          <button type="button" class="env-card-delete" data-delete-env="${env.id}" title="Видалити середовище">×</button>
           <div class="env-card-header">
             <div class="env-card-title">${env.title || "Без назви"}</div>
             <div class="env-card-step">Крок ${env.current_step ?? 1}</div>
@@ -2293,6 +2295,12 @@ function renderEnvironmentList() {
     .join("");
 
   listEl.onclick = (event) => {
+    const deleteBtn = event.target.closest("[data-delete-env]");
+    if (deleteBtn) {
+      const envId = Number(deleteBtn.dataset.deleteEnv);
+      if (envId) deleteEnvironment(envId);
+      return;
+    }
     const card = event.target.closest(".env-card");
     if (!card) return;
     const envId = Number(card.dataset.envId);
@@ -2324,6 +2332,35 @@ async function patchEnvironment(envId, payload) {
     updateEnvironmentCache(updated);
   }
   return updated;
+}
+
+async function deleteEnvironment(envId) {
+  if (!envId) return;
+  const env = envState.items.find((item) => item.id === envId);
+  const title = env?.title || "середовище";
+  if (
+    !confirm(
+      `Видалити «${title}»? Прогрес і локальні дані цього середовища буде втрачено.`
+    )
+  ) {
+    return;
+  }
+  try {
+    await api(`/envs/${envId}`, { method: "DELETE" });
+    localStorage.removeItem(getEnvStorageKey(envId));
+    envState.items = envState.items.filter((item) => item.id !== envId);
+    if (envState.activeId === envId) {
+      envState.activeId = null;
+      state = structuredClone(defaultState);
+      saveState();
+      draw(true);
+    }
+    renderEnvironmentList();
+    showToast("Середовище видалено.");
+  } catch (error) {
+    console.error("Failed to delete environment", error);
+    showToast("Не вдалося видалити середовище.");
+  }
 }
 
 function syncActiveEnvironmentState(envMeta = getActiveEnvironmentMeta()) {
@@ -2799,6 +2836,7 @@ function renderAdminPanel() {
         <tr>
           <td>${user.id}</td>
           <td>${user.full_name || "—"}</td>
+          <td>${user.phone || "—"}</td>
           <td>${user.email || "—"}</td>
           <td>${user.created_at || "—"}</td>
           <td><button type="button" class="admin-user-details" data-user-id="${user.id}">Детальніше</button></td>
@@ -2893,9 +2931,15 @@ function renderAdminPanel() {
         <header>
           <div class="admin-user-meta">
             <h4>${info.user?.full_name || "Користувач"} (ID ${info.user?.id})</h4>
-            <p>${info.user?.email || "—"} • Середовищ: ${info.totalEnvs} • Оплат: ${
-      info.totalPaidPurchases
-    }</p>
+            <p>
+              ${info.user?.email || "—"}
+              ${
+                info.user?.phone
+                  ? ` • ${info.user.phone}`
+                  : ""
+              }
+              • Середовищ: ${info.totalEnvs} • Оплат: ${info.totalPaidPurchases}
+            </p>
           </div>
           <div class="admin-chip-row">
             ${revenue}
@@ -3045,6 +3089,7 @@ function renderAdminPanel() {
             <tr>
               <th>ID</th>
               <th>Імʼя</th>
+              <th>Телефон</th>
               <th>Email</th>
               <th>Створено</th>
               <th></th>
@@ -3260,18 +3305,29 @@ result.push(
       const env = state.choices.environment; // 'local' або 'codespaces'
 
       if (env === "codespaces") {
-        // ТІЛЬКИ текст, без копі-кнопок
-        renderInfo(
-          container,
-          [
-            "1. Зайди на свій репозиторій на GitHub.",
-            "2. Натисни кнопку `Code`.",
-            "3. Перейди на вкладку `Codespaces`.",
-            "4. Натисни `Create codespace on main`.",
-            "5. Дочекайся, поки відкриється веб-VS Code — це і є твій Codespace."
-          ],
-          "Мета: відкрити репозиторій у Codespaces і працювати там з файлами бота (main.py, requirements.txt, .env тощо)."
-        );
+        const steps = [
+          "Зайди на свій репозиторій на GitHub.",
+          "Натисни кнопку Code.",
+          "Перейди на вкладку Codespaces.",
+          "Натисни Create codespace on main.",
+          "Дочекайся, поки відкриється веб-VS Code — це і є твій Codespace.",
+        ];
+        const block = document.createElement("div");
+        block.className = "info-block";
+        const list = document.createElement("ol");
+        steps.forEach((text) => {
+          const li = document.createElement("li");
+          li.textContent = text;
+          list.appendChild(li);
+        });
+        block.appendChild(list);
+        container.appendChild(block);
+
+        const meta = document.createElement("div");
+        meta.className = "note-block";
+        meta.textContent =
+          "Мета: відкрити репозиторій у Codespaces і працювати там з файлами бота (main.py, requirements.txt, .env тощо).";
+        container.appendChild(meta);
       } else {
         // LOCAL як було
         renderInfo(
@@ -3790,7 +3846,33 @@ function renderEnvironmentStep(container) {
   });
   container.appendChild(cards);
 
-  renderInfo(container, ["• Вибір середовища підлаштує підказки та команди."]);
+  if (state.choices.environment === "codespaces") {
+    const steps = [
+      "Зайди на свій репозиторій на GitHub.",
+      "Натисни кнопку Code.",
+      "Перейди на вкладку Codespaces.",
+      "Натисни Create codespace on main.",
+      "Дочекайся, поки відкриється веб-VS Code — це і є твій Codespace.",
+    ];
+    const block = document.createElement("div");
+    block.className = "info-block";
+    const list = document.createElement("ol");
+    steps.forEach((text) => {
+      const li = document.createElement("li");
+      li.textContent = text.replace(/`/g, "");
+      list.appendChild(li);
+    });
+    block.appendChild(list);
+    container.appendChild(block);
+
+    const meta = document.createElement("div");
+    meta.className = "note-block";
+    meta.textContent =
+      "Мета: відкрити репозиторій у Codespaces і працювати там з файлами бота (main.py, requirements.txt, .env тощо).";
+    container.appendChild(meta);
+  } else {
+    renderInfo(container, ["• Вибір середовища підлаштує підказки та команди."]);
+  }
 }
 
 function renderToolsStep(container) {
@@ -6471,11 +6553,15 @@ function copyText(text) {
 }
 
 function showToast(message) {
-  elements.toast.textContent = message;
+  if (!elements.toast) return;
+  const target = elements.toastBody || elements.toast;
+  target.textContent = message;
+  elements.toast.hidden = false;
   elements.toast.style.display = "inline-flex";
   clearTimeout(showToast._timer);
   showToast._timer = setTimeout(() => {
     elements.toast.style.display = "none";
+    elements.toast.hidden = true;
   }, 2200);
 }
 
