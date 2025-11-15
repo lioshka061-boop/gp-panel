@@ -6,7 +6,16 @@ const config = require('../config/env');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
-const isProd = process.env.NODE_ENV === 'production';
+const cookieName = process.env.AUTH_COOKIE_NAME || 'gp_token';
+const weekMs = 7 * 24 * 60 * 60 * 1000;
+const cookieOptions = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none',
+  domain: '.genieprompts.net',
+  path: '/',
+  maxAge: weekMs,
+};
 
 router.post('/register', async (req, res, next) => {
   try {
@@ -45,15 +54,9 @@ router.post('/register', async (req, res, next) => {
       { expiresIn: '7d' }
     );
 
-    res.cookie('gp_token', token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
+    res.cookie(cookieName, token, cookieOptions);
 
-    return res.json({ user });
+    return res.json({ ok: true, user });
   } catch (err) {
     next(err);
   }
@@ -91,15 +94,10 @@ router.post('/login', async (req, res, next) => {
       { expiresIn: '7d' }
     );
 
-    res.cookie('gp_token', token, {
-      httpOnly: true,
-      secure: isProd,                // на Render буде true (https)
-      sameSite: isProd ? 'none' : 'lax', // для кросдомену обовʼязково 'none'
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
+    res.cookie(cookieName, token, cookieOptions);
 
     res.json({
+      ok: true,
       user: {
         id: user.id,
         email: user.email,
@@ -117,11 +115,9 @@ router.get('/me', requireAuth, (req, res) => {
 });
 
 router.post('/logout', requireAuth, (req, res) => {
-  res.clearCookie('gp_token', {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
-    path: '/',
+  res.clearCookie(cookieName, {
+    ...cookieOptions,
+    maxAge: undefined,
   });
   return res.sendStatus(204);
 });

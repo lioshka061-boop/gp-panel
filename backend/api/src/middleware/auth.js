@@ -2,14 +2,8 @@ const jwt = require('jsonwebtoken');
 const config = require('../config/env');
 
 function attachUser(req, res, next) {
-  const authHeader = req.headers.authorization;
-
-  const tokenFromHeader =
-    authHeader && authHeader.startsWith('Bearer ')
-      ? authHeader.slice(7)
-      : null;
-
-  const token = req.cookies.gp_token || tokenFromHeader;
+  const cookieName = process.env.AUTH_COOKIE_NAME || 'gp_token';
+  const token = req.cookies[cookieName];
 
   if (!token) {
     req.user = null;

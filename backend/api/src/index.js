@@ -13,25 +13,26 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 
-// // Дозволені origin'и для CORS
-// const allowedOrigins = [
-//   'http://localhost:5500',
-//   'http://127.0.0.1:5500',
-//   // додаси сюди після деплою:
-//   // 'https://gp-panel.onrender.com',
-//   // 'https://app.genieprompts.net',
-// ];
+const allowedOrigins = [
+  'https://app.genieprompts.net',
+  'http://localhost:5500',
+];
 
-app.use(
-  cors({
-    origin: [
-      'http://localhost:5500',
-      'http://127.0.0.1:5500',
-      'https://app.genieprompts.net', // твій фронт, якщо вже є
-    ],
-    credentials: true,
-  })
-);
+app.set('trust proxy', 1);
+
+const corsOptions = {
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors({ origin: allowedOrigins, credentials: true }));
 
 app.use(helmet());
 app.use(express.json());
