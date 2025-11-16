@@ -2040,7 +2040,7 @@ button.ghost {
   margin-top: 8px;
 }
 .env-card {
-  padding: 14px 18px;
+  padding: 14px 18px 14px 64px;
   border-radius: 16px;
   box-sizing: border-box;
   background: radial-gradient(circle at top left, rgba(96, 123, 255, 0.12), transparent),
@@ -2054,6 +2054,29 @@ button.ghost {
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   position: relative;
 }
+.env-card::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(88, 123, 255, 0.85), rgba(144, 92, 255, 0.85));
+  box-shadow: 0 8px 24px rgba(72, 98, 255, 0.35);
+  opacity: 0.9;
+}
+.env-card::after {
+  content: "";
+  position: absolute;
+  left: 32px;
+  top: 32px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.35;
+}
 .env-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
@@ -2062,7 +2085,8 @@ button.ghost {
 .env-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
+  gap: 12px;
 }
 .env-card-title {
   font-size: 16px;
@@ -2070,7 +2094,12 @@ button.ghost {
 }
 .env-card-step {
   font-size: 13px;
-  opacity: 0.8;
+  opacity: 0.85;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(75, 103, 255, 0.16);
+  color: #e6ebff;
+  white-space: nowrap;
 }
 .env-card-meta {
   display: flex;
@@ -2104,26 +2133,38 @@ button.ghost {
   width: 0%;
 }
 .env-card-delete {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  align-self: flex-start;
+  margin-left: auto;
   border: none;
-  background: rgba(10, 18, 40, 0.6);
-  color: rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  background: rgba(218, 78, 78, 0.18);
+  color: #ffb4b4;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
-}
-.env-card:hover .env-card-delete,
-.env-card-delete:focus-visible {
-  opacity: 1;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
 }
 .env-card-delete:hover {
-  background: rgba(218, 78, 78, 0.95);
+  background: rgba(218, 78, 78, 0.9);
   color: #fff;
+}
+
+@media (max-width: 520px) {
+  .env-card {
+    padding: 14px 16px;
+  }
+  .env-card::before,
+  .env-card::after {
+    display: none;
+  }
+  .env-card-step {
+    font-size: 12px;
+  }
+  .env-card-delete {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
 }
 .env-empty {
   opacity: 0.7;

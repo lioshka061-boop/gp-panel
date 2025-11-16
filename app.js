@@ -1,4 +1,6 @@
-const API_URL = 'https://gp-panel-api.onrender.com';
+const API_URL = window.location.hostname.includes('localhost')
+  ? 'http://localhost:4000'
+  : 'https://api.genieprompts.net';
 
 async function api(path, options = {}) {
   const res = await fetch(API_URL + path, {
@@ -245,7 +247,7 @@ async function handlePay(botId) {
   const isDevPending = res.status === 'pending' && !res.redirectUrl;
   if (isDevPending || successStatuses.includes(res.status)) {
     if (bot.id) {
-      state.choices.botType = bot.id;
+      applyBotTypeSelection(bot.id, { preserveCustomCommands: true });
       if (state.currentStep < 2) {
         state.currentStep = 2;
       }
@@ -330,7 +332,7 @@ function resetBotAccessCache() {
 }
 
 // --- Довідкові дані ---
-const BOT_TYPES = [
+const RAW_BOT_TYPES = [
   {
     id: "crm",
     title: "CRM",
@@ -955,6 +957,12 @@ const BOT_TYPES = [
   },
 ];
 
+const BOT_TYPES = (() => {
+  const order = ["task", "crm", "habit", "faq", "shop", "booking", "custom"];
+  const map = new Map(RAW_BOT_TYPES.map((item) => [item.id, item]));
+  return order.map((id) => map.get(id)).filter(Boolean);
+})();
+
 const BOT_BACKEND_CODES = {
   crm: "crm_bot",
   task: "task_manager",
@@ -1256,6 +1264,19 @@ const PAYMENT_INTRO = [
 ];
 
 const STEP_DETAILS = {
+  folder: [
+    {
+      title: "GitHub Codespaces",
+      description:
+        "Увійди в GitHub, відкрий свій репозиторій, натисни Code → Codespaces → Create codespace on main. Через кілька секунд відкриється веб‑VS Code, де вже встановлений Python та git.",
+      gif: "assets/intro.gif",
+    },
+    {
+      title: "Локальне середовище",
+      description:
+        "Якщо обрав локальний варіант: створи папку `mybot`, відкрий її у VS Code, переконайся, що Python 3.10+ встановлений, та підготуй термінал (pip, venv).",
+    },
+  ],
   requirements: [
     {
       title: "Створення файла",
@@ -1477,6 +1498,59 @@ function ensureExtraModuleData(targetState = state) {
   if (!data.i18n.usage.file) data.i18n.usage.file = entryFile;
 
   return data;
+}
+
+function applyBotTypeSelection(value, options = {}) {
+  if (!value || !state?.choices) return false;
+  const previous = state.choices.botType;
+  state.choices.botType = value;
+
+  const resetUi = options.resetUi !== false;
+  if (resetUi) {
+    state.ui = structuredClone(defaultUiState);
+  }
+
+  const typeMeta = BOT_TYPES.find((item) => item.id === value);
+  const isCustom = value === "custom";
+  const customState = ensureCustomState();
+  const hasCustomBriefCommands =
+    Array.isArray(customState?.brief?.commands) &&
+    customState.brief.commands.length > 0;
+  const prevCommands = Array.isArray(state.commands)
+    ? [...state.commands]
+    : [];
+  let commandsChanged = false;
+  let customStateChanged = false;
+
+  let shouldUpdateCommands = true;
+  if (isCustom && !options.forceCustomReset) {
+    if (options.preserveCustomCommands !== false && hasCustomBriefCommands) {
+      shouldUpdateCommands = false;
+    }
+  }
+
+  if (shouldUpdateCommands) {
+    const newCommands = typeMeta?.commands?.length
+      ? [...typeMeta.commands]
+      : ["/start", "/help"];
+    commandsChanged =
+      newCommands.length !== prevCommands.length ||
+      newCommands.some((cmd, idx) => cmd !== prevCommands[idx]);
+    state.commands = newCommands;
+  }
+
+  if (isCustom && previous !== "custom") {
+    state.custom = structuredClone(defaultCustomState);
+    state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
+    customStateChanged = true;
+  }
+  if (!isCustom && previous === "custom") {
+    state.custom = structuredClone(defaultCustomState);
+    state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
+    customStateChanged = true;
+  }
+
+  return previous !== value || commandsChanged || customStateChanged;
 }
 
 function mergePlainObject(target, source) {
@@ -2278,10 +2352,10 @@ function renderEnvironmentList() {
         : 0;
       return `
         <article class="env-card" data-env-id="${env.id}">
-          <button type="button" class="env-card-delete" data-delete-env="${env.id}" title="Видалити середовище">×</button>
           <div class="env-card-header">
             <div class="env-card-title">${env.title || "Без назви"}</div>
             <div class="env-card-step">Крок ${env.current_step ?? 1}</div>
+            <button type="button" class="env-card-delete" data-delete-env="${env.id}" title="Видалити середовище">Видалити</button>
           </div>
           <div class="env-card-meta">
             <span>Оновлено: ${updated}</span>
@@ -2378,13 +2452,12 @@ function syncActiveEnvironmentState(envMeta = getActiveEnvironmentMeta()) {
 
   if (envMeta.bot_id) {
     const resolvedType = resolveTypeIdByBackendBotId(envMeta.bot_id);
-    if (resolvedType && state.choices.botType !== resolvedType) {
-      state.choices.botType = resolvedType;
-      const typeMeta = BOT_TYPES.find((item) => item.id === resolvedType);
-      if (typeMeta && resolvedType !== "custom") {
-        state.commands = [...typeMeta.commands];
-      }
-      mutated = true;
+    if (resolvedType) {
+      const changed = applyBotTypeSelection(resolvedType, {
+        preserveCustomCommands: true,
+        resetUi: false,
+      });
+      if (changed) mutated = true;
     }
     botAccessCache.set(envMeta.bot_id, true);
   }
@@ -3767,18 +3840,7 @@ function renderBotTypeStep(container) {
         showToast("Середовище вже привʼязане до іншого бота.");
         return;
       }
-      state.choices.botType = value;
-      state.ui = structuredClone(defaultUiState);
-      const type = BOT_TYPES.find((item) => item.id === state.choices.botType);
-      if (type) state.commands = [...type.commands];
-      if (value === "custom" && previous !== "custom") {
-        state.custom = structuredClone(defaultCustomState);
-        state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
-      }
-      if (previous === "custom" && value !== "custom") {
-        state.custom = structuredClone(defaultCustomState);
-        state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
-      }
+      applyBotTypeSelection(value, { forceCustomReset: true });
       saveState();
       draw(true);
     }
@@ -4324,19 +4386,9 @@ function renderDevBriefStep(container) {
         BOT_TYPES.map((t) => [t.id, `${t.title} — ${t.description}`]),
         state.choices.botType,
         (value) => {
-          const previous = state.choices.botType;
-          state.choices.botType = value;
-          state.ui = structuredClone(defaultUiState);
-          const type = BOT_TYPES.find((item) => item.id === value);
-          if (type) state.commands = [...type.commands];
-          if (value === "custom" && previous !== "custom") {
-            state.custom = structuredClone(defaultCustomState);
-            state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
-          }
-          if (previous === "custom" && value !== "custom") {
-            state.custom = structuredClone(defaultCustomState);
-            state.choices.entryFile = ENTRY_FILE_OPTIONS[0].id;
-          }
+          applyBotTypeSelection(value, {
+            forceCustomReset: true,
+          });
           saveState();
           draw(true);
         }
