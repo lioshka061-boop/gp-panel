@@ -301,8 +301,10 @@ main {
   width: 40px;
   height: 40px;
   border-radius: 14px;
-  background: radial-gradient(circle at 30% 30%, #66ccff, #3b5dff);
-  display: inline-block;
+  display: block;
+  object-fit: contain;
+  background: transparent;
+  flex-shrink: 0;
 }
 
 .topbar-title {
