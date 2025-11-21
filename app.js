@@ -1624,6 +1624,33 @@ function createSimpleFileInstructions(fileSpec) {
   return `Створи файл ${path}. Призначення: ${purpose}. Заповни відповідно до брифу та збережи у зазначеній директорії.`;
 }
 
+function generateCodexFileCreationPrompt(brief) {
+  const serializedBrief = JSON.stringify(brief, null, 2);
+  const files = Array.isArray(brief?.files) ? brief.files : [];
+  const fileSummary = files.length
+    ? files
+        .map((file, index) => {
+          const path = file?.path || `file_${index + 1}.txt`;
+          const purpose = file?.purpose || "Призначення не вказано.";
+          const simpleLabel = file?.isSimple ? " (простий/статичний файл)" : "";
+          return `- ${path}: ${purpose}${simpleLabel}`;
+        })
+        .join("\n")
+    : "- Створи базову структуру файлів за брифом.";
+
+  return [
+    "Ти працюєш у Codex у VS Code.",
+    `JSON-бриф: ${serializedBrief}.`,
+    "Створи структуру проєкту та всі перелічені файли/папки (поки без бізнес-логіки):",
+    fileSummary,
+    "Правила:",
+    "- Не додавай зайвих залежностей чи файлів поза списком.",
+    "- Для простих файлів можна одразу додати статичні дані або заглушки.",
+    "- Додай мінімальні імпорти/коментарі, щоб файли відкривались без помилок.",
+    "Після створення файлів дай коротке підтвердження. Детальний код додамо окремими промптами для кожного файла.",
+  ].join("\n");
+}
+
 function updateCustomFilePlan(parsedBrief) {
   const custom = ensureCustomState();
   const previousStatus = new Map(
@@ -4718,9 +4745,43 @@ function renderCustomFilesStep(container) {
     return;
   }
 
-  renderInfo(container, [
-    "Познач файли як виконані після того, як вставиш код або заповниш прості шаблони.",
-  ]);
+  const isCodexMode = state.choices.mode === "codex";
+
+  if (isCodexMode) {
+    renderInfo(container, [
+      "1) Скопіюй промпт нижче у Codex, щоб він створив усі файли та папки з брифу (без бізнес-логіки).",
+      "2) Після відповіді повернися сюди та використай промпти нижче, щоб додати код у кожен файл.",
+      "3) Позначай файли як виконані після вставки коду або заповнення шаблонів.",
+    ]);
+
+    const aiTarget = getPromptAiTarget("code");
+    const scaffoldPrompt = generateCodexFileCreationPrompt(custom.brief);
+    container.appendChild(
+      createPromptBlock(scaffoldPrompt, {
+        copyLabel: "Скопіювати промпт для Codex",
+        ai: aiTarget,
+        openLabel: getAiLabel(aiTarget),
+        collapsible: true,
+        expandLabel: "Розгорнути промпт для створення файлів",
+        collapseLabel: "Згорнути промпт для створення файлів",
+      })
+    );
+
+    const fileLines = custom.files.map((file, index) => {
+      const path = file.path || `file_${index + 1}.txt`;
+      const note = file.isSimple ? " (простий/статичний)" : "";
+      const purpose = file.purpose || "Призначення ще не вказано.";
+      return `• ${path}${note} — ${purpose}`;
+    });
+    renderInfo(container, [
+      "Файли, які має створити Codex:",
+      ...fileLines,
+    ]);
+  } else {
+    renderInfo(container, [
+      "Познач файли як виконані після того, як вставиш код або заповниш прості шаблони.",
+    ]);
+  }
 
   const stack = document.createElement("div");
   stack.className = "file-card-stack";
