@@ -862,12 +862,16 @@ body.modal-open,
 
 .info-block,
 .note-block {
-  background: rgba(17, 29, 54, 0.85);
-  border: 1px solid rgba(102, 136, 255, 0.2);
-  border-radius: 18px;
-  padding: 18px 20px;
+  position: relative;
+  background: radial-gradient(circle at 12% 20%, rgba(108, 138, 255, 0.12), transparent 40%),
+    radial-gradient(circle at 85% 10%, rgba(90, 200, 255, 0.12), transparent 30%),
+    rgba(12, 20, 42, 0.9);
+  border: 1px solid rgba(120, 150, 255, 0.3);
+  border-radius: 22px;
+  padding: 18px 20px 16px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
+  box-shadow: 0 24px 70px -42px rgba(40, 80, 255, 0.6);
 }
 
 .note-block.warning {
@@ -891,11 +895,27 @@ body.modal-open,
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
 }
 
 .info-line-text {
   flex: 1 1 260px;
+  position: relative;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+
+.info-line-text::before {
+  content: "⭐";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 14px;
+  opacity: 0.9;
 }
 
 .info-line input[type="checkbox"] {
@@ -909,13 +929,52 @@ body.modal-open,
   gap: 8px;
 }
 
+.inline-actions .ghost,
+.inline-actions .primary {
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.inline-actions .copy-btn::before {
+  content: "📋 ";
+}
+
+.inline-actions .prompt-open::before {
+  content: "🚀 ";
+}
+
 .prompt-area {
-  background: rgba(17, 29, 54, 0.82);
+  position: relative;
+  background: rgba(9, 16, 32, 0.92);
   border: 1px solid rgba(102, 136, 255, 0.35);
-  border-radius: 16px;
-  padding: 18px 20px;
+  border-radius: 18px;
+  padding: 26px 20px 18px;
   display: grid;
-  gap: 16px;
+  gap: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 24px 60px -38px rgba(80, 130, 255, 0.7);
+}
+
+.prompt-area::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4adeff, #7ea2ff);
+  opacity: 0.4;
+}
+
+.prompt-area::after {
+  content: "Terminal";
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  font-size: 11px;
+  color: rgba(230, 240, 255, 0.7);
+  letter-spacing: 0.05em;
 }
 
 .prompt-text {
@@ -924,6 +983,9 @@ body.modal-open,
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
   font-size: 14px;
   color: rgba(227, 238, 255, 0.9);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 10px 12px;
 }
 
 .prompt-actions {
@@ -1586,9 +1648,9 @@ body.modal-open,
 }
 
 .carousel-slide {
-  background: rgba(16, 28, 52, 0.85);
-  border: 1px solid rgba(102, 136, 255, 0.25);
-  border-radius: 16px;
+  background: rgba(16, 28, 52, 0.92);
+  border: 1px solid rgba(110, 138, 255, 0.32);
+  border-radius: 18px;
   padding: 16px 18px;
   display: grid;
   gap: 10px;
@@ -1596,8 +1658,16 @@ body.modal-open,
 
 .carousel-slide h4 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   color: #f1f4ff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.carousel-slide h4::before {
+  content: "🪄";
+  font-size: 16px;
 }
 
 .carousel-slide p {
@@ -1608,14 +1678,36 @@ body.modal-open,
 
 .carousel-code {
   margin: 0;
-  background: rgba(12, 20, 40, 0.8);
-  border: 1px solid rgba(120, 150, 255, 0.28);
+  background: rgba(5, 12, 26, 0.92);
+  border: 1px solid rgba(120, 150, 255, 0.35);
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 14px 14px 16px;
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
   font-size: 13px;
-  color: rgba(227, 238, 255, 0.9);
+  color: rgba(227, 238, 255, 0.94);
   white-space: pre-wrap;
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.carousel-code::before {
+  content: "Термінал";
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 11px;
+  color: rgba(210, 225, 255, 0.7);
+  letter-spacing: 0.05em;
+}
+
+.carousel-code::after {
+  content: "●  ●  ●";
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 12px;
+  color: rgba(120, 150, 255, 0.7);
+  letter-spacing: 2px;
 }
 
 .table-wrapper {

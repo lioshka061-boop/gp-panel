@@ -4334,15 +4334,23 @@ function renderFileStructureStep(container) {
       "Цей файл містить бізнес-логіку бота. Запроси у ШІ повний вміст і встав його в редактор.";
     wrapper.appendChild(desc);
 
-    const prompt = generateManualFilePrompt(fileName);
-    const aiTarget = getPromptAiTarget("code");
-    wrapper.appendChild(
-      createPromptBlock(prompt, {
-        copyLabel: "Скопіювати промпт для ШІ",
-        ai: aiTarget,
-        openLabel: getAiLabel(aiTarget),
-      })
-    );
+    if (isCustomBot()) {
+      const prompt = generateManualFilePrompt(fileName);
+      const aiTarget = getPromptAiTarget("code");
+      wrapper.appendChild(
+        createPromptBlock(prompt, {
+          copyLabel: "Скопіювати промпт для ШІ",
+          ai: aiTarget,
+          openLabel: getAiLabel(aiTarget),
+        })
+      );
+    } else {
+      const hint = document.createElement("p");
+      hint.className = "file-card-note";
+      hint.textContent =
+        "Отримаєш готовий код на кроці «Промпт для коду». Скопіюй звідти, встав сюди й збережи.";
+      wrapper.appendChild(hint);
+    }
 
     const note = document.createElement("p");
     note.className = "file-card-note";
