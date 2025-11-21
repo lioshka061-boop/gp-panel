@@ -3664,7 +3664,7 @@ function buildSteps(currentState) {
           `backend-${backend.id}-${index}`,
           "III. База даних",
           step.text.split(".")[0],
-          (c) => renderBackendStep(c, backend.title, step)
+          (c) => renderBackendStep(c, backend, step, index)
         )
       );
     });
@@ -5640,8 +5640,20 @@ function renderBackendConfirmStep(container) {
   ]);
 }
 
-function renderBackendStep(container, backendTitle, step) {
-  renderInfo(container, [`${backendTitle}: ${step.text}`]);
+function renderBackendStep(container, backend, step, stepIndex = 0) {
+  const backendId = backend?.id || "";
+
+  if (stepIndex === 0) {
+    const guide = getBackendGuide(backendId);
+    if (guide?.lines?.length) {
+      renderInfo(container, guide.lines);
+    }
+    if (guide?.links?.length) {
+      renderBackendLinks(container, guide.links);
+    }
+  }
+
+  renderInfo(container, [`${backend?.title || "Сховище"}: ${step.text}`]);
   if (step.prompt) {
     const aiTarget = getPromptAiTarget("code");
     const block = createPromptBlock(step.prompt, {
@@ -5651,6 +5663,86 @@ function renderBackendStep(container, backendTitle, step) {
     });
     container.appendChild(block);
   }
+}
+
+function getBackendGuide(backendId) {
+  switch (backendId) {
+    case "json":
+      return {
+        lines: [
+          "Як для 5-річки: зроби коробку під дані.",
+          "1) У VS Code у списку файлів натисни правою → New Folder → назви `data`.",
+          "2) Усередині `data` створити New File → `db.json` (порожній файл).",
+          "3) Якщо любиш термінал: `mkdir -p data && echo {} > data/db.json`.",
+          "4) Нічого встановлювати не треба. Просто збережи файл.",
+          "5) Потім ШІ додасть код, який читає/пише цей файл.",
+        ],
+      };
+    case "sqlite":
+      return {
+        lines: [
+          "Як для 5-річки: це один файл-база.",
+          "1) Створи файл поруч із main.py: `db.sqlite3` (порожній).",
+          "2) Команда в терміналі: `touch db.sqlite3` (або створити через New File).",
+          "3) Переконайся, що Python 3 встановлений. sqlite3 вже є в Python.",
+          "4) Якщо треба оболонка: `python -c \"import sqlite3; sqlite3.connect('db.sqlite3').close()\"` — це створить файл.",
+          "5) Далі ШІ додасть таблиці та код через промпт.",
+        ],
+        links: [
+          { label: "Документація SQLite (англ.)", href: "https://www.sqlite.org/docs.html" },
+        ],
+      };
+    case "gsheets":
+      return {
+        lines: [
+          "Як для 5-річки: таблиця в браузері як база.",
+          "1) Зайди у Google Sheets і створи нову таблицю: https://sheets.new",
+          "2) У адресі знайди ID між `/d/` та `/edit`. Скопіюй у `.env` як `SHEET_ID=...`.",
+          "3) Створи сервісний акаунт у Google Cloud, завантаж JSON ключ.",
+          "4) Відкрий JSON, скопіюй усе вміст і встав у `.env` як `GOOGLE_CREDENTIALS= {...}` однією строкою.",
+          "5) Додай email сервісного акаунта у доступ до таблиці (Share → Editor).",
+          "6) Після цього ШІ підʼєднає gspread за промптом.",
+        ],
+        links: [
+          { label: "Google Sheets", href: "https://sheets.new", primary: true },
+          { label: "Сервісні акаунти Google", href: "https://console.cloud.google.com/iam-admin/serviceaccounts" },
+        ],
+      };
+    case "postgres":
+      return {
+        lines: [
+          "Як для 5-річки: база в Docker коробці.",
+          "1) Встанови Docker Desktop і запусти його.",
+          "2) У проєкті буде файл `docker-compose.yml` з Postgres.",
+          "3) Створи/онови `.env` з прикладом: `POSTGRES_USER=postgres`, `POSTGRES_PASSWORD=postgres`, `POSTGRES_DB=botdb`.",
+          "4) Запусти в терміналі: `docker compose up -d` — дочекайся статусу `healthy`.",
+          "5) Якщо треба перевірити, виконай: `docker compose logs db` або підʼєднайся клієнтом на `localhost:5432`.",
+          "6) ШІ додасть міграції/таблиці згідно з промптом.",
+        ],
+        links: [
+          { label: "Завантажити Docker Desktop", href: "https://www.docker.com/products/docker-desktop/", primary: true },
+          { label: "Документація Postgres", href: "https://www.postgresql.org/docs/" },
+        ],
+      };
+    default:
+      return null;
+  }
+}
+
+function renderBackendLinks(container, links) {
+  const actions = document.createElement("div");
+  actions.className = "prompt-actions";
+  links.forEach((link) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = link.primary ? "primary" : "ghost";
+    btn.textContent = link.label;
+    btn.addEventListener("click", () => {
+      window.open(link.href, "_blank", "noopener");
+    });
+    actions.appendChild(btn);
+  });
+  container.appendChild(actions);
 }
 
 function renderModuleRecommendationPanel(container, recommendation) {
