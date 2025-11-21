@@ -3396,11 +3396,11 @@ function buildSteps(currentState) {
   );
 
 // II. Підготовка проєкту
-result.push(
-  createStep(
-    "folder",
-    "II. Підготовка проєкту",
-    "Створення робочого середовища",
+  result.push(
+    createStep(
+      "folder",
+      "II. Підготовка проєкту",
+      "Створення робочого середовища",
     (container) => {
       const env = state.choices.environment; // 'local' або 'codespaces'
 
@@ -3428,6 +3428,14 @@ result.push(
         meta.textContent =
           "Мета: відкрити репозиторій у Codespaces і працювати там з файлами бота (main.py, requirements.txt, .env тощо).";
         container.appendChild(meta);
+
+        renderInfo(container, [
+          "Git у Codespaces:",
+          "• Відкрий вкладку Source Control (іконка гілки).",
+          "• Натисни «Publish changes» або в терміналі виконай: git status → git add . → git commit -m \"Init bot\" → git push.",
+          "• Робіть коміт після кожного завершеного кроку гайда (створення файлів, додавання логіки, налаштування .env.example).",
+          "• Якщо питає про авторизацію — підтвердь вікно GitHub у браузері.",
+        ]);
       } else {
         // LOCAL як було
         renderInfo(
@@ -3438,10 +3446,26 @@ result.push(
           ],
           "Мета: мати чисте місце для файлів бота."
         );
+
+        renderInfo(container, [
+          "Git локально:",
+          "• Якщо ще не ініціалізовано: у терміналі в цій папці виконай `git init` та додай remote: `git remote add origin https://github.com/username/repo.git`.",
+          "• Перевір зміни `git status`, додай файли `git add .`, коміть `git commit -m \"Init bot\"`, пуш `git push origin main`.",
+          "• Робіть коміт після логічних блоків: 1) базова структура + requirements.txt + .env.example, 2) перша версія main.py, 3) додаткові модулі/фічі.",
+          "• Якщо гілки ще немає на GitHub, виконай `git push --set-upstream origin main`.",
+        ]);
       }
     }
   )
 );
+  result.push(
+    createStep(
+      "git-workflow",
+      "II. Підготовка проєкту",
+      "Git та коміти",
+      renderGitWorkflowStep
+    )
+  );
 
 
 
@@ -4381,6 +4405,47 @@ function renderFileStructureStep(container) {
 
     return card;
   }
+}
+
+function renderGitWorkflowStep(container) {
+  const env = state.choices.environment;
+
+  renderInfo(container, [
+    "Навіщо: фіксуємо прогрес і ділимося кодом через GitHub.",
+    "Рекомендовані назви комітів: \"Init bot\", \"Add main flow\", \"Add storage (SQLite)\", \"Add inline menu\", \"Fix validation\", \"Docs: update README\".",
+  ]);
+
+  if (env === "codespaces") {
+    renderInfo(container, [
+      "Codespaces:",
+      "• Відкрий вкладку Source Control (іконка гілки) у веб-VS Code.",
+      "• Натисни «Publish changes» або в терміналі: git status → git add . → git commit -m \"Add main flow\" → git push.",
+      "• Авторизація: підтверди вікно GitHub у браузері, якщо попросить.",
+      "Коли комітити:",
+      "• Одразу після створення базової структури (requirements.txt, .env.example, main.py).",
+      "• Після додавання логіки у main.py або інших ключових файлах.",
+      "• Після підключення бекенду/зберігання та тесту команд.",
+    ]);
+  } else {
+    renderInfo(container, [
+      "Local:",
+      "• Якщо треба, ініціалізуй git: `git init`.",
+      "• Додай remote: `git remote add origin https://github.com/username/repo.git`.",
+      "• Стандартний цикл: git status → git add . → git commit -m \"Init bot\" → git push origin main",
+      "• Якщо main ще не існує на GitHub: `git push --set-upstream origin main`.",
+      "Коли комітити:",
+      "• Після створення структури та файлів конфігів (.env.example, requirements.txt).",
+      "• Після стабільних змін у логіці (нові хендлери, зберігання, меню).",
+      "• Перед деплоєм або тестом, щоб мати точку відкату.",
+    ]);
+  }
+
+  renderInfo(container, [
+    "Нагадування:",
+    "• Не пуш `.env`; тримай секрети локально, а приклад у `.env.example`.",
+    "• Перед пушем переконайся, що тести/бот запускаються без помилок.",
+    "• Описуй коміти коротко й по суті — це економить час під час ревʼю.",
+  ]);
 }
 
 function renderDevBriefStep(container) {
