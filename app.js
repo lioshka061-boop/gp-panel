@@ -1425,7 +1425,6 @@ const FINISH_STEP = {
   title: "Фініш",
   items: [
     "Повідомлення: «Готово! Ти створив свого Telegram-бота.»",
-    "Кнопки: 🔄 «Створити нового бота», 🚀 «Покращити поточного».",
   ],
 };
 
@@ -2094,6 +2093,8 @@ const elements = {
 
 let state = loadState();
 let steps = [];
+let setupOverlayTimer = null;
+let setupOverlayTick = null;
 
 elements.prev.addEventListener("click", () => {
   if (state.currentStep === 0) return;
@@ -3997,6 +3998,16 @@ function renderEnvironmentStep(container) {
     card.addEventListener("click", () => {
       state.choices.environment = env.id;
       saveState();
+      if (!isCustomBot(state)) {
+        showSetupOverlay({
+          messages: [
+            "Підлаштовуємо середовище під твого бота…",
+            "Готуємо шпаргалки для терміналу…",
+            "Налаштовуємо кроки під вибране середовище…",
+            "Підтягуємо підказки для інсталяцій…",
+          ],
+        });
+      }
       draw(false);
     });
     cards.appendChild(card);
@@ -4835,6 +4846,14 @@ function renderCustomBriefInputStep(container) {
       custom.briefLocked = true;
       saveState();
       lockUi();
+      showSetupOverlay({
+        messages: [
+          "Підлаштовуємо кроки під твій бриф…",
+          "Будуємо структуру файлів…",
+          "Готуємо промпти для коду…",
+          "Налаштовуємо підказки щодо зберігання…",
+        ],
+      });
       draw(true);
       showToast("Бриф збережено та зафіксовано.");
     } catch (error) {
@@ -6942,6 +6961,77 @@ function appendInfoLine(block, line) {
 
   if (actions.childElementCount) row.appendChild(actions);
   block.appendChild(row);
+}
+
+function showSetupOverlay({
+  duration = 6500,
+  messages = [
+    "Готуємо середовище для бота…",
+    "Будуємо структуру файлів…",
+    "Підтягуємо промпти…",
+    "Налаштовуємо підказки…",
+  ],
+} = {}) {
+  hideSetupOverlay();
+  const overlay = document.createElement("div");
+  overlay.id = "setup-overlay";
+  overlay.className = "setup-overlay";
+
+  const inner = document.createElement("div");
+  inner.className = "setup-box";
+
+  const pulse = document.createElement("div");
+  pulse.className = "setup-pulse";
+  inner.appendChild(pulse);
+
+  const label = document.createElement("div");
+  label.className = "setup-label";
+  label.textContent = messages[0] || "Готуємо…";
+  inner.appendChild(label);
+
+  const progress = document.createElement("div");
+  progress.className = "setup-progress";
+  const bar = document.createElement("span");
+  progress.appendChild(bar);
+  inner.appendChild(progress);
+
+  overlay.appendChild(inner);
+  document.body.appendChild(overlay);
+  document.body.classList.add("setup-loading");
+
+  let idx = 0;
+  let percent = 0;
+  const tickMs = 1200;
+  setupOverlayTick = setInterval(() => {
+    idx = (idx + 1) % messages.length;
+    label.textContent = messages[idx] || "Готуємо…";
+  }, tickMs);
+
+  setupOverlayTimer = setInterval(() => {
+    percent = Math.min(100, percent + Math.ceil(100 * (tickMs / duration)));
+    bar.style.width = `${percent}%`;
+    if (percent >= 100) {
+      hideSetupOverlay();
+    }
+  }, tickMs);
+
+  setTimeout(() => {
+    hideSetupOverlay();
+  }, duration);
+}
+
+function hideSetupOverlay() {
+  if (setupOverlayTick) {
+    clearInterval(setupOverlayTick);
+    setupOverlayTick = null;
+  }
+  if (setupOverlayTimer) {
+    clearInterval(setupOverlayTimer);
+    setupOverlayTimer = null;
+  }
+  const overlay = document.getElementById("setup-overlay");
+  if (overlay?.parentNode) overlay.parentNode.removeChild(overlay);
+  document.body.classList.remove("setup-loading");
 }
 
 // --- Загальні утиліти ---
