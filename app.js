@@ -3845,13 +3845,6 @@ function renderStartStep(container) {
   const block = document.createElement("div");
   block.className = "start-screen";
 
-  const img = document.createElement("img");
-  img.src = "assets/intro.gif";
-  img.alt = "Onboarding";
-  img.className = "start-gif";
-  img.loading = "lazy";
-  block.appendChild(img);
-
   const title = document.createElement("h3");
   title.textContent = "Запускаємо майстер створення власного Telegram-бота.";
   block.appendChild(title);
@@ -4888,6 +4881,7 @@ function renderCustomFilesStep(container) {
         collapsible: true,
         expandLabel: "Розгорнути промпт для створення файлів",
         collapseLabel: "Згорнути промпт для створення файлів",
+        variant: "prompt",
       })
     );
 
@@ -4897,10 +4891,7 @@ function renderCustomFilesStep(container) {
       const purpose = file.purpose || "Призначення ще не вказано.";
       return `• ${path}${note} — ${purpose}`;
     });
-    renderInfo(container, [
-      "Файли, які має створити Codex:",
-      ...fileLines,
-    ]);
+    renderInfo(container, ["Файли, які має створити Codex:", ...fileLines]);
   } else {
     renderInfo(container, [
       "Познач файли як виконані після того, як вставиш код або заповниш прості шаблони.",
@@ -5678,7 +5669,6 @@ function getBackendGuide(backendId) {
     case "json":
       return {
         lines: [
-          "Як для 5-річки: зроби коробку під дані.",
           "1) У VS Code у списку файлів натисни правою → New Folder → назви `data`.",
           "2) Усередині `data` створити New File → `db.json` (порожній файл).",
           "3) Якщо любиш термінал: `mkdir -p data && echo {} > data/db.json`.",
@@ -5689,7 +5679,6 @@ function getBackendGuide(backendId) {
     case "sqlite":
       return {
         lines: [
-          "Як для 5-річки: це один файл-база.",
           "1) Створи файл поруч із main.py: `db.sqlite3` (порожній).",
           "2) Команда в терміналі: `touch db.sqlite3` (або створити через New File).",
           "3) Переконайся, що Python 3 встановлений. sqlite3 вже є в Python.",
@@ -5703,7 +5692,6 @@ function getBackendGuide(backendId) {
     case "gsheets":
       return {
         lines: [
-          "Як для 5-річки: таблиця в браузері як база.",
           "1) Зайди у Google Sheets і створи нову таблицю: https://sheets.new",
           "2) У адресі знайди ID між `/d/` та `/edit`. Скопіюй у `.env` як `SHEET_ID=...`.",
           "3) Створи сервісний акаунт у Google Cloud, завантаж JSON ключ.",
@@ -5719,7 +5707,6 @@ function getBackendGuide(backendId) {
     case "postgres":
       return {
         lines: [
-          "Як для 5-річки: база в Docker коробці.",
           "1) Встанови Docker Desktop і запусти його.",
           "2) У проєкті буде файл `docker-compose.yml` з Postgres.",
           "3) Створи/онови `.env` з прикладом: `POSTGRES_USER=postgres`, `POSTGRES_PASSWORD=postgres`, `POSTGRES_DB=botdb`.",
