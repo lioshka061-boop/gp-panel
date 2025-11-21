@@ -6578,7 +6578,8 @@ function createTextareaRow(labelText, { value, placeholder, rows = 10, onInput }
 
 function createPromptBlock(text, options = {}) {
   const block = document.createElement("div");
-  block.className = "prompt-area";
+  const variant = options.variant === "terminal" ? "terminal" : "prompt";
+  block.className = `prompt-area prompt-area--${variant}`;
 
   const content = document.createElement("pre");
   content.className = "prompt-text";

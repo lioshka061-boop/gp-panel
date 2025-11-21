@@ -863,15 +863,16 @@ body.modal-open,
 .info-block,
 .note-block {
   position: relative;
-  background: radial-gradient(circle at 12% 20%, rgba(108, 138, 255, 0.12), transparent 40%),
-    radial-gradient(circle at 85% 10%, rgba(90, 200, 255, 0.12), transparent 30%),
-    rgba(12, 20, 42, 0.9);
-  border: 1px solid rgba(120, 150, 255, 0.3);
-  border-radius: 22px;
-  padding: 18px 20px 16px;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(108, 138, 255, 0.08), transparent 38%),
+    radial-gradient(circle at 85% 10%, rgba(90, 200, 255, 0.08), transparent 28%),
+    rgba(12, 20, 42, 0.92);
+  border: 1px solid rgba(120, 150, 255, 0.24);
+  border-radius: 20px;
+  padding: 18px 20px;
   display: grid;
   gap: 12px;
-  box-shadow: 0 24px 70px -42px rgba(40, 80, 255, 0.6);
+  box-shadow: 0 24px 70px -42px rgba(40, 80, 255, 0.45);
 }
 
 .note-block.warning {
@@ -905,17 +906,8 @@ body.modal-open,
 .info-line-text {
   flex: 1 1 260px;
   position: relative;
-  padding-left: 18px;
+  padding-left: 0;
   line-height: 1.5;
-}
-
-.info-line-text::before {
-  content: "⭐";
-  position: absolute;
-  left: 0;
-  top: 0;
-  font-size: 14px;
-  opacity: 0.9;
 }
 
 .info-line input[type="checkbox"] {
@@ -933,6 +925,7 @@ body.modal-open,
 .inline-actions .primary {
   border-radius: 999px;
   font-weight: 600;
+  padding: 8px 14px;
 }
 
 .inline-actions .copy-btn::before {
@@ -945,7 +938,7 @@ body.modal-open,
 
 .prompt-area {
   position: relative;
-  background: rgba(9, 16, 32, 0.92);
+  background: rgba(9, 16, 32, 0.94);
   border: 1px solid rgba(102, 136, 255, 0.35);
   border-radius: 18px;
   padding: 26px 20px 18px;
@@ -968,13 +961,21 @@ body.modal-open,
 }
 
 .prompt-area::after {
-  content: "Terminal";
+  content: "Prompt";
   position: absolute;
   top: 8px;
   right: 16px;
   font-size: 11px;
   color: rgba(230, 240, 255, 0.7);
   letter-spacing: 0.05em;
+}
+
+.prompt-area.prompt-area--terminal::after {
+  content: "Terminal";
+}
+
+.prompt-area.prompt-area--terminal::before {
+  background: linear-gradient(90deg, #5cf2c4, #45b1ff);
 }
 
 .prompt-text {
@@ -2322,7 +2323,7 @@ button.ghost {
 
 .toast-root {
   position: fixed;
-  top: 16px;
+  bottom: 16px;
   right: 16px;
   z-index: 9999;
 }
