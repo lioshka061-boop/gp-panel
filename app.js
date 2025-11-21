@@ -973,6 +973,39 @@ const BOT_BACKEND_CODES = {
   custom: "custom_bot",
 };
 
+const BOT_STORAGE_RECOMMENDATIONS = {
+  task: {
+    storage: "sqlite",
+    reason: "Трек задач потребує фільтрів та сортування без складного деплою.",
+    modules: { autosave: true },
+  },
+  crm: {
+    storage: "postgres",
+    reason: "CRM збирає багато заявок, потрібні надійні транзакції й фільтри.",
+    modules: { adminPanel: true, autosave: true },
+  },
+  habit: {
+    storage: "sqlite",
+    reason: "Звички — щоденні записи, SQLite достатньо для персонального трекера.",
+    modules: { autosave: true },
+  },
+  faq: {
+    storage: "gsheets",
+    reason: "Контент зручно оновлювати у таблиці без оновлення коду.",
+    modules: {},
+  },
+  shop: {
+    storage: "postgres",
+    reason: "Магазин із оплатами та кошиком краще тримати у надійному Postgres.",
+    modules: { adminPanel: true, autosave: true },
+  },
+  booking: {
+    storage: "postgres",
+    reason: "Бронювання часу/слотів потребує транзакцій та унікальності слотів.",
+    modules: { adminPanel: true },
+  },
+};
+
 function resolveTypeIdByBackendBotId(backendBotId) {
   if (!backendBotId || !backendBots.length) return null;
   const backend = backendBots.find((bot) => bot.id === backendBotId);
@@ -1714,8 +1747,20 @@ function getCustomCommandsList(customState) {
     .filter(Boolean);
 }
 
-function getRecommendedBackendId(currentState = state) {
-  if (!isCustomBot(currentState)) return null;
+function getBotStorageRecommendation(currentState = state) {
+  const type = currentState?.choices?.botType;
+  if (!type) return null;
+
+  if (type !== "custom") {
+    const recommendation = BOT_STORAGE_RECOMMENDATIONS[type];
+    if (!recommendation) return null;
+    return {
+      id: recommendation.storage,
+      reason: recommendation.reason,
+      modules: recommendation.modules || {},
+    };
+  }
+
   const custom = ensureCustomState(currentState);
   const brief = custom.brief || {};
   const candidates = [
@@ -1736,9 +1781,15 @@ function getRecommendedBackendId(currentState = state) {
     { key: "json", value: "json" },
   ];
   for (const item of map) {
-    if (text.includes(item.key)) return item.value;
+    if (text.includes(item.key))
+      return { id: item.value, reason: "Рекомендація на основі брифу" };
   }
   return null;
+}
+
+function getRecommendedBackendId(currentState = state) {
+  const rec = getBotStorageRecommendation(currentState);
+  return rec?.id || null;
 }
 
 function normalizeCommand(command) {
@@ -5531,14 +5582,16 @@ function renderBackendChoiceStep(container) {
     "• Google Sheets — якщо команді треба бачити дані у таблиці через браузер.",
     "• Postgres (Docker) — для продакшн-ботів із кількома розробниками та серйозним навантаженням.",
   ];
-  const recommendedId = isCustomBot() ? getRecommendedBackendId() : null;
-  const recommendedOption = BACKEND_OPTIONS.find(
-    (item) => item.id === recommendedId
-  );
+  const recommendation = getBotStorageRecommendation();
+  const recommendedId = recommendation?.id || null;
+  const recommendedOption = BACKEND_OPTIONS.find((item) => item.id === recommendedId);
   if (recommendedOption) {
     infoLines.unshift(
-      `• Для твого сценарію найчастіше підходить ${recommendedOption.title}. Обери його, якщо сумніваєшся.`
+      `• Для цього бота найчастіше підходить ${recommendedOption.title}. Обери його, якщо сумніваєшся.`
     );
+    if (recommendation?.reason) {
+      infoLines.push(`Причина: ${recommendation.reason}`);
+    }
   }
   renderInfo(
     container,
@@ -5568,6 +5621,8 @@ function renderBackendChoiceStep(container) {
     cards.appendChild(card);
   });
   container.appendChild(cards);
+
+  renderModuleRecommendationPanel(container, recommendation);
 }
 
 function renderBackendConfirmStep(container) {
@@ -5595,6 +5650,96 @@ function renderBackendStep(container, backendTitle, step) {
       openLabel: getAiLabel(aiTarget),
     });
     container.appendChild(block);
+  }
+}
+
+function renderModuleRecommendationPanel(container, recommendation) {
+  const modules = ensureExtraModules();
+  const recModules = recommendation?.modules || {};
+  const hasRecModules = Object.values(recModules).some(Boolean);
+
+  renderInfo(container, [
+    "Адмін-панель та додаткові модулі:",
+    "• Увімкни потрібні блоки — подальші кроки автоматично підлаштуються.",
+    "• Адмінка потрібна, якщо є менеджери/оператори. Автозбереження — якщо трекаєш прогрес або стани користувачів.",
+    "• Багатомовність — коли бот має працювати не лише українською.",
+  ]);
+
+  const list = document.createElement("div");
+  list.className = "checklist";
+
+  const moduleOptions = [
+    {
+      id: "adminPanel",
+      label: "Адмін-панель",
+      hint: recModules.adminPanel
+        ? "Рекомендуємо для цього бота."
+        : "Увімкни, якщо потрібні менеджери/клієнтська підтримка.",
+      recommended: !!recModules.adminPanel,
+    },
+    {
+      id: "autosave",
+      label: "Автозбереження",
+      hint: recModules.autosave
+        ? "Рекомендуємо: багато станів, краще не втрачати прогрес."
+        : "Вмикай, якщо бот зберігає прогрес або чергу.",
+      recommended: !!recModules.autosave,
+    },
+    {
+      id: "i18n",
+      label: "Багатомовність",
+      hint: "Увімкни, якщо потрібні тексти українською/польською/англійською.",
+      recommended: false,
+    },
+  ];
+
+  moduleOptions.forEach((option) => {
+    const row = document.createElement("div");
+    row.className = "check-item";
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = !!modules[option.id];
+    input.addEventListener("change", (event) => {
+      modules[option.id] = event.target.checked;
+      saveState();
+      draw(true);
+    });
+    const text = document.createElement("span");
+    text.textContent = `${option.label}${
+      option.recommended ? " (рекомендовано)" : ""
+    }`;
+    label.append(input, text);
+    row.appendChild(label);
+    if (option.hint) {
+      const hint = document.createElement("p");
+      hint.className = "form-hint";
+      hint.textContent = option.hint;
+      row.appendChild(hint);
+    }
+    list.appendChild(row);
+  });
+
+  container.appendChild(list);
+
+  if (hasRecModules) {
+    const missing = moduleOptions.some(
+      (option) => option.recommended && !modules[option.id]
+    );
+    if (missing) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ghost";
+      btn.textContent = "Увімкнути рекомендовані модулі";
+      btn.addEventListener("click", () => {
+        moduleOptions.forEach((option) => {
+          if (option.recommended) modules[option.id] = true;
+        });
+        saveState();
+        draw(true);
+      });
+      container.appendChild(btn);
+    }
   }
 }
 
