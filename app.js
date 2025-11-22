@@ -300,6 +300,7 @@ const adminState = {
   bots: [],
   settings: {},
   userPurchases: [],
+  supportTickets: [],
 };
 
 const botAccessCache = new Map();
@@ -307,6 +308,61 @@ let progressSyncTimer = null;
 let progressSyncInFlight = false;
 let pendingProgressSync = false;
 const PROGRESS_SYNC_DELAY = 500;
+const SUPPORT_TICKETS_KEY = "gp_support_tickets";
+
+function loadSupportTickets() {
+  try {
+    const raw = localStorage.getItem(SUPPORT_TICKETS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    adminState.supportTickets = Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn("Failed to load support tickets", error);
+    adminState.supportTickets = [];
+  }
+}
+
+function saveSupportTickets() {
+  try {
+    localStorage.setItem(
+      SUPPORT_TICKETS_KEY,
+      JSON.stringify(adminState.supportTickets || [])
+    );
+  } catch (error) {
+    console.warn("Failed to save support tickets", error);
+  }
+}
+
+function addSupportTicket(ticket) {
+  const user = window.currentUser || {};
+  const base = {
+    id: Date.now(),
+    createdAt: new Date().toISOString(),
+    status: "open",
+    user: {
+      id: user.id || null,
+      name: user.full_name || user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+    },
+    ...ticket,
+  };
+  adminState.supportTickets = [base, ...(adminState.supportTickets || [])].slice(
+    0,
+    200
+  );
+  saveSupportTickets();
+  if (isAdmin()) renderAdminPanel();
+  return base.id;
+}
+
+function updateSupportTicket(ticketId, patch) {
+  if (!ticketId) return;
+  adminState.supportTickets = (adminState.supportTickets || []).map((item) =>
+    item.id === ticketId ? { ...item, ...patch } : item
+  );
+  saveSupportTickets();
+  if (isAdmin()) renderAdminPanel();
+}
 
 function isAdmin() {
   return window.currentUser?.role === "admin";
@@ -2096,11 +2152,6 @@ let steps = [];
 let setupOverlayTimer = null;
 let setupOverlayTick = null;
 let lastSupportIssue = null;
-const SUPPORT_TG_TOKEN = (() => {
-  const part = "8151678911";
-  const rest = "AAE3NJioLEVjyt-jLncRHf0cM2QTmwj3QNE";
-  return `${part}:${rest}`;
-})();
 
 elements.prev.addEventListener("click", () => {
   if (state.currentStep === 0) return;
@@ -2326,6 +2377,7 @@ setupTopbarControls();
 setupAuthTabs();
 updateAdminButtons();
 setupSupportChat();
+loadSupportTickets();
 const envCreateBtn = document.getElementById("env-create-btn");
 const envBackBtn = document.getElementById("env-back-btn");
 if (envCreateBtn) {
@@ -3004,6 +3056,32 @@ function renderAdminPanel() {
     )
     .join("");
 
+  const supportRows = (adminState.supportTickets || []).length
+    ? adminState.supportTickets
+        .map((ticket) => {
+          const created = ticket.createdAt
+            ? new Date(ticket.createdAt).toLocaleString("uk-UA")
+            : "—";
+          const contact = ticket.contact || ticket.user?.phone || ticket.user?.email || "—";
+          const userName =
+            ticket.user?.name ||
+            (ticket.user?.email ? `Користувач ${ticket.user.email}` : "Анонім");
+          return `
+            <tr>
+              <td>${ticket.id}</td>
+              <td>${userName}</td>
+              <td>${escapeHtml(ticket.user?.email || "—")}</td>
+              <td>${escapeHtml(ticket.user?.phone || "—")}</td>
+              <td>${escapeHtml(contact)}</td>
+              <td>${escapeHtml(ticket.problem || "").slice(0, 140)}</td>
+              <td>${ticket.status || "open"}</td>
+              <td>${created}</td>
+            </tr>
+          `;
+        })
+        .join("")
+    : `<tr><td colspan="8">Звернень поки немає.</td></tr>`;
+
   let userDetails = "<p>Оберіть користувача, щоб переглянути статистику.</p>";
   if (adminState.userAnalytics) {
     const info = adminState.userAnalytics;
@@ -3255,6 +3333,26 @@ function renderAdminPanel() {
             </tr>
           </thead>
           <tbody>${usersTable}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="admin-table-card">
+      <h5>Звернення підтримки</h5>
+      <div class="admin-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Імʼя</th>
+              <th>Email</th>
+              <th>Телефон</th>
+              <th>Контакт</th>
+              <th>Проблема</th>
+              <th>Статус</th>
+              <th>Створено</th>
+            </tr>
+          </thead>
+          <tbody>${supportRows}</tbody>
         </table>
       </div>
     </div>
@@ -7057,6 +7155,10 @@ function setupSupportChat() {
   const escalateForm = document.getElementById("support-escalate-form");
   const sendEscalationBtn = document.getElementById("support-send-escalation");
 
+  if (followup) followup.hidden = true;
+  if (escalateForm) escalateForm.hidden = true;
+  if (escalateBtn) escalateBtn.disabled = true;
+
   const addMessage = (text, isPrompt = false) => {
     const msg = document.createElement("div");
     msg.className = `support-msg${isPrompt ? " prompt" : ""}`;
@@ -7137,7 +7239,7 @@ function setupSupportChat() {
       "Скопіюй промпт вище та встав у ChatGPT/Codex. Після вирішення повернись до кроків майстра."
     );
 
-    lastSupportIssue = {
+    const ticketId = addSupportTicket({
       problem: problemText,
       contact: "",
       prompt: promptText,
@@ -7145,7 +7247,9 @@ function setupSupportChat() {
       step: steps[state.currentStep]?.title || "",
       environment: state.choices.environment,
       mode: state.choices.mode,
-    };
+      status: "open",
+    });
+    lastSupportIssue = { ticketId, problem: problemText, prompt: promptText };
     escalateBtn.disabled = false;
     followup.hidden = false;
     problemInput.value = "";
@@ -7157,6 +7261,7 @@ function setupSupportChat() {
       return;
     }
     escalateForm.hidden = false;
+    contactInput?.focus();
   };
 
   const handleSendEscalation = async () => {
@@ -7166,24 +7271,19 @@ function setupSupportChat() {
     }
     const contact = (contactInput.value || "").trim();
     if (!contact) {
-      showToast("Вкажи Telegram chat ID або @username для відправки.");
+      showToast("Вкажи Telegram контакт або chat ID.");
       return;
     }
-    try {
-      await sendTelegramIssue({
-        contact,
-        issue: lastSupportIssue.problem,
-        prompt: lastSupportIssue.prompt,
-      });
-      addMessage(
-        "Нам дуже прикро, що виникла ситуація. Ми отримали деталі й відповімо якнайшвидше."
-      );
-      escalateBtn.disabled = true;
-      escalateForm.hidden = true;
-    } catch (error) {
-      console.error("Failed to send telegram issue", error);
-      showToast("Не вдалося відправити у Telegram. Перевір контакт/чат ID.");
-    }
+    updateSupportTicket(lastSupportIssue.ticketId, {
+      status: "escalated",
+      contact,
+      escalatedAt: new Date().toISOString(),
+    });
+    addMessage(
+      "Нам дуже прикро, що виникла ситуація. Ми отримали деталі й відповімо якнайшвидше."
+    );
+    escalateBtn.disabled = true;
+    escalateForm.hidden = true;
   };
 
   const handleDone = () => {
@@ -7193,6 +7293,7 @@ function setupSupportChat() {
     followup.hidden = true;
     escalateBtn.disabled = true;
     escalateForm.hidden = true;
+    if (contactInput) contactInput.value = "";
     form.reset();
   };
 
@@ -7211,34 +7312,6 @@ function setupSupportChat() {
   doneBtn.addEventListener("click", handleDone);
 
   addMessage("Привіт! Опиши проблему, я зберу промпт для ШІ.");
-}
-
-async function sendTelegramIssue({ contact, issue, prompt }) {
-  const chatId = contact;
-  const text = [
-    "🆘 Проблема користувача",
-    `Контакт: ${contact}`,
-    `Бот: ${state.choices.botType || "невказано"}`,
-    `Крок: ${steps[state.currentStep]?.title || "невідомий"}`,
-    `Середовище: ${state.choices.environment || "—"}, режим: ${
-      state.choices.mode || "—"
-    }`,
-    `Опис: ${issue}`,
-    "Промпт:",
-    prompt,
-  ].join("\n");
-
-  const res = await fetch(
-    `https://api.telegram.org/bot${SUPPORT_TG_TOKEN}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
-    }
-  );
-  if (!res.ok) {
-    throw new Error(`Telegram error ${res.status}`);
-  }
 }
 
 // --- Загальні утиліти ---
