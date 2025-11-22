@@ -2095,6 +2095,8 @@ let state = loadState();
 let steps = [];
 let setupOverlayTimer = null;
 let setupOverlayTick = null;
+let lastSupportIssue = null;
+const SUPPORT_TG_TOKEN = "8151678911:AAE3NJioLEVjyt-jLncRHf0cM2QTmwj3QNE";
 
 elements.prev.addEventListener("click", () => {
   if (state.currentStep === 0) return;
@@ -2319,6 +2321,7 @@ elements.navSummary.innerHTML = `Тип: <span>${type}</span> | Середови
 setupTopbarControls();
 setupAuthTabs();
 updateAdminButtons();
+setupSupportChat();
 const envCreateBtn = document.getElementById("env-create-btn");
 const envBackBtn = document.getElementById("env-back-btn");
 if (envCreateBtn) {
@@ -7032,6 +7035,181 @@ function hideSetupOverlay() {
   const overlay = document.getElementById("setup-overlay");
   if (overlay?.parentNode) overlay.parentNode.removeChild(overlay);
   document.body.classList.remove("setup-loading");
+}
+
+function setupSupportChat() {
+  const root = document.getElementById("support-chat");
+  if (!root) return;
+  const toggle = root.querySelector(".support-toggle");
+  const panel = root.querySelector(".support-panel");
+  const closeBtn = root.querySelector(".support-close");
+  const form = root.querySelector("#support-form");
+  const problemInput = root.querySelector("#support-problem");
+  const contactInput = root.querySelector("#support-contact");
+  const messages = document.getElementById("support-messages");
+  const escalateBtn = document.getElementById("support-escalate");
+
+  const addMessage = (text, isPrompt = false) => {
+    const msg = document.createElement("div");
+    msg.className = `support-msg${isPrompt ? " prompt" : ""}`;
+    msg.textContent = text;
+    messages.appendChild(msg);
+    messages.scrollTop = messages.scrollHeight;
+  };
+
+  const addPromptMessage = (promptText) => {
+    const wrap = document.createElement("div");
+    wrap.className = "support-msg prompt";
+    const pre = document.createElement("pre");
+    pre.className = "prompt-text";
+    pre.textContent = promptText;
+    wrap.appendChild(pre);
+
+    const actions = document.createElement("div");
+    actions.className = "prompt-actions";
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "ghost copy-btn";
+    copyBtn.textContent = "Скопіювати промпт";
+    copyBtn.addEventListener("click", () => copyText(promptText));
+    actions.appendChild(copyBtn);
+
+    const aiTarget = getPromptAiTarget("code");
+    const aiBtn = document.createElement("button");
+    aiBtn.type = "button";
+    aiBtn.className = "primary prompt-open";
+    aiBtn.textContent = getAiLabel(aiTarget);
+    aiBtn.addEventListener("click", () => openAi(aiTarget));
+    actions.appendChild(aiBtn);
+
+    wrap.appendChild(actions);
+    messages.appendChild(wrap);
+    messages.scrollTop = messages.scrollHeight;
+  };
+
+  const buildSupportPrompt = (problemText) => {
+    const step = steps[state.currentStep] || {};
+    const botId = state.choices.botType;
+    const botMeta =
+      BOT_TYPES.find((item) => item.id === botId) || { title: "Custom" };
+    const env =
+      ENVIRONMENTS.find((item) => item.id === state.choices.environment) ||
+      null;
+    const mode =
+      MODE_OPTIONS.find((item) => item.id === state.choices.mode) || null;
+    const stepLabel = step?.number
+      ? `Крок ${step.number}. ${step.title || ""}`.trim()
+      : step?.title || "Невідомий крок";
+
+    return [
+      "Ти — помічник із розробки Telegram-ботів на aiogram v3.",
+      `Бот: ${botMeta.title || "бот без типу"}.`,
+      `Етап: ${stepLabel}.`,
+      `Середовище: ${env?.title || "невказано"}, режим ШІ: ${
+        mode?.title || "невказано"
+      }.`,
+      `Опис проблеми: ${problemText}`,
+      "Дай покрокове рішення українською, із прикладами команд/коду.",
+      "Після рішення нагадай повернутися до гайда та продовжити кроки.",
+    ].join("\n");
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const problemText = (problemInput.value || "").trim();
+    const contact = (contactInput.value || "").trim();
+    if (!problemText) {
+      showToast("Опиши проблему, щоб згенерувати промпт.");
+      return;
+    }
+    addMessage(`Моя проблема: ${problemText}`);
+
+    const promptText = buildSupportPrompt(problemText);
+    addPromptMessage(promptText);
+    addMessage(
+      "Скопіюй промпт вище та встав у ChatGPT/Codex. Після вирішення повернись до кроків майстра."
+    );
+
+    lastSupportIssue = {
+      problem: problemText,
+      contact,
+      prompt: promptText,
+      botType: state.choices.botType,
+      step: steps[state.currentStep]?.title || "",
+      environment: state.choices.environment,
+      mode: state.choices.mode,
+    };
+    escalateBtn.disabled = false;
+    problemInput.value = "";
+  };
+
+  const handleEscalate = async () => {
+    if (!lastSupportIssue) {
+      showToast("Спочатку опиши проблему та згенеруй промпт.");
+      return;
+    }
+    const contact = (contactInput.value || lastSupportIssue.contact || "").trim();
+    if (!contact) {
+      showToast("Вкажи Telegram chat ID або @username для відправки.");
+      return;
+    }
+    try {
+      await sendTelegramIssue({
+        contact,
+        issue: lastSupportIssue.problem,
+        prompt: lastSupportIssue.prompt,
+      });
+      addMessage(
+        "Нам дуже прикро, що виникла ситуація. Ми отримали деталі й відповімо якнайшвидше."
+      );
+      escalateBtn.disabled = true;
+    } catch (error) {
+      console.error("Failed to send telegram issue", error);
+      showToast("Не вдалося відправити у Telegram. Перевір контакт/чат ID.");
+    }
+  };
+
+  toggle.addEventListener("click", () => {
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) {
+      problemInput.focus();
+    }
+  });
+  closeBtn.addEventListener("click", () => {
+    panel.hidden = true;
+  });
+  form.addEventListener("submit", handleSubmit);
+  escalateBtn.addEventListener("click", handleEscalate);
+
+  addMessage("Привіт! Опиши проблему, я зберу промпт для ШІ.");
+}
+
+async function sendTelegramIssue({ contact, issue, prompt }) {
+  const chatId = contact;
+  const text = [
+    "🆘 Проблема користувача",
+    `Контакт: ${contact}`,
+    `Бот: ${state.choices.botType || "невказано"}`,
+    `Крок: ${steps[state.currentStep]?.title || "невідомий"}`,
+    `Середовище: ${state.choices.environment || "—"}, режим: ${
+      state.choices.mode || "—"
+    }`,
+    `Опис: ${issue}`,
+    "Промпт:",
+    prompt,
+  ].join("\n");
+
+  const res = await fetch(
+    `https://api.telegram.org/bot${SUPPORT_TG_TOKEN}/sendMessage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text }),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(`Telegram error ${res.status}`);
+  }
 }
 
 // --- Загальні утиліти ---

@@ -2422,3 +2422,122 @@ button.ghost {
 .toast-error {
   border-color: rgba(244, 67, 54, 0.85);
 }
+
+.support-chat {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  z-index: 3200;
+}
+
+.support-toggle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid rgba(120, 150, 255, 0.45);
+  background: radial-gradient(circle at 30% 30%, #6cb8ff, #4d67ff);
+  color: #fff;
+  font-size: 24px;
+  box-shadow: 0 20px 50px -24px rgba(70, 110, 255, 0.8);
+  cursor: pointer;
+}
+
+.support-panel {
+  position: absolute;
+  bottom: 72px;
+  right: 0;
+  width: min(360px, 80vw);
+  background: rgba(10, 16, 34, 0.96);
+  border: 1px solid rgba(120, 150, 255, 0.3);
+  border-radius: 18px;
+  box-shadow: 0 24px 90px -36px rgba(40, 70, 160, 0.8);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+}
+
+.support-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(16, 24, 48, 0.95);
+  border-bottom: 1px solid rgba(120, 150, 255, 0.24);
+}
+
+.support-title {
+  font-weight: 700;
+  color: #f5f8ff;
+}
+
+.support-subtitle {
+  font-size: 13px;
+  color: rgba(227, 238, 255, 0.72);
+}
+
+.support-close {
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.support-messages {
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.support-msg {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(120, 150, 255, 0.22);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: rgba(230, 236, 255, 0.9);
+}
+
+.support-msg.prompt {
+  border-color: rgba(90, 210, 255, 0.35);
+  background: rgba(40, 70, 120, 0.4);
+}
+
+.support-form {
+  padding: 12px 14px 14px;
+  border-top: 1px solid rgba(120, 150, 255, 0.2);
+  display: grid;
+  gap: 10px;
+}
+
+.support-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(230, 236, 255, 0.85);
+}
+
+.support-form textarea,
+.support-form input {
+  border-radius: 12px;
+  border: 1px solid rgba(125, 155, 255, 0.35);
+  background: rgba(8, 13, 30, 0.95);
+  color: #f4f7ff;
+  font-size: 14px;
+  padding: 10px 12px;
+}
+
+.support-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.support-actions button {
+  min-height: 38px;
+}
