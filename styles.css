@@ -2431,15 +2431,22 @@ button.ghost {
 }
 
 .support-toggle {
-  width: 56px;
-  height: 56px;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
-  border: 1px solid rgba(120, 150, 255, 0.45);
-  background: radial-gradient(circle at 30% 30%, #6cb8ff, #4d67ff);
-  color: #fff;
-  font-size: 24px;
-  box-shadow: 0 20px 50px -24px rgba(70, 110, 255, 0.8);
+  border: 1px solid rgba(120, 200, 255, 0.35);
+  background: radial-gradient(circle at 30% 30%, rgba(120, 200, 255, 0.35), rgba(70, 120, 255, 0.18));
+  box-shadow: 0 24px 60px -26px rgba(80, 140, 255, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   cursor: pointer;
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(6px);
+}
+
+.support-toggle img {
+  width: 26px;
+  height: 26px;
+  filter: drop-shadow(0 0 8px rgba(110, 170, 255, 0.8));
 }
 
 .support-panel {
@@ -2540,4 +2547,31 @@ button.ghost {
 
 .support-actions button {
   min-height: 38px;
+}
+
+.support-actions .ghosty {
+  background: rgba(60, 120, 255, 0.12);
+  color: #dfe7ff;
+  border: 1px solid rgba(120, 180, 255, 0.35);
+  box-shadow: 0 10px 40px -24px rgba(80, 140, 255, 0.7);
+}
+
+.support-escalate-form {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 8px;
+}
+
+.support-attrib {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.1);
+  text-align: center;
+  margin-top: 4px;
+}
+
+.support-attrib a {
+  color: rgba(255, 255, 255, 0.08);
+  text-decoration: none;
 }

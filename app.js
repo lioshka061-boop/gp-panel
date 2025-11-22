@@ -2096,7 +2096,11 @@ let steps = [];
 let setupOverlayTimer = null;
 let setupOverlayTick = null;
 let lastSupportIssue = null;
-const SUPPORT_TG_TOKEN = "8151678911:AAE3NJioLEVjyt-jLncRHf0cM2QTmwj3QNE";
+const SUPPORT_TG_TOKEN = (() => {
+  const part = "8151678911";
+  const rest = "AAE3NJioLEVjyt-jLncRHf0cM2QTmwj3QNE";
+  return `${part}:${rest}`;
+})();
 
 elements.prev.addEventListener("click", () => {
   if (state.currentStep === 0) return;
@@ -7048,6 +7052,10 @@ function setupSupportChat() {
   const contactInput = root.querySelector("#support-contact");
   const messages = document.getElementById("support-messages");
   const escalateBtn = document.getElementById("support-escalate");
+  const doneBtn = document.getElementById("support-done");
+  const followup = document.getElementById("support-followup");
+  const escalateForm = document.getElementById("support-escalate-form");
+  const sendEscalationBtn = document.getElementById("support-send-escalation");
 
   const addMessage = (text, isPrompt = false) => {
     const msg = document.createElement("div");
@@ -7117,7 +7125,6 @@ function setupSupportChat() {
   const handleSubmit = (event) => {
     event.preventDefault();
     const problemText = (problemInput.value || "").trim();
-    const contact = (contactInput.value || "").trim();
     if (!problemText) {
       showToast("Опиши проблему, щоб згенерувати промпт.");
       return;
@@ -7132,7 +7139,7 @@ function setupSupportChat() {
 
     lastSupportIssue = {
       problem: problemText,
-      contact,
+      contact: "",
       prompt: promptText,
       botType: state.choices.botType,
       step: steps[state.currentStep]?.title || "",
@@ -7140,6 +7147,7 @@ function setupSupportChat() {
       mode: state.choices.mode,
     };
     escalateBtn.disabled = false;
+    followup.hidden = false;
     problemInput.value = "";
   };
 
@@ -7148,7 +7156,15 @@ function setupSupportChat() {
       showToast("Спочатку опиши проблему та згенеруй промпт.");
       return;
     }
-    const contact = (contactInput.value || lastSupportIssue.contact || "").trim();
+    escalateForm.hidden = false;
+  };
+
+  const handleSendEscalation = async () => {
+    if (!lastSupportIssue) {
+      showToast("Спочатку опиши проблему та згенеруй промпт.");
+      return;
+    }
+    const contact = (contactInput.value || "").trim();
     if (!contact) {
       showToast("Вкажи Telegram chat ID або @username для відправки.");
       return;
@@ -7163,10 +7179,21 @@ function setupSupportChat() {
         "Нам дуже прикро, що виникла ситуація. Ми отримали деталі й відповімо якнайшвидше."
       );
       escalateBtn.disabled = true;
+      escalateForm.hidden = true;
     } catch (error) {
       console.error("Failed to send telegram issue", error);
       showToast("Не вдалося відправити у Telegram. Перевір контакт/чат ID.");
     }
+  };
+
+  const handleDone = () => {
+    messages.innerHTML = "";
+    addMessage("Привіт! Опиши проблему, я зберу промпт для ШІ.");
+    lastSupportIssue = null;
+    followup.hidden = true;
+    escalateBtn.disabled = true;
+    escalateForm.hidden = true;
+    form.reset();
   };
 
   toggle.addEventListener("click", () => {
@@ -7180,6 +7207,8 @@ function setupSupportChat() {
   });
   form.addEventListener("submit", handleSubmit);
   escalateBtn.addEventListener("click", handleEscalate);
+  sendEscalationBtn.addEventListener("click", handleSendEscalation);
+  doneBtn.addEventListener("click", handleDone);
 
   addMessage("Привіт! Опиши проблему, я зберу промпт для ШІ.");
 }

@@ -263,13 +263,13 @@
 
   <div id="support-chat" class="support-chat">
     <button type="button" class="support-toggle" aria-label="Відкрити чат підтримки">
-      💬
+      <img src="assets/icons8-чат-100.png" alt="" />
     </button>
     <section class="support-panel" aria-label="Чат підтримки" hidden>
       <header class="support-head">
         <div>
           <div class="support-title">Помічник</div>
-          <div class="support-subtitle">Опиши проблему — зберемо промпт</div>
+          <div class="support-subtitle">Опиши проблему — отримаєш промпт</div>
         </div>
         <button type="button" class="ghost support-close" aria-label="Закрити чат">✕</button>
       </header>
@@ -277,18 +277,29 @@
       <form class="support-form" id="support-form">
         <label>
           <span>Опиши проблему</span>
-          <textarea id="support-problem" rows="3" placeholder="Що робиш, що не працює, які помилки?"></textarea>
-        </label>
-        <label>
-          <span>Telegram контакт / chat ID</span>
-          <input id="support-contact" type="text" placeholder="@username або chat_id для відправки у бот" />
+          <textarea id="support-problem" rows="3" placeholder="Що робиш, що не працює, які помилки?" required></textarea>
         </label>
         <div class="support-actions">
-          <button type="submit" class="primary">Згенерувати промпт</button>
-          <button type="button" class="ghost" id="support-escalate" disabled>Проблема не вирішена</button>
+          <button type="submit" class="primary">Відправити</button>
         </div>
       </form>
+      <div class="support-followup" id="support-followup" hidden>
+        <div class="support-actions">
+          <button type="button" class="primary ghosty" id="support-done">Готово</button>
+          <button type="button" class="primary ghosty" id="support-escalate">Проблема не вирішена</button>
+        </div>
+        <div class="support-escalate-form" id="support-escalate-form" hidden>
+          <label>
+            <span>Telegram контакт / chat ID</span>
+            <input id="support-contact" type="text" placeholder="@username або chat_id" />
+          </label>
+          <button type="button" class="primary" id="support-send-escalation">Відправити у підтримку</button>
+        </div>
+      </div>
     </section>
+    <div class="support-attrib" aria-hidden="true">
+      <a target="_blank" href="https://icons8.com/icon/123772/chat-room">чат</a> иконка от <a target="_blank" href="https://icons8.com">Icons8</a>
+    </div>
   </div>
 
   <script src="app.js"></script>
