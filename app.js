@@ -3554,44 +3554,17 @@ function buildSteps(currentState) {
 
 // II. Підготовка проєкту
   result.push(
-    createStep(
-      "folder",
-      "II. Підготовка проєкту",
-      "Створення робочого середовища",
+  createStep(
+    "folder",
+    "II. Підготовка проєкту",
+    "Створення робочого середовища",
     (container) => {
       const env = state.choices.environment; // 'local' або 'codespaces'
 
       if (env === "codespaces") {
-        const steps = [
-          "Зайди на свій репозиторій на GitHub.",
-          "Натисни кнопку Code.",
-          "Перейди на вкладку Codespaces.",
-          "Натисни Create codespace on main.",
-          "Дочекайся, поки відкриється веб-VS Code — це і є твій Codespace.",
-        ];
-        const block = document.createElement("div");
-        block.className = "info-block";
-        const list = document.createElement("ol");
-        steps.forEach((text) => {
-          const li = document.createElement("li");
-          li.textContent = text;
-          list.appendChild(li);
-        });
-        block.appendChild(list);
-        container.appendChild(block);
-
-        const meta = document.createElement("div");
-        meta.className = "note-block";
-        meta.textContent =
-          "Мета: відкрити репозиторій у Codespaces і працювати там з файлами бота (main.py, requirements.txt, .env тощо).";
-        container.appendChild(meta);
-
+        // Codespaces варіант без додаткових списків
         renderInfo(container, [
-          "Git у Codespaces:",
-          "• Відкрий вкладку Source Control (іконка гілки).",
-          "• Натисни «Publish changes» або в терміналі виконай: git status → git add . → git commit -m \"Init bot\" → git push.",
-          "• Робіть коміт після кожного завершеного кроку гайда (створення файлів, додавання логіки, налаштування .env.example).",
-          "• Якщо питає про авторизацію — підтвердь вікно GitHub у браузері.",
+          "Ти у Codespaces — код, git і Python вже готові. Працюй у веб-VS Code.",
         ]);
       } else {
         // LOCAL як було
@@ -3923,6 +3896,22 @@ function buildSteps(currentState) {
   });
 
   result.push(
+    createStep(
+      "botfather-commands",
+      "VII. Запуск",
+      "Команди в BotFather",
+      renderBotfatherCommandsStep
+    )
+  );
+  LAUNCH_STEPS.forEach((item, index) => {
+    result.push(
+      createStep(`launch-${index}`, "VII. Запуск", item.title, (c) =>
+        renderLaunchStep(c, item)
+      )
+    );
+  });
+
+  result.push(
     createStep("finish", "VIII. Розвиток", FINISH_STEP.title, (c) =>
       renderInfo(c, FINISH_STEP.items)
     )
@@ -4119,33 +4108,7 @@ function renderEnvironmentStep(container) {
   });
   container.appendChild(cards);
 
-  if (state.choices.environment === "codespaces") {
-    const steps = [
-      "Зайди на свій репозиторій на GitHub.",
-      "Натисни кнопку Code.",
-      "Перейди на вкладку Codespaces.",
-      "Натисни Create codespace on main.",
-      "Дочекайся, поки відкриється веб-VS Code — це і є твій Codespace.",
-    ];
-    const block = document.createElement("div");
-    block.className = "info-block";
-    const list = document.createElement("ol");
-    steps.forEach((text) => {
-      const li = document.createElement("li");
-      li.textContent = text.replace(/`/g, "");
-      list.appendChild(li);
-    });
-    block.appendChild(list);
-    container.appendChild(block);
-
-    const meta = document.createElement("div");
-    meta.className = "note-block";
-    meta.textContent =
-      "Мета: відкрити репозиторій у Codespaces і працювати там з файлами бота (main.py, requirements.txt, .env тощо).";
-    container.appendChild(meta);
-  } else {
-    renderInfo(container, ["• Вибір середовища підлаштує підказки та команди."]);
-  }
+  renderInfo(container, ["• Вибір середовища підлаштує підказки та команди."]);
 }
 
 function renderToolsStep(container) {
@@ -4351,10 +4314,7 @@ function renderFileStructureStep(container) {
   container.appendChild(selector);
 
   // Секція з індивідуальним кодом
-  const manualSection = createFileSection(
-    "Файли з індивідуальним кодом",
-    "Попроси ШІ згенерувати ці файли та встав їх вручну."
-  );
+  const manualSection = createFileSection("Файли з індивідуальним кодом", "");
   const manualList = document.createElement("div");
   manualList.className = "file-card-stack";
   manualList.appendChild(createManualFileCard(entryFile));
@@ -4709,18 +4669,18 @@ function renderDevBriefStep(container) {
 
   container.appendChild(panel);
 
-  const brief = generateDevBrief();
+  if (!isCustom) {
+    const brief = generateDevBrief();
+    const block = document.createElement("div");
+    block.className = "prompt-area";
 
-  // просто показуємо текст без жодних кнопок
-  const block = document.createElement("div");
-  block.className = "prompt-area";
+    const pre = document.createElement("pre");
+    pre.className = "prompt-text";
+    pre.textContent = brief;
 
-  const pre = document.createElement("pre");
-  pre.className = "prompt-text";
-  pre.textContent = brief;
-
-  block.appendChild(pre);
-  container.appendChild(block);
+    block.appendChild(pre);
+    container.appendChild(block);
+  }
 }
 
 function renderCodePromptStep(container) {
@@ -5319,16 +5279,6 @@ function renderPresetReplyStep(container) {
     })
   );
 
-  const discoveryPrompt = generatePresetUiDiscoveryPrompt("reply", spec.type);
-  container.appendChild(
-    createPromptBlock(discoveryPrompt, {
-      copyLabel: "Запросити інший варіант",
-      ai: aiTarget,
-      openLabel: getAiLabel(aiTarget),
-      collapsible: true,
-    })
-  );
-
   const customNote = [
     "• Можеш перелічити власні кнопки (формат: Назва — призначення — callback/URL).",
     "• Скопіюй промпт нижче, щоб ШІ згенерував код саме для твого набору.",
@@ -5343,6 +5293,7 @@ function renderPresetReplyStep(container) {
   textarea.addEventListener("input", (event) => {
     uiState.replyCustomSpec = event.target.value;
     saveState();
+    draw(false);
   });
   container.appendChild(makeRow("Власний набір кнопок", wrapControl(textarea)));
 
@@ -5361,6 +5312,16 @@ function renderPresetReplyStep(container) {
       })
     );
   }
+
+  const discoveryPrompt = generatePresetUiDiscoveryPrompt("reply", spec.type);
+  container.appendChild(
+    createPromptBlock(discoveryPrompt, {
+      copyLabel: "Запросити інший варіант",
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true,
+    })
+  );
 }
 
 function renderPresetInlineStep(container) {
@@ -5465,16 +5426,6 @@ function renderPresetInlineStep(container) {
     })
   );
 
-  const discoveryPrompt = generatePresetUiDiscoveryPrompt("inline", spec.type);
-  container.appendChild(
-    createPromptBlock(discoveryPrompt, {
-      copyLabel: "Запросити інший варіант",
-      ai: aiTarget,
-      openLabel: getAiLabel(aiTarget),
-      collapsible: true,
-    })
-  );
-
   const customNote = [
     "• Перерахуйте власні inline-кнопки (формат: Назва — призначення — callback/URL).",
     "• За потреби додайте, який хендлер викликати.",
@@ -5489,6 +5440,7 @@ function renderPresetInlineStep(container) {
   textarea.addEventListener("input", (event) => {
     uiState.inlineCustomSpec = event.target.value;
     saveState();
+    draw(false);
   });
   container.appendChild(makeRow("Власні inline-кнопки", wrapControl(textarea)));
 
@@ -5507,6 +5459,16 @@ function renderPresetInlineStep(container) {
       })
     );
   }
+
+  const discoveryPrompt = generatePresetUiDiscoveryPrompt("inline", spec.type);
+  container.appendChild(
+    createPromptBlock(discoveryPrompt, {
+      copyLabel: "Запросити інший варіант",
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true,
+    })
+  );
 }
 
 function renderCustomReplyStep(container) {
@@ -5788,6 +5750,28 @@ function renderBackendStep(container, backend, step, stepIndex = 0) {
   }
 }
 
+function renderBotfatherCommandsStep(container) {
+  const commands = (state.commands || []).filter(Boolean);
+  const list =
+    commands.length > 0
+      ? commands
+      : ["/start", "/help"];
+  const formatted = list.join("\n");
+
+  renderInfo(container, [
+    "Щоб кнопки запрацювали у боті, додай команди в BotFather.",
+    "1) Відкрий @BotFather → /setcommands.",
+    "2) Вибери свого бота.",
+    "3) Встав список команд нижче та надішли.",
+  ]);
+
+  const block = createPromptBlock(formatted, {
+    copyLabel: "Скопіювати команди для BotFather",
+    ai: null,
+  });
+  container.appendChild(block);
+}
+
 function getBackendGuide(backendId) {
   switch (backendId) {
     case "json":
@@ -6042,6 +6026,97 @@ function renderLaunchStep(container, step) {
         })
       );
     }
+
+    const issueCard = document.createElement("div");
+    issueCard.className = "prompt-area";
+    const issueTitle = document.createElement("div");
+    issueTitle.className = "support-title";
+    issueTitle.textContent = "Якщо команда не працює — опиши проблему";
+    issueCard.appendChild(issueTitle);
+
+    const issueForm = document.createElement("div");
+    issueForm.className = "support-form";
+
+    const makeField = (label, el) => {
+      const wrap = document.createElement("label");
+      const span = document.createElement("span");
+      span.textContent = label;
+      wrap.append(span, el);
+      return wrap;
+    };
+
+    const problemInput = document.createElement("textarea");
+    problemInput.rows = 2;
+    problemInput.placeholder = "Що робив, що не працює, яка команда зламана?";
+    issueForm.appendChild(makeField("Проблема", problemInput));
+
+    const logsInput = document.createElement("textarea");
+    logsInput.rows = 2;
+    logsInput.placeholder = "Встав логи/помилки з терміналу (необовʼязково)";
+    issueForm.appendChild(makeField("Логи з терміналу", logsInput));
+
+    const codeInput = document.createElement("textarea");
+    codeInput.rows = 4;
+    codeInput.placeholder = "Встав поточний код main.py (повністю)";
+    issueForm.appendChild(makeField("Поточний код main.py", codeInput));
+
+    const generateBtn = document.createElement("button");
+    generateBtn.type = "button";
+    generateBtn.className = "primary";
+    generateBtn.textContent = "Сформувати промпт для ШІ";
+    issueForm.appendChild(generateBtn);
+
+    issueCard.appendChild(issueForm);
+
+    const aiTarget = getPromptAiTarget("code");
+    const promptBlock = createPromptBlock("Опиши проблему, щоб отримати промпт.", {
+      copyLabel: "Скопіювати промпт",
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+      collapsible: true,
+    });
+    issueCard.appendChild(promptBlock);
+
+    const promptTextEl = promptBlock.querySelector(".prompt-text");
+
+    const buildPrompt = () => {
+      const problem = (problemInput.value || "").trim();
+      const logs = (logsInput.value || "").trim();
+      const code = (codeInput.value || "").trim();
+      if (!problem && !logs && !code) {
+        promptTextEl.textContent =
+          "Опиши проблему, додай логи й код, щоб сформувати промпт для ШІ.";
+        return;
+      }
+      const entryFile = getEntryFile();
+      const mode = state.choices.mode === "chatgpt" ? "ChatGPT-only" : "Codex";
+      const lines = [
+        "Ти — досвідчений Python-розробник (aiogram v3).",
+        `Бот: ${getBotMetaByType(state.choices.botType)?.title || "Custom"}.`,
+        `Команди: ${commands.join(", ")}.`,
+        `Середовище: ${state.choices.environment || "—"}, режим: ${mode}.`,
+        `Файл: ${entryFile}.`,
+        `Опис проблеми: ${problem || "не вказано"}.`,
+      ];
+      if (logs) lines.push(`Логи/помилки: ${logs}`);
+      if (code) lines.push(`Поточний код ${entryFile}:\n${code}`);
+      lines.push(
+        "Знайди помилку, виправ та поясни коротко. Покажи повний оновлений код файла одним блоком (без скорочень)."
+      );
+      promptTextEl.textContent = lines.join("\n");
+    };
+
+    generateBtn.addEventListener("click", buildPrompt);
+
+    container.appendChild(issueCard);
+
+    const entryFile = getEntryFile();
+    renderInfo(container, [
+      "Після заміни коду запусти перевірку у терміналі:",
+      "1) pip install -r requirements.txt",
+      `2) python ${entryFile}`,
+    ]);
+
     return;
   }
   renderInfo(container, step.items || []);
@@ -6573,9 +6648,18 @@ function getExtraModuleStepDefinitions(moduleId) {
 
 function renderInfo(container, lines, footer) {
   const entryFile = getEntryFile();
-  const processedLines = lines?.map((line) =>
-    replaceEntryFileTokens(line, entryFile)
-  );
+  const isChatgpt = state.choices.mode === "chatgpt";
+  const processedLines = lines?.map((line) => {
+    let next = replaceEntryFileTokens(line, entryFile);
+    if (
+      isChatgpt &&
+      typeof next === "string" &&
+      /Попроси ШІ:/i.test(next)
+    ) {
+      next = `${next} Для ChatGPT: поверни повний код відповідного файла однією відповіддю без інструкцій чи скорочень.`;
+    }
+    return next;
+  });
 
   if (processedLines?.length) {
     const block = document.createElement("div");

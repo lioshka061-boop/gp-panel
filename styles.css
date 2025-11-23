@@ -2570,3 +2570,48 @@ button.ghost {
   display: grid;
   gap: 8px;
 }
+
+@media (max-width: 640px) {
+  .prompt-area {
+    padding: 20px 16px 16px;
+  }
+
+  .prompt-actions {
+    justify-content: flex-start;
+  }
+
+  .support-chat {
+    bottom: 12px;
+    right: 12px;
+  }
+
+  .support-toggle {
+    width: 52px;
+    height: 52px;
+  }
+
+  .support-panel {
+    width: min(96vw, 420px);
+    right: -6px;
+  }
+
+  .support-form,
+  .support-escalate-form {
+    padding: 10px 12px;
+  }
+
+  .setup-box {
+    width: min(320px, 90vw);
+    padding: 22px 20px 18px;
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .file-card-stack,
+  .info-block,
+  .note-block {
+    gap: 10px;
+  }
+}
