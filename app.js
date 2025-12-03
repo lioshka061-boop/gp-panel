@@ -1481,6 +1481,7 @@ const FINISH_STEP = {
   title: "Фініш",
   items: [
     "Повідомлення: «Готово! Ти створив свого Telegram-бота.»",
+    "Якщо щось пішло не так — відкрий чат помічника (кнопка 💬) і опиши проблему.",
   ],
 };
 
@@ -4696,18 +4697,6 @@ function renderCodePromptStep(container) {
 }
 
 function renderRequirementsStep(container) {
-  const entryFile = getEntryFile();
-  const aiTarget = getPromptAiTarget("instructions");
-  const promptBlock = createPromptBlock(
-    `Створи файл requirements.txt і додай рядки:\n\naiogram==3.*\npython-dotenv`,
-    {
-      copyLabel: "Скопіювати інструкцію",
-      ai: aiTarget,
-      openLabel: getAiLabel(aiTarget),
-    }
-  );
-  container.appendChild(promptBlock);
-
   const checklist = document.createElement("div");
   checklist.className = "info-block";
   const label = document.createElement("label");
@@ -5601,17 +5590,6 @@ function renderCustomInlineStep(container) {
 }
 
 function renderEnvStep(container) {
-  const aiTarget = getPromptAiTarget("instructions");
-  const promptBlock = createPromptBlock(
-    `Створи файл .env і додай рядок:\n\nBOT_TOKEN=тут_твій_токен`,
-    {
-      copyLabel: "Скопіювати інструкцію",
-      ai: aiTarget,
-      openLabel: getAiLabel(aiTarget),
-    }
-  );
-  container.appendChild(promptBlock);
-
   const checklist = document.createElement("div");
   checklist.className = "info-block";
   const label = document.createElement("label");
@@ -5629,6 +5607,21 @@ function renderEnvStep(container) {
   label.append(text, input);
   checklist.appendChild(label);
   container.appendChild(checklist);
+
+  const actions = document.createElement("div");
+  actions.className = "inline-actions";
+  const copyName = document.createElement("button");
+  copyName.type = "button";
+  copyName.className = "ghost copy-btn";
+  copyName.textContent = "Скопіювати назву .env";
+  copyName.addEventListener("click", () => copyText(".env"));
+  const copyToken = document.createElement("button");
+  copyToken.type = "button";
+  copyToken.className = "ghost copy-btn";
+  copyToken.textContent = "Скопіювати BOT_TOKEN=";
+  copyToken.addEventListener("click", () => copyText("BOT_TOKEN="));
+  actions.append(copyName, copyToken);
+  container.appendChild(actions);
 
   if (!state.tools.env) {
     const carousel = document.createElement("div");
@@ -5748,15 +5741,119 @@ function renderBackendStep(container, backend, step, stepIndex = 0) {
     });
     container.appendChild(block);
   }
+
+  // Додаткова підказка для Task Manager + SQLite: готовий репозиторій
+  if (
+    backendId === "sqlite" &&
+    state.choices.botType === "task" &&
+    stepIndex === 0
+  ) {
+    renderInfo(container, [
+      "Щоб /add, /list, /done працювали через репозиторій, використай готовий клас нижче. Він повністю підключає SQLite через aiosqlite.",
+    ]);
+
+    const repoCode = `import aiosqlite
+
+class TaskRepository:
+    def __init__(self, db_path="tasks.db"):
+        self.db_path = db_path
+
+    async def init(self):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending'
+                )
+            """)
+            await db.commit()
+
+    async def add(self, user_id: int, name: str):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "INSERT INTO tasks (user_id, name) VALUES (?, ?)",
+                (user_id, name)
+            )
+            await db.commit()
+
+    async def list(self, user_id: int):
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                "SELECT id, name, status FROM tasks WHERE user_id=? ORDER BY id",
+                (user_id,)
+            )
+            rows = await cursor.fetchall()
+
+        if not rows:
+            return "Список порожній."
+
+        out = []
+        for i, (tid, name, status) in enumerate(rows, 1):
+            mark = "✅" if status == "done" else "❌"
+            out.append(f"{i}. {name} {mark}")
+        return "\\n".join(out)
+
+    async def mark_done(self, user_id: int, index: int):
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                "SELECT id FROM tasks WHERE user_id=? ORDER BY id",
+                (user_id,)
+            )
+            rows = await cursor.fetchall()
+
+            if 0 <= index < len(rows):
+                task_id = rows[index][0]
+                await db.execute("UPDATE tasks SET status='done' WHERE id=?", (task_id,))
+                await db.commit()
+                return True
+            return False`;
+
+    container.appendChild(
+      createPromptBlock(repoCode, {
+        copyLabel: "Скопіювати repository.py",
+        ai: getPromptAiTarget("code"),
+        openLabel: getAiLabel(getPromptAiTarget("code")),
+        collapsible: true,
+        expandLabel: "Показати repository.py",
+        collapseLabel: "Сховати repository.py",
+        variant: "prompt",
+      })
+    );
+
+    const connectLines = [
+      "Додай у main.py:",
+      "1) `from repository import TaskRepository`",
+      "2) `repo = TaskRepository()` поруч із створенням bot/dp",
+      "3) У main(): `await repo.init()` перед start_polling",
+      "4) /add → `await repo.add(user_id, text)`",
+      "5) /list → `await repo.list(user_id)`",
+      "6) /done → `await repo.mark_done(user_id, index)`",
+    ];
+    renderInfo(container, connectLines);
+  }
 }
 
 function renderBotfatherCommandsStep(container) {
   const commands = (state.commands || []).filter(Boolean);
-  const list =
-    commands.length > 0
-      ? commands
-      : ["/start", "/help"];
-  const formatted = list.join("\n");
+  const list = commands.length > 0 ? commands : ["/start", "/help"];
+  const descriptions = {
+    "/start": "Почати роботу з ботом",
+    "/help": "Показати список команд",
+    "/add": "Додати нову задачу",
+    "/list": "Показати всі задачі",
+    "/done": "Позначити задачу виконаною",
+    "/skip": "Видалити або пропустити задачу",
+    "/stats": "Показати статистику",
+  };
+  const formatted = list
+    .map((cmd) => {
+      const clean = cmd.replace(/^\//, "");
+      const desc = descriptions[cmd] || "Опис команди";
+      return `${clean} - ${desc}`;
+    })
+    .join("\n");
 
   renderInfo(container, [
     "Щоб кнопки запрацювали у боті, додай команди в BotFather.",
@@ -6077,17 +6174,17 @@ function renderLaunchStep(container, step) {
     });
     issueCard.appendChild(promptBlock);
 
-    const promptTextEl = promptBlock.querySelector(".prompt-text");
+  const promptTextEl = promptBlock.querySelector(".prompt-text");
 
-    const buildPrompt = () => {
-      const problem = (problemInput.value || "").trim();
-      const logs = (logsInput.value || "").trim();
-      const code = (codeInput.value || "").trim();
-      if (!problem && !logs && !code) {
-        promptTextEl.textContent =
-          "Опиши проблему, додай логи й код, щоб сформувати промпт для ШІ.";
-        return;
-      }
+  const buildPrompt = () => {
+    const problem = (problemInput.value || "").trim();
+    const logs = (logsInput.value || "").trim();
+    const code = (codeInput.value || "").trim();
+    if (!problem && !logs && !code) {
+      promptTextEl.textContent =
+        "Опиши проблему, додай логи й код, щоб сформувати промпт для ШІ.";
+      return;
+    }
       const entryFile = getEntryFile();
       const mode = state.choices.mode === "chatgpt" ? "ChatGPT-only" : "Codex";
       const lines = [
