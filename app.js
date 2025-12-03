@@ -5270,7 +5270,8 @@ function renderPresetReplyStep(container) {
   );
 
   const customNote = [
-    "• Можеш перелічити власні кнопки (формат: Назва — призначення — callback/URL).",
+    "• Опиши власні кнопки (формат: Назва — призначення — callback/URL).",
+    "• Для Task Manager зроби цифри 1/2/3/4: 1 — «Додати задачу» (бот сам запитує текст, без /add), 2 — «Список», 3 — «Статус/статистика», 4 — «Налаштування/довідка».",
     "• Скопіюй промпт нижче, щоб ШІ згенерував код саме для твого набору.",
   ];
   renderInfo(container, customNote);
@@ -5278,7 +5279,7 @@ function renderPresetReplyStep(container) {
   const textarea = document.createElement("textarea");
   textarea.value = uiState.replyCustomSpec;
   textarea.placeholder =
-    "📋 Клієнти — показати список активних клієнтів\n➕ Новий клієнт — відкрити форму додавання\n...";
+    "1 — Додати задачу (запитай текст і збережи без /add)\n2 — Список задач (показати активні)\n3 — Статус/статистика\n4 — Налаштування/довідка";
   textarea.rows = 4;
   textarea.addEventListener("input", (event) => {
     uiState.replyCustomSpec = event.target.value;
@@ -5302,16 +5303,6 @@ function renderPresetReplyStep(container) {
       })
     );
   }
-
-  const discoveryPrompt = generatePresetUiDiscoveryPrompt("reply", spec.type);
-  container.appendChild(
-    createPromptBlock(discoveryPrompt, {
-      copyLabel: "Запросити інший варіант",
-      ai: aiTarget,
-      openLabel: getAiLabel(aiTarget),
-      collapsible: true,
-    })
-  );
 }
 
 function renderPresetInlineStep(container) {
@@ -5417,15 +5408,16 @@ function renderPresetInlineStep(container) {
   );
 
   const customNote = [
-    "• Перерахуйте власні inline-кнопки (формат: Назва — призначення — callback/URL).",
-    "• За потреби додайте, який хендлер викликати.",
+    "• Опиши власні inline-кнопки (формат: Назва — призначення — callback/URL).",
+    "• Можна зробити цифри 1/2/3/4: при натисканні бот задає питання і зберігає відповідь без явних команд.",
+    "• Додай, який хендлер викликається після натискання.",
   ];
   renderInfo(container, customNote);
 
   const textarea = document.createElement("textarea");
   textarea.value = uiState.inlineCustomSpec;
   textarea.placeholder =
-    "✅ Готово — закрити завдання — callback task_done\n❌ Пропустити — пропустити завдання — callback task_skip\n...";
+    "1 — Додати задачу — callback add_task → бот запитує текст і зберігає\n2 — Важливі задачі — callback list_important\n3 — Статистика — callback stats_view\n4 — Назад — callback back_home";
   textarea.rows = 4;
   textarea.addEventListener("input", (event) => {
     uiState.inlineCustomSpec = event.target.value;
@@ -5449,16 +5441,6 @@ function renderPresetInlineStep(container) {
       })
     );
   }
-
-  const discoveryPrompt = generatePresetUiDiscoveryPrompt("inline", spec.type);
-  container.appendChild(
-    createPromptBlock(discoveryPrompt, {
-      copyLabel: "Запросити інший варіант",
-      ai: aiTarget,
-      openLabel: getAiLabel(aiTarget),
-      collapsible: true,
-    })
-  );
 }
 
 function renderCustomReplyStep(container) {
@@ -5833,6 +5815,99 @@ class TaskRepository:
       "6) /done → `await repo.mark_done(user_id, index)`",
     ];
     renderInfo(container, connectLines);
+  }
+
+  // SQLite: підключення репозиторію (крок 20)
+  if (
+    backendId === "sqlite" &&
+    /репозиторій/i.test(step.text || "")
+  ) {
+    renderInfo(container, [
+      "Створи файл repository.py та перенеси CRUD туди, щоб /add, /list, /done працювали через репозиторій.",
+    ]);
+
+    const repoPrompt = [
+      "Створи файл repository.py.",
+      "Додай клас TaskRepository з методами init (створення таблиці tasks), add(user_id, name), list(user_id), mark_done(user_id, index).",
+      "Використовуй aiosqlite, файл БД: tasks.db.",
+      "Поверни повний вміст repository.py одним блоком.",
+    ].join("\n");
+
+    container.appendChild(
+      createPromptBlock(repoPrompt, {
+        copyLabel: "Промпт: створити repository.py",
+        ai: getPromptAiTarget("code"),
+        openLabel: getAiLabel(getPromptAiTarget("code")),
+        collapsible: true,
+      })
+    );
+
+    const entryFile = getEntryFile();
+    const mainPrompt = [
+      `Онови файл ${entryFile}:`,
+      "1) Імпортуй TaskRepository з repository.py.",
+      "2) Створи repo = TaskRepository().",
+      "3) У main(): await repo.init() перед start_polling.",
+      "4) /add викликає repo.add(user_id, текст).",
+      "5) /list викликає repo.list(user_id) і повертає текст списку.",
+      "6) /done приймає номер, викликає repo.mark_done(user_id, index).",
+      "Покажи повний оновлений код файла одним блоком (без скорочень).",
+    ].join("\n");
+
+    container.appendChild(
+      createPromptBlock(mainPrompt, {
+        copyLabel: `Промпт: оновити ${entryFile}`,
+        ai: getPromptAiTarget("code"),
+        openLabel: getAiLabel(getPromptAiTarget("code")),
+        collapsible: true,
+      })
+    );
+  }
+
+  // SQLite: тест крок (крок 21)
+  if (
+    backendId === "sqlite" &&
+    /Тест: `\/add`/.test(step.text || "")
+  ) {
+    const entryFile = getEntryFile();
+    const cmdActions = document.createElement("div");
+    cmdActions.className = "inline-actions";
+    [
+      "pip install -r requirements.txt",
+      `python ${entryFile}`,
+    ].forEach((cmd) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ghost copy-btn";
+      btn.textContent = cmd;
+      btn.addEventListener("click", () => copyText(cmd));
+      cmdActions.appendChild(btn);
+    });
+    renderInfo(container, [
+      "Запусти тести команд у терміналі:",
+      "1) pip install -r requirements.txt",
+      `2) python ${entryFile}`,
+      "3) У Telegram: /add, /list, /done",
+    ]);
+    container.appendChild(cmdActions);
+
+    const fixPrompt = [
+      "Знайди і виправ помилки у боті (aiogram v3).",
+      `Файл основної логіки: ${entryFile}.`,
+      "Файл репозиторію: repository.py.",
+      "Логи/помилки та код дивись нижче.",
+      "Поверни повний оновлений код обох файлів одним блоком кожен.",
+      "Якщо щось відсутнє — додай, але не змінюй токени/секрети.",
+    ].join("\n");
+
+    container.appendChild(
+      createPromptBlock(fixPrompt, {
+        copyLabel: "Промпт для виправлення",
+        ai: getPromptAiTarget("code"),
+        openLabel: getAiLabel(getPromptAiTarget("code")),
+        collapsible: true,
+      })
+    );
   }
 }
 
