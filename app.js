@@ -2372,7 +2372,8 @@ function updateNavSummary() {
   const mode =
     MODE_OPTIONS.find((item) => item.id === state.choices.mode)?.title ||
     "не обрано";
-elements.navSummary.innerHTML = `Тип: <span>${type}</span> | Середовище: <span>${environment}</span> | ШІ: <span>${mode}</span>`;
+  const storage = getBackendTitle();
+  elements.navSummary.innerHTML = `Тип: <span>${type}</span> | Середовище: <span>${environment}</span> | ШІ: <span>${mode}</span> | Зберігання: <span>${storage}</span>`;
 }
 
 setupTopbarControls();
@@ -2993,46 +2994,6 @@ function renderAdminPanel() {
 
   const paymentsEnabled =
     String(adminState.settings?.payments_enabled ?? "true") !== "false";
-
-  const logicKey = {
-    botType: state.choices.botType || BOT_TYPES[0]?.id || "task",
-    mode: state.choices.mode || MODE_OPTIONS[0]?.id || "chatgpt",
-    environment: state.choices.environment || ENVIRONMENTS[0]?.id || "local",
-  };
-  const logicKeyStr = [logicKey.botType, logicKey.mode, logicKey.environment].join(
-    "|"
-  );
-  const logicSteps = buildSteps({
-    ...state,
-    choices: { ...state.choices, ...logicKey },
-  });
-  const override = stepOverrides[logicKeyStr] || { order: [], titles: {} };
-  const overrideOrder = override.order || [];
-
-  const stepRows = logicSteps
-    .map(
-      (step, idx) => `
-        <tr data-step-id="${step.id}">
-          <td>${idx + 1}</td>
-          <td>${escapeHtml(step.section)}</td>
-          <td contenteditable="true" data-step-title>${escapeHtml(
-            step.title
-          )}</td>
-          <td>
-            <button type="button" class="ghost admin-step-up" data-step-id="${step.id}">▲</button>
-            <button type="button" class="ghost admin-step-down" data-step-id="${step.id}">▼</button>
-          </td>
-        </tr>
-      `
-    )
-    .join("");
-
-  const mindmapNodes = BOT_TYPES.map((bot) => {
-    const modes = MODE_OPTIONS.map(
-      (m) => `<li>${m.title}<ul><li>💻 Local</li><li>☁️ Codespaces</li></ul></li>`
-    ).join("");
-    return `<li>${bot.title}<ul>${modes}</ul></li>`;
-  }).join("");
 
   const botsCrudRows = adminState.bots.length
     ? adminState.bots
@@ -6404,9 +6365,6 @@ function renderExtraModulesStep(container) {
 function renderAutosaveStorageStep(container) {
   const data = ensureExtraModuleData().autosave;
   const backendTitle = getBackendTitle();
-  renderInfo(container, [
-    `Тип: ${getBotMetaByType(state.choices.botType)?.title || "Бот"} | Середовище: ${state.choices.environment || "—"} | ШІ: ${state.choices.mode || "—"} | Зберігання: ${backendTitle}`,
-  ]);
   renderFileCreateBlock(
     container,
     "storageFileCreated",
@@ -6434,9 +6392,6 @@ function renderAutosaveHooksStep(container) {
   const data = ensureExtraModuleData().autosave;
   const storageFile = data.storage.file || "storage.py";
   const entryFile = data.hooks.file || getEntryFile();
-  renderInfo(container, [
-    `Тип: ${getBotMetaByType(state.choices.botType)?.title || "Бот"} | Середовище: ${state.choices.environment || "—"} | ШІ: ${state.choices.mode || "—"} | Зберігання: ${getBackendTitle()}`,
-  ]);
   const hooksPrompt = [
     `Інтегруй автозбереження стану у ${entryFile} з використанням ${storageFile}.`,
     `Імпортуй save_user_state/load_user_state з ${storageFile}.`,
