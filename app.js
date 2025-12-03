@@ -1487,6 +1487,10 @@ const defaultTools = TOOL_CHECKLIST.reduce(
 );
 defaultTools.codespace = false;
 defaultTools.browser = false;
+defaultTools.requirementsCreated = false;
+defaultTools.dbFileCreated = false;
+defaultTools.repoFileCreated = false;
+defaultTools.storageFileCreated = false;
 
 const defaultState = {
   currentStep: 0,
@@ -4698,25 +4702,14 @@ function renderCodePromptStep(container) {
 }
 
 function renderRequirementsStep(container) {
-  const checklist = document.createElement("div");
-  checklist.className = "info-block";
-  const label = document.createElement("label");
-  label.className = "info-line";
-  const text = document.createElement("span");
-  text.textContent = "Познач, що файл requirements.txt створено:";
-  const input = document.createElement("input");
-  input.type = "checkbox";
-  input.checked = !!state.tools.requirements;
-  input.addEventListener("change", (event) => {
-    state.tools.requirements = event.target.checked;
-    saveState();
-    draw(false);
-  });
-  label.append(text, input);
-  checklist.appendChild(label);
-  container.appendChild(checklist);
+  renderFileCreateBlock(
+    container,
+    "requirementsCreated",
+    "requirements.txt",
+    "Додай залежності для бота."
+  );
 
-  if (!state.tools.requirements) {
+  if (!state.tools.requirementsCreated) {
     const carousel = document.createElement("div");
     carousel.className = "carousel";
 
@@ -5573,6 +5566,17 @@ function renderCustomInlineStep(container) {
 }
 
 function renderEnvStep(container) {
+  const aiTarget = getPromptAiTarget("instructions");
+  const promptBlock = createPromptBlock(
+    `Створи файл .env і додай рядок:\n\nBOT_TOKEN=тут_твій_токен`,
+    {
+      copyLabel: "Скопіювати інструкцію",
+      ai: aiTarget,
+      openLabel: getAiLabel(aiTarget),
+    }
+  );
+  container.appendChild(promptBlock);
+
   const checklist = document.createElement("div");
   checklist.className = "info-block";
   const label = document.createElement("label");
@@ -5727,6 +5731,14 @@ function renderBackendStep(container, backend, step, stepIndex = 0) {
 
   if (backendId === "sqlite") {
     const entryFile = getEntryFile();
+    if (stepIndex === 0) {
+      renderFileCreateBlock(
+        container,
+        "dbFileCreated",
+        "db.sqlite3",
+        "Порожній файл бази. SQLite створить структуру автоматично."
+      );
+    }
     const repoCode = `import aiosqlite
 
 class TaskRepository:
@@ -5789,6 +5801,12 @@ class TaskRepository:
       renderInfo(container, [
         "Створи файл repository.py та підключи його в main.py замість прямої роботи з БД.",
       ]);
+      renderFileCreateBlock(
+        container,
+        "repoFileCreated",
+        "repository.py",
+        "Тут буде логіка CRUD для задач."
+      );
 
       container.appendChild(
         createPromptBlock(
@@ -6342,6 +6360,12 @@ function renderExtraModulesStep(container) {
 function renderAutosaveStorageStep(container) {
   const data = ensureExtraModuleData().autosave;
   const backendTitle = getBackendTitle();
+  renderFileCreateBlock(
+    container,
+    "storageFileCreated",
+    data.storage.file || "storage.py",
+    "Файл сховища стану користувачів."
+  );
   renderInfo(container, [
     `• Поточний тип зберігання: ${backendTitle}. Працюй поверх нього — змінювати на інший тип не можна.`,
     "• Додай у файл сховища функції save_user_state(user_id, state_dict) та load_user_state(user_id).",
@@ -7022,6 +7046,51 @@ function createLivePromptBlock(getText, options = {}) {
   update();
 
   return block;
+}
+
+function renderFileCreateBlock(container, key, filename, description = "") {
+  if (state.choices.mode !== "chatgpt") return;
+  if (state.tools[key] === undefined) state.tools[key] = false;
+  const block = document.createElement("div");
+  block.className = "info-block";
+
+  const row = document.createElement("div");
+  row.className = "info-line";
+  const text = document.createElement("div");
+  text.className = "info-line-text";
+  text.textContent = description
+    ? `Створи файл ${filename}. ${description}`
+    : `Створи файл ${filename}.`;
+  row.appendChild(text);
+
+  const actions = document.createElement("div");
+  actions.className = "inline-actions";
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "ghost copy-btn";
+  copyBtn.textContent = "Скопіювати назву файла";
+  copyBtn.addEventListener("click", () => copyText(filename));
+  actions.appendChild(copyBtn);
+  row.appendChild(actions);
+
+  const checkRow = document.createElement("label");
+  checkRow.className = "info-line";
+  const span = document.createElement("span");
+  span.textContent = "Файл створено:";
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = !!state.tools[key];
+  checkbox.addEventListener("change", (event) => {
+    state.tools[key] = event.target.checked;
+    if (key === "requirementsCreated") {
+      state.tools.requirements = event.target.checked;
+    }
+    saveState();
+  });
+  checkRow.append(span, checkbox);
+
+  block.append(row, checkRow);
+  container.appendChild(block);
 }
 
 function renderCodePromptSection(container, config) {
@@ -7731,6 +7800,14 @@ function loadState(targetEnvId = envState.activeId) {
     if (merged.tools.env === undefined) merged.tools.env = false;
     if (merged.tools.codespace === undefined) merged.tools.codespace = false;
     if (merged.tools.browser === undefined) merged.tools.browser = false;
+    if (merged.tools.requirementsCreated === undefined)
+      merged.tools.requirementsCreated = false;
+    if (merged.tools.dbFileCreated === undefined)
+      merged.tools.dbFileCreated = false;
+    if (merged.tools.repoFileCreated === undefined)
+      merged.tools.repoFileCreated = false;
+    if (merged.tools.storageFileCreated === undefined)
+      merged.tools.storageFileCreated = false;
     merged.custom = Object.assign(
       structuredClone(defaultCustomState),
       merged.custom || {}
