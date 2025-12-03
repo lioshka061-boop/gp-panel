@@ -5725,16 +5725,8 @@ function renderBackendStep(container, backend, step, stepIndex = 0) {
     container.appendChild(block);
   }
 
-  // Додаткова підказка для Task Manager + SQLite: готовий репозиторій
-  if (
-    backendId === "sqlite" &&
-    state.choices.botType === "task" &&
-    stepIndex === 0
-  ) {
-    renderInfo(container, [
-      "Щоб /add, /list, /done працювали через репозиторій, використай готовий клас нижче. Він повністю підключає SQLite через aiosqlite.",
-    ]);
-
+  if (backendId === "sqlite") {
+    const entryFile = getEntryFile();
     const repoCode = `import aiosqlite
 
 class TaskRepository:
@@ -5793,121 +5785,89 @@ class TaskRepository:
                 return True
             return False`;
 
-    container.appendChild(
-      createPromptBlock(repoCode, {
-        copyLabel: "Скопіювати repository.py",
-        ai: getPromptAiTarget("code"),
-        openLabel: getAiLabel(getPromptAiTarget("code")),
-        collapsible: true,
-        expandLabel: "Показати repository.py",
-        collapseLabel: "Сховати repository.py",
-        variant: "prompt",
-      })
-    );
+    if (stepIndex === 2) {
+      renderInfo(container, [
+        "Створи файл repository.py та підключи його в main.py замість прямої роботи з БД.",
+      ]);
 
-    const connectLines = [
-      "Додай у main.py:",
-      "1) `from repository import TaskRepository`",
-      "2) `repo = TaskRepository()` поруч із створенням bot/dp",
-      "3) У main(): `await repo.init()` перед start_polling",
-      "4) /add → `await repo.add(user_id, text)`",
-      "5) /list → `await repo.list(user_id)`",
-      "6) /done → `await repo.mark_done(user_id, index)`",
-    ];
-    renderInfo(container, connectLines);
-  }
+      container.appendChild(
+        createPromptBlock(
+          [
+            "Створи файл repository.py.",
+            "Додай клас TaskRepository з методами init, add(user_id, name), list(user_id), mark_done(user_id, index).",
+            "Використовуй aiosqlite, база tasks.db.",
+            "Поверни повний код repository.py одним блоком.",
+          ].join("\n"),
+          {
+            copyLabel: "Промпт: створити repository.py",
+            ai: getPromptAiTarget("code"),
+            openLabel: getAiLabel(getPromptAiTarget("code")),
+            collapsible: true,
+          }
+        )
+      );
 
-  // SQLite: підключення репозиторію (крок 20)
-  if (
-    backendId === "sqlite" &&
-    /репозиторій/i.test(step.text || "")
-  ) {
-    renderInfo(container, [
-      "Створи файл repository.py та перенеси CRUD туди, щоб /add, /list, /done працювали через репозиторій.",
-    ]);
+      container.appendChild(
+        createPromptBlock(
+          [
+            `Онови файл ${entryFile}:`,
+            "1) from repository import TaskRepository",
+            "2) repo = TaskRepository() поруч із bot/dp",
+            "3) main(): await repo.init() перед start_polling",
+            "4) /add → repo.add(user_id, текст)",
+            "5) /list → repo.list(user_id)",
+            "6) /done → repo.mark_done(user_id, index)",
+            "Поверни повний код файла одним блоком без скорочень.",
+          ].join("\n"),
+          {
+            copyLabel: `Промпт: оновити ${entryFile}`,
+            ai: getPromptAiTarget("code"),
+            openLabel: getAiLabel(getPromptAiTarget("code")),
+            collapsible: true,
+          }
+        )
+      );
+    }
 
-    const repoPrompt = [
-      "Створи файл repository.py.",
-      "Додай клас TaskRepository з методами init (створення таблиці tasks), add(user_id, name), list(user_id), mark_done(user_id, index).",
-      "Використовуй aiosqlite, файл БД: tasks.db.",
-      "Поверни повний вміст repository.py одним блоком.",
-    ].join("\n");
+    if (stepIndex === 3) {
+      renderInfo(container, [
+        "Запусти тести команд у терміналі:",
+        "1) pip install -r requirements.txt",
+        `2) python ${entryFile}`,
+        "3) У Telegram: /add, /list, /done",
+      ]);
+      const cmdActions = document.createElement("div");
+      cmdActions.className = "inline-actions";
+      ["pip install -r requirements.txt", `python ${entryFile}`].forEach(
+        (cmd) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "ghost copy-btn";
+          btn.textContent = cmd;
+          btn.addEventListener("click", () => copyText(cmd));
+          cmdActions.appendChild(btn);
+        }
+      );
+      container.appendChild(cmdActions);
 
-    container.appendChild(
-      createPromptBlock(repoPrompt, {
-        copyLabel: "Промпт: створити repository.py",
-        ai: getPromptAiTarget("code"),
-        openLabel: getAiLabel(getPromptAiTarget("code")),
-        collapsible: true,
-      })
-    );
+      const fixPrompt = [
+        "Знайди і виправ помилки у боті (aiogram v3).",
+        `Файл основної логіки: ${entryFile}.`,
+        "Файл репозиторію: repository.py.",
+        "Логи/помилки та код дивись нижче.",
+        "Поверни повний оновлений код обох файлів одним блоком кожен.",
+        "Якщо щось відсутнє — додай, але не змінюй токени/секрети.",
+      ].join("\n");
 
-    const entryFile = getEntryFile();
-    const mainPrompt = [
-      `Онови файл ${entryFile}:`,
-      "1) Імпортуй TaskRepository з repository.py.",
-      "2) Створи repo = TaskRepository().",
-      "3) У main(): await repo.init() перед start_polling.",
-      "4) /add викликає repo.add(user_id, текст).",
-      "5) /list викликає repo.list(user_id) і повертає текст списку.",
-      "6) /done приймає номер, викликає repo.mark_done(user_id, index).",
-      "Покажи повний оновлений код файла одним блоком (без скорочень).",
-    ].join("\n");
-
-    container.appendChild(
-      createPromptBlock(mainPrompt, {
-        copyLabel: `Промпт: оновити ${entryFile}`,
-        ai: getPromptAiTarget("code"),
-        openLabel: getAiLabel(getPromptAiTarget("code")),
-        collapsible: true,
-      })
-    );
-  }
-
-  // SQLite: тест крок (крок 21)
-  if (
-    backendId === "sqlite" &&
-    /Тест: `\/add`/.test(step.text || "")
-  ) {
-    const entryFile = getEntryFile();
-    const cmdActions = document.createElement("div");
-    cmdActions.className = "inline-actions";
-    [
-      "pip install -r requirements.txt",
-      `python ${entryFile}`,
-    ].forEach((cmd) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "ghost copy-btn";
-      btn.textContent = cmd;
-      btn.addEventListener("click", () => copyText(cmd));
-      cmdActions.appendChild(btn);
-    });
-    renderInfo(container, [
-      "Запусти тести команд у терміналі:",
-      "1) pip install -r requirements.txt",
-      `2) python ${entryFile}`,
-      "3) У Telegram: /add, /list, /done",
-    ]);
-    container.appendChild(cmdActions);
-
-    const fixPrompt = [
-      "Знайди і виправ помилки у боті (aiogram v3).",
-      `Файл основної логіки: ${entryFile}.`,
-      "Файл репозиторію: repository.py.",
-      "Логи/помилки та код дивись нижче.",
-      "Поверни повний оновлений код обох файлів одним блоком кожен.",
-      "Якщо щось відсутнє — додай, але не змінюй токени/секрети.",
-    ].join("\n");
-
-    container.appendChild(
-      createPromptBlock(fixPrompt, {
-        copyLabel: "Промпт для виправлення",
-        ai: getPromptAiTarget("code"),
-        openLabel: getAiLabel(getPromptAiTarget("code")),
-        collapsible: true,
-      })
-    );
+      container.appendChild(
+        createPromptBlock(fixPrompt, {
+          copyLabel: "Промпт для виправлення",
+          ai: getPromptAiTarget("code"),
+          openLabel: getAiLabel(getPromptAiTarget("code")),
+          collapsible: true,
+        })
+      );
+    }
   }
 }
 
