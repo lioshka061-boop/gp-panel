@@ -308,8 +308,6 @@ let progressSyncTimer = null;
 let progressSyncInFlight = false;
 let pendingProgressSync = false;
 const PROGRESS_SYNC_DELAY = 500;
-const stepOverrides = loadStepOverrides();
-const STEP_OVERRIDES_KEY = "gp_step_overrides_v1";
 const SUPPORT_TICKETS_KEY = "gp_support_tickets";
 
 function loadSupportTickets() {
@@ -387,56 +385,6 @@ function getBackendIdByType(typeId) {
 
 function resetBotAccessCache() {
   botAccessCache.clear();
-}
-
-function getOverrideKey(currentState = state) {
-  return [
-    currentState.choices.botType || "none",
-    currentState.choices.mode || "chatgpt",
-    currentState.choices.environment || "local",
-  ].join("|");
-}
-
-function loadStepOverrides() {
-  try {
-    const raw = localStorage.getItem(STEP_OVERRIDES_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch (error) {
-    console.warn("Failed to load step overrides", error);
-    return {};
-  }
-}
-
-function saveStepOverrides() {
-  try {
-    localStorage.setItem(STEP_OVERRIDES_KEY, JSON.stringify(stepOverrides));
-  } catch (error) {
-    console.warn("Failed to save step overrides", error);
-  }
-}
-
-function applyStepOverrides(steps, currentState = state) {
-  const key = getOverrideKey(currentState);
-  const override = stepOverrides[key];
-  if (!override) return steps;
-  let result = steps;
-  if (Array.isArray(override.order) && override.order.length) {
-    const map = new Map(steps.map((s) => [s.id, s]));
-    result = override.order
-      .map((id) => map.get(id))
-      .filter(Boolean)
-      .concat(steps.filter((s) => !override.order.includes(s.id)));
-  }
-  if (override.titles) {
-    result = result.map((step) => {
-      if (override.titles[step.id]) {
-        return { ...step, title: override.titles[step.id] };
-      }
-      return step;
-    });
-  }
-  return result;
 }
 
 // --- Довідкові дані ---
@@ -3430,92 +3378,26 @@ function renderAdminPanel() {
         </table>
       </div>
     </div>
-    <div class="admin-table-card">
-      <h5>Звернення підтримки</h5>
-      <div class="admin-table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Імʼя</th>
-              <th>Email</th>
-              <th>Телефон</th>
-              <th>Контакт</th>
-              <th>Проблема</th>
-              <th>Статус</th>
-              <th>Створено</th>
-            </tr>
-          </thead>
-          <tbody>${supportRows}</tbody>
-        </table>
-      </div>
-    </div>
-    <div class="admin-table-card">
-      <h5>Логіка кроків (локальний JSON)</h5>
-      <div class="admin-logic-controls">
-        <label>Бот:
-          <select id="logic-bot">
-            ${BOT_TYPES.map(
-              (b) =>
-                `<option value="${b.id}" ${
-                  logicKey.botType === b.id ? "selected" : ""
-                }>${escapeHtml(b.title)}</option>`
-            ).join("")}
-          </select>
-        </label>
-        <label>Режим:
-          <select id="logic-mode">
-            ${MODE_OPTIONS.map(
-              (m) =>
-                `<option value="${m.id}" ${
-                  logicKey.mode === m.id ? "selected" : ""
-                }>${escapeHtml(m.title)}</option>`
-            ).join("")}
-          </select>
-        </label>
-        <label>Середовище:
-          <select id="logic-env">
-            ${ENVIRONMENTS.map(
-              (e) =>
-                `<option value="${e.id}" ${
-                  logicKey.environment === e.id ? "selected" : ""
-                }>${escapeHtml(e.title)}</option>`
-            ).join("")}
-          </select>
-        </label>
-        <button type="button" class="ghost" id="logic-reset">Скинути зміни</button>
-        <div class="admin-chip-row">
-          <span class="admin-chip">Поточний ключ: ${escapeHtml(
-            logicKeyStr
-          )}</span>
-          <span class="admin-chip admin-chip--muted">Кастомний порядок: ${
-            overrideOrder.length ? "так" : "ні"
-          }</span>
-        </div>
-      </div>
-      <div class="admin-table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Секція</th>
-              <th>Назва кроку (редагується)</th>
-              <th>Порядок</th>
-            </tr>
-          </thead>
-          <tbody id="admin-logic-steps">${stepRows}</tbody>
-        </table>
-      </div>
-      <div class="admin-logic-actions">
-        <button type="button" class="primary" id="logic-save">Зберегти у JSON (локально)</button>
-      </div>
-    </div>
-    <div class="admin-table-card">
-      <h5>Мапа логіки</h5>
-      <div class="admin-mindmap">
-        <ul>${mindmapNodes}</ul>
-      </div>
-    </div>
+   <div class="admin-table-card">
+     <h5>Звернення підтримки</h5>
+     <div class="admin-table-scroll">
+       <table>
+         <thead>
+           <tr>
+             <th>ID</th>
+             <th>Імʼя</th>
+             <th>Email</th>
+             <th>Телефон</th>
+             <th>Контакт</th>
+             <th>Проблема</th>
+             <th>Статус</th>
+             <th>Створено</th>
+           </tr>
+         </thead>
+         <tbody>${supportRows}</tbody>
+       </table>
+     </div>
+   </div>
     ${userDetails}
   `;
 }
@@ -3527,8 +3409,6 @@ function ensureAdminPanelBindings() {
   panel.addEventListener("click", onAdminPanelClick);
   panel.addEventListener("change", onAdminPanelChange);
   panel.addEventListener("submit", onAdminPanelSubmit);
-  panel.addEventListener("click", onAdminLogicClick);
-  panel.addEventListener("change", onAdminLogicChange);
 }
 
 function onAdminPanelClick(event) {
@@ -3574,83 +3454,6 @@ function onAdminPanelSubmit(event) {
     handleAdminResetProgress(userId, botId);
   } else {
     showToast("Оберіть бота для скидання.");
-  }
-}
-
-function onAdminLogicChange(event) {
-  const botSelect = document.getElementById("logic-bot");
-  const modeSelect = document.getElementById("logic-mode");
-  const envSelect = document.getElementById("logic-env");
-  if (!botSelect || !modeSelect || !envSelect) return;
-  if (
-    event.target === botSelect ||
-    event.target === modeSelect ||
-    event.target === envSelect
-  ) {
-    state.choices.botType = botSelect.value;
-    state.choices.mode = modeSelect.value;
-    state.choices.environment = envSelect.value;
-    saveState();
-    renderAdminPanel();
-  }
-}
-
-function onAdminLogicClick(event) {
-  const saveBtn = event.target.closest("#logic-save");
-  const resetBtn = event.target.closest("#logic-reset");
-  const stepUp = event.target.closest(".admin-step-up");
-  const stepDown = event.target.closest(".admin-step-down");
-  const botSelect = document.getElementById("logic-bot");
-  const modeSelect = document.getElementById("logic-mode");
-  const envSelect = document.getElementById("logic-env");
-  const tbody = document.getElementById("admin-logic-steps");
-  if (!botSelect || !modeSelect || !envSelect || !tbody) return;
-
-  const key = [
-    botSelect.value || "none",
-    modeSelect.value || "chatgpt",
-    envSelect.value || "local",
-  ].join("|");
-  const rows = Array.from(tbody.querySelectorAll("tr[data-step-id]"));
-
-  const readState = () => {
-    const order = rows.map((r) => r.dataset.stepId);
-    const titles = {};
-    rows.forEach((r) => {
-      const titleEl = r.querySelector("[data-step-title]");
-      if (titleEl) titles[r.dataset.stepId] = titleEl.textContent.trim();
-    });
-    return { order, titles };
-  };
-
-  const writeState = (data) => {
-    stepOverrides[key] = data;
-    saveStepOverrides();
-    renderAdminPanel();
-  };
-
-  if (saveBtn) {
-    const current = readState();
-    writeState(current);
-    showToast("Збережено локальний JSON для кроків.");
-    return;
-  }
-  if (resetBtn) {
-    delete stepOverrides[key];
-    saveStepOverrides();
-    renderAdminPanel();
-    showToast("Скинуто зміни для цього ключа.");
-    return;
-  }
-  if (stepUp || stepDown) {
-    const row = (stepUp || stepDown).closest("tr");
-    const idx = rows.indexOf(row);
-    if (idx === -1) return;
-    if (stepUp && idx > 0) {
-      tbody.insertBefore(row, rows[idx - 1]);
-    } else if (stepDown && idx < rows.length - 1) {
-      tbody.insertBefore(rows[idx + 1], row);
-    }
   }
 }
 
@@ -4164,13 +3967,11 @@ function buildSteps(currentState) {
     )
   );
 
-  const ordered = applyStepOverrides(result, currentState);
-
-  ordered.forEach((step, index) => {
+  result.forEach((step, index) => {
     step.number = index + 1;
   });
 
-  return ordered;
+  return result;
 }
 
 function createStep(id, section, title, renderFn, extras = {}) {
@@ -6603,44 +6404,54 @@ function renderExtraModulesStep(container) {
 function renderAutosaveStorageStep(container) {
   const data = ensureExtraModuleData().autosave;
   const backendTitle = getBackendTitle();
+  renderInfo(container, [
+    `Тип: ${getBotMetaByType(state.choices.botType)?.title || "Бот"} | Середовище: ${state.choices.environment || "—"} | ШІ: ${state.choices.mode || "—"} | Зберігання: ${backendTitle}`,
+  ]);
   renderFileCreateBlock(
     container,
     "storageFileCreated",
     data.storage.file || "storage.py",
     "Файл сховища стану користувачів."
   );
-  renderInfo(container, [
-    `• Поточний тип зберігання: ${backendTitle}. Працюй поверх нього — змінювати на інший тип не можна.`,
-    "• Додай у файл сховища функції save_user_state(user_id, state_dict) та load_user_state(user_id).",
-    "• Якщо потрібен окремий запис/таблиця для стану — створи її без ламання існуючої структури.",
-  ]);
-
-  renderCodePromptSection(container, {
-    title: "Файл зі сховищем користувача",
-    dataRef: data.storage,
-    fileLabel: "Шлях до файла",
-    composePrompt: () =>
-      composeAutosaveStoragePrompt(data.storage, backendTitle),
-    copyLabel: "Скопіювати промпт для сховища",
-  });
+  const storagePrompt = [
+    `Потік автозбереження для ${backendTitle}.`,
+    `Файл: ${data.storage.file || "storage.py"}.`,
+    "Додай функції save_user_state(user_id, state_dict) та load_user_state(user_id).",
+    "Використай поточне сховище (SQLite/JSON/gsheets/postgres) без зміни інших частин.",
+    "Поверни повний код файла одним блоком.",
+  ].join("\n");
+  container.appendChild(
+    createPromptBlock(storagePrompt, {
+      copyLabel: "Промпт для storage.py",
+      ai: getPromptAiTarget("code"),
+      openLabel: getAiLabel(getPromptAiTarget("code")),
+      collapsible: true,
+    })
+  );
 }
 
 function renderAutosaveHooksStep(container) {
   const data = ensureExtraModuleData().autosave;
   const storageFile = data.storage.file || "storage.py";
+  const entryFile = data.hooks.file || getEntryFile();
   renderInfo(container, [
-    "• Усі місця, де змінюється стан користувача (списки задач, статуси, прогрес), мають викликати функцію save_user_state.",
-    "• Використай існуючий механізм user_id / state — нічого не вигадуй заново, просто додай виклики збереження.",
-    `• Імпортуй save_user_state з файла ${storageFile}.`,
+    `Тип: ${getBotMetaByType(state.choices.botType)?.title || "Бот"} | Середовище: ${state.choices.environment || "—"} | ШІ: ${state.choices.mode || "—"} | Зберігання: ${getBackendTitle()}`,
   ]);
-
-  renderCodePromptSection(container, {
-    title: "Хендлери з логікою бота",
-    dataRef: data.hooks,
-    fileLabel: "Файл з хендлерами",
-    composePrompt: () => composeAutosaveHooksPrompt(data, storageFile),
-    copyLabel: "Скопіювати промпт для автозбереження",
-  });
+  const hooksPrompt = [
+    `Інтегруй автозбереження стану у ${entryFile} з використанням ${storageFile}.`,
+    `Імпортуй save_user_state/load_user_state з ${storageFile}.`,
+    "У всіх місцях зміни стану (додавання задач, зміна статусів, прогрес) викликай save_user_state(user_id, state_dict).",
+    "Покажи повний оновлений код основного файла одним блоком.",
+    "Якщо потрібні допоміжні зміни в storage.py — запропонуй їх теж.",
+  ].join("\n");
+  container.appendChild(
+    createPromptBlock(hooksPrompt, {
+      copyLabel: "Промпт для інтеграції у main.py",
+      ai: getPromptAiTarget("code"),
+      openLabel: getAiLabel(getPromptAiTarget("code")),
+      collapsible: true,
+    })
+  );
 }
 
 function renderAutosaveRestoreStep(container) {
