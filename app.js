@@ -3046,6 +3046,46 @@ function renderAdminPanel() {
   const paymentsEnabled =
     String(adminState.settings?.payments_enabled ?? "true") !== "false";
 
+  const logicKey = {
+    botType: state.choices.botType || BOT_TYPES[0]?.id || "task",
+    mode: state.choices.mode || MODE_OPTIONS[0]?.id || "chatgpt",
+    environment: state.choices.environment || ENVIRONMENTS[0]?.id || "local",
+  };
+  const logicKeyStr = [logicKey.botType, logicKey.mode, logicKey.environment].join(
+    "|"
+  );
+  const logicSteps = buildSteps({
+    ...state,
+    choices: { ...state.choices, ...logicKey },
+  });
+  const override = stepOverrides[logicKeyStr] || { order: [], titles: {} };
+  const overrideOrder = override.order || [];
+
+  const stepRows = logicSteps
+    .map(
+      (step, idx) => `
+        <tr data-step-id="${step.id}">
+          <td>${idx + 1}</td>
+          <td>${escapeHtml(step.section)}</td>
+          <td contenteditable="true" data-step-title>${escapeHtml(
+            step.title
+          )}</td>
+          <td>
+            <button type="button" class="ghost admin-step-up" data-step-id="${step.id}">▲</button>
+            <button type="button" class="ghost admin-step-down" data-step-id="${step.id}">▼</button>
+          </td>
+        </tr>
+      `
+    )
+    .join("");
+
+  const mindmapNodes = BOT_TYPES.map((bot) => {
+    const modes = MODE_OPTIONS.map(
+      (m) => `<li>${m.title}<ul><li>💻 Local</li><li>☁️ Codespaces</li></ul></li>`
+    ).join("");
+    return `<li>${bot.title}<ul>${modes}</ul></li>`;
+  }).join("");
+
   const botsCrudRows = adminState.bots.length
     ? adminState.bots
         .map((bot) => {
