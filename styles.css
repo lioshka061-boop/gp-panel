@@ -1424,6 +1424,45 @@ body.modal-open,
   margin-top: 4px;
 }
 
+.admin-logic-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-logic-controls select {
+  border-radius: 10px;
+  border: 1px solid rgba(120, 150, 255, 0.3);
+  background: rgba(6, 12, 24, 0.92);
+  color: #f4f6ff;
+  padding: 6px 8px;
+}
+
+.admin-logic-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-mindmap ul {
+  list-style: none;
+  padding-left: 12px;
+  color: rgba(230, 236, 255, 0.85);
+  line-height: 1.4;
+}
+
+.admin-mindmap li {
+  position: relative;
+  padding-left: 12px;
+}
+
+.admin-mindmap li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: rgba(120, 170, 255, 0.9);
+}
+
 .module-card {
   position: relative;
   padding-right: 48px;
