@@ -1398,13 +1398,6 @@ const STEP_DETAILS = {
 
 const LAUNCH_STEPS = [
   {
-    title: "Створення бота у BotFather",
-    items: [
-      "Перейди у `@BotFather` → команда `/newbot`.",
-      "Скопіюй токен та додай у `.env` як `BOT_TOKEN=тут_твій_токен`.",
-    ],
-  },
-  {
     title: "Запуск",
     items: [
       "Виконай у терміналі: `python main.py`.",
@@ -3702,6 +3695,14 @@ function buildSteps(currentState) {
         renderEnvStep
       )
     );
+    result.push(
+      createStep(
+        "botfather-create",
+        "II. Підготовка проєкту",
+        "Створення бота у BotFather",
+        renderBotfatherCreateStep
+      )
+    );
   }
 
   // III. База даних
@@ -5833,6 +5834,15 @@ class TaskRepository:
     ];
     renderInfo(container, connectLines);
   }
+}
+
+function renderBotfatherCreateStep(container) {
+  renderInfo(container, [
+    "Створи бота в @BotFather перед запуском:",
+    "1) Напиши /newbot та задай назву.",
+    "2) Скопіюй токен і додай у `.env` як `BOT_TOKEN=...`.",
+    "3) Переконайся, що .env не потрапляє у репозиторій.",
+  ]);
 }
 
 function renderBotfatherCommandsStep(container) {
